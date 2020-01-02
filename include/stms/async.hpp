@@ -11,15 +11,15 @@
 #include <cinttypes>
 #include <future>
 
-namespace hp2 {
+namespace stms {
     class ThreadPool;
 
     static void workerFunc(ThreadPool *parent, size_t index);
 
     struct ThreadPoolTask {
         uint32_t priority = 8;
-        void *pData{};
         std::packaged_task<void *(void *)> *pTask{};
+        void *pData{};
     };
 
     class ThreadPool {

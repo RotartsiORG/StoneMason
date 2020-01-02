@@ -5,7 +5,7 @@
 #include <iostream>
 #include "stms/async.hpp"
 
-namespace hp2 {
+namespace stms {
     static void workerFunc(ThreadPool *parent, size_t index) {
         while (parent->running) {
             if (index == parent->stopRequest) {
@@ -16,6 +16,7 @@ namespace hp2 {
             parent->taskQueueMtx.lock();
             if (parent->tasks.empty()) {
                 parent->taskQueueMtx.unlock();
+                std::this_thread::yield();
                 std::this_thread::sleep_for(std::chrono::milliseconds(parent->workerDelay));
                 continue;
             } else {

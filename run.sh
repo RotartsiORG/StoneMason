@@ -1,5 +1,9 @@
+CMK_EXE="/snap/bin/cmake"
+
 mkdir build
-/snap/bin/cmake -Bbuild -S.
+$CMK_EXE -Bbuild -S.
 
 cd build
 make
+
+./tests/stms_tests
