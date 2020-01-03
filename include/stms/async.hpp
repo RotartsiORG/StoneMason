@@ -40,8 +40,8 @@ namespace stms {
             bool operator()(const ThreadPoolTask &lhs, const ThreadPoolTask &rhs) const;
         };
 
-        std::mutex taskQueueMtx;
-        std::mutex workerMtx;
+        std::recursive_mutex taskQueueMtx;
+        std::recursive_mutex workerMtx;
 
         std::priority_queue<ThreadPoolTask, std::vector<ThreadPoolTask>, TaskComparator> tasks
                 = std::priority_queue<ThreadPoolTask, std::vector<ThreadPoolTask>, TaskComparator>();
@@ -51,6 +51,9 @@ namespace stms {
         size_t stopRequest = 0;
 
         friend void workerFunc(ThreadPool *parent, size_t index);
+
+        void
+        destroy(); // This function is needed since the destructor does unwanted dumb shit when we call it from operator=
 
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
@@ -84,8 +87,16 @@ namespace stms {
         void popWorker();
 
         inline size_t getNumWorkers() {
+            std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
             return workers.size();
         }
+
+        inline size_t getNumTasks() {
+            std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
+            return tasks.size();
+        }
+
+        void waitIdle();
 
         inline bool isRunning() {
             return running;

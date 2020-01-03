@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15.3)
 
+SET(CMAKE_CXX_STANDARD 17)
+
 set(STMS_VERSION 0.0.1)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
@@ -16,6 +18,9 @@ add_subdirectory(dep/glfw)
 
 add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp)
 add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp)
+
+target_compile_options(stms_shared PUBLIC -O3 -Wall -g3 -ggdb -std=c++17)
+target_compile_options(stms_static PUBLIC -O3 -Wall -g3 -ggdb -std=c++17)
 
 target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include ${OPENAL_INCLUDE_DIR})
 target_include_directories(stms_static PUBLIC include src dep dep/glfw/include ${OPENAL_INCLUDE_DIR})

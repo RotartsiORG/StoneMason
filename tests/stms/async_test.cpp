@@ -6,9 +6,44 @@
 #include "stms/async.hpp"
 
 namespace {
+    const int numTasks = 8;
+
+    struct WorkArgs {
+        unsigned wait;
+        std::string *pStr;
+        std::mutex *pStrMtx;
+        std::string identifier;
+    };
+
+    bool operator==(const WorkArgs &lhs, const WorkArgs &rhs) {
+        return (lhs.wait == rhs.wait) && (lhs.pStr == rhs.pStr) && (lhs.pStrMtx == rhs.pStrMtx) &&
+               (lhs.identifier == rhs.identifier);
+    }
+
+    std::ostream &operator<<(std::ostream &out, const WorkArgs &f) {
+        return out << "WorkArgs<wait=" << f.wait << ", pStr=" << f.pStr << ", pStrMtx=" << f.pStrMtx << ", id="
+                   << f.identifier << ">";
+    }
+
+    void *doWork(void *wait) {
+        auto *args = reinterpret_cast<WorkArgs *>(wait);
+        std::this_thread::sleep_for(std::chrono::milliseconds(args->wait));
+
+        std::lock_guard<std::mutex> lg(*args->pStrMtx);
+        args->pStr->append(args->identifier + ", ");
+        return args;
+    }
+
     class ThreadPoolTests : public ::testing::Test {
     protected:
         stms::ThreadPool *pool = nullptr;
+        std::string order;
+        std::string expecteOrder;
+        std::mutex orderMtx;
+
+        std::vector<WorkArgs> workArgs;
+
+        std::vector<std::future<void *>> futures;
 
         void SetUp() override {
             this->pool = new stms::ThreadPool();
@@ -17,74 +52,75 @@ namespace {
         void TearDown() override {
             delete this->pool;
         }
+
+        void startPool(uint32_t numThreads = 0) {
+            workArgs.clear();
+            for (unsigned i = 0; i < numTasks; i++) {
+                std::string id = std::to_string(i);
+                WorkArgs workArg = {1000, &order, &orderMtx, id};
+                workArgs.emplace_back(workArg);
+                expecteOrder += (id + ", ");
+            }
+
+            order.clear();
+            futures.clear();
+            for (int i = 0; i < numTasks; i++) {
+                futures.emplace_back(pool->submitTask(doWork, &workArgs.at(i), numTasks - i));
+            }
+
+            ASSERT_FALSE(pool->isRunning());
+            pool->start(numThreads);
+            ASSERT_TRUE(pool->isRunning());
+        }
+
+        void stopPool() {
+            pool->waitIdle();
+
+            for (int i = 0; i < numTasks; i++) {
+                ASSERT_EQ(*reinterpret_cast<WorkArgs *>(futures.at(i).get()), workArgs.at(i));
+            }
+
+            ASSERT_TRUE(pool->isRunning());
+            pool->stop();
+            ASSERT_FALSE(pool->isRunning());
+
+            // Skip order checking; it's not THAT important (i hope)
+            std::lock_guard<std::mutex> lg(orderMtx);
+            std::cout << "Order: '" << order << "' vs Expected: '" << expecteOrder << "'" << std::endl;
+        }
     };
 
-    void *factorialInPlace(void *dat) {
-        int *x = reinterpret_cast<int *>(dat);
-        int result = 1;
-        for (int i = *x; i > 1; i--) {
-            result *= i;
-        }
-        *x = result;
-        return nullptr;
-    }
-
-    // This function was straight up copy-pasta'ed from GeeksForGeeks: https://www.geeksforgeeks.org/sieve-of-eratosthenes/
-    // Just needed a quick algorithm to run.
-    void *sieveOfEratosthenes(void *pInt) {
-        int n = *reinterpret_cast<int *>(pInt);
-
-        bool prime[n + 1];
-        memset(prime, true, sizeof(prime));
-
-        for (int p = 2; p * p <= n; p++) {
-            if (prime[p]) {
-                for (int i = p * p; i <= n; i += p) {
-                    prime[i] = false;
-                }
-            }
-        }
-
-        auto *ret = new std::vector<int>();
-
-        for (int p = 2; p <= n; p++) {
-            if (prime[p]) {
-                ret->emplace_back(p);
-            }
-        }
-
-        return ret;
-    }
-
     TEST_F(ThreadPoolTests, MoveTest) {
+        *pool = std::move(*pool);  // Self-assignment test.
         stms::ThreadPool dis = std::move(*pool);
         *pool = std::move(dis);
     }
 
     TEST_F(ThreadPoolTests, TaskTest) {
-        int a = 8;
-        int b = 30;
-        std::vector<int> expectedPrimes({2, 3, 5, 7, 11, 13, 17, 19, 23, 29});
+        startPool();
+        stopPool();
+    }
 
-        auto future0 = pool->submitTask(factorialInPlace, &a, 0);
-        auto future1 = pool->submitTask(sieveOfEratosthenes, &b, 1);
-
-        ASSERT_FALSE(pool->isRunning());
-        pool->start();
-        ASSERT_TRUE(pool->isRunning());
-
-        std::vector<int> primes = *reinterpret_cast<std::vector<int> *>(future1.get());
-        ASSERT_EQ(primes, expectedPrimes);
-
-        ASSERT_EQ(nullptr, future0.get());
-        ASSERT_EQ(40320, a);
-
-        pool->stop();
-        ASSERT_FALSE(pool->isRunning());
+    TEST_F(ThreadPoolTests, MoveWhileRunningTest) {
+        startPool();
+        *pool = std::move(*pool);
+        stms::ThreadPool temp = std::move(*pool);
+        *pool = std::move(temp);
+        stopPool();
     }
 
     TEST_F(ThreadPoolTests, PopPushWorkerTest) {
-        // TODO: Write this test
+        startPool(1);
+        for (int i = 0; i < (numTasks / 2); i++) {
+            pool->pushWorker();
+        }
+        ASSERT_EQ(pool->getNumWorkers(), (numTasks / 2) + 1);
+
+        for (int i = 0; i < (numTasks / 2); i++) {
+            pool->popWorker();
+        }
+        ASSERT_EQ(pool->getNumWorkers(), 1);
+        stopPool();
     }
 }
 

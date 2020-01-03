@@ -57,7 +57,7 @@ namespace stms {
 
         this->running = true;
         {
-            std::lock_guard<std::mutex> lg(this->workerMtx);
+            std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
             for (uint32_t i = 0; i < threads; i++) {
                 this->workers.emplace_back(std::thread(workerFunc, this, i + 1));
             }
@@ -75,7 +75,7 @@ namespace stms {
         bool workersEmpty;
 
         {
-            std::lock_guard<std::mutex> lg(this->workerMtx);
+            std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
             workersEmpty = this->workers.empty();
         }
 
@@ -83,7 +83,7 @@ namespace stms {
             std::thread front;
 
             {
-                std::lock_guard<std::mutex> lg(this->workerMtx);
+                std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
                 front = std::move(this->workers.front());
                 this->workers.pop_front();
                 workersEmpty = this->workers.empty();
@@ -106,7 +106,7 @@ namespace stms {
         // Save future to variable since `task` is moved.
         auto future = task.task.get_future();
 
-        std::lock_guard<std::mutex> lg(this->taskQueueMtx);
+        std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
         this->tasks.push(std::move(task));
 
         return future;
@@ -120,7 +120,7 @@ namespace stms {
         }
 
         {
-            std::lock_guard<std::mutex> lg(this->workerMtx);
+            std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
             this->workers.emplace_back(workerFunc, this, this->workers.size() + 1);
         }
     }
@@ -132,10 +132,14 @@ namespace stms {
 
         std::thread back;
         {
-            std::lock_guard<std::mutex> lg(this->workerMtx);
+            std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
             back = std::move(this->workers.back());
             this->stopRequest = this->workers.size(); // Request the last worker to stop.
             this->workers.pop_back();
+            if (this->workers.empty()) {
+                this->running = false;
+                std::cerr << "The last worker was popped from ThreadPool! Stopping the pool!" << std::endl;
+            }
         }
 
         if (back.joinable()) {
@@ -150,20 +154,21 @@ namespace stms {
             return *this;
         }
 
-        this->~ThreadPool();
+        // Hopefully locking ALL mutexes during the move is enough to prevent aforementioned race conditions.
+        std::lock_guard<std::recursive_mutex> rhsWorkerLg(rhs.workerMtx);
+        std::lock_guard<std::recursive_mutex> thisWorkerLg(this->workerMtx);
+        std::lock_guard<std::recursive_mutex> rhsTaskLg(rhs.taskQueueMtx);
+        std::lock_guard<std::recursive_mutex> thisTaskLg(this->taskQueueMtx);
+
+        this->destroy();
 
         if (rhs.running) {
             std::cerr
                     << "A thread pool was moved (using `std::move`) whilst it was still running! This MAY cause issues!";
             std::cerr
-                    << " The mutex controlling access to the task queue cannot be moved with the thread pool, therefore the mutex member is ignored!";
+                    << " The mutexes cannot be moved with the thread pool, therefore the mutex members are ignored!";
             std::cerr << " This MAY result in a race condition, and you WILL have to debug it!" << std::endl;
         }
-
-        std::lock_guard<std::mutex> rhsWorkerLg(rhs.workerMtx);
-        std::lock_guard<std::mutex> thisWorkerLg(this->workerMtx);
-        std::lock_guard<std::mutex> rhsTaskLg(rhs.taskQueueMtx);
-        std::lock_guard<std::mutex> thisTaskLg(this->taskQueueMtx);
 
         // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
         this->stopRequest = rhs.stopRequest;
@@ -180,10 +185,21 @@ namespace stms {
     }
 
     ThreadPool::~ThreadPool() {
+        this->destroy();
+    }
+
+    void ThreadPool::waitIdle() {
+        while (getNumTasks() != 0) {
+            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::milliseconds(workerDelay));
+        }
+    }
+
+    void ThreadPool::destroy() {
         if (this->running) {
             stop();
         }
-        std::lock_guard<std::mutex> lg(this->taskQueueMtx);
+        std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
         if (!tasks.empty()) {
             std::cerr << "Warning! Thread pool destroyed with " << tasks.size()
                       << " tasks still incomplete! They will NEVER get executed!"
