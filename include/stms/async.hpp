@@ -16,14 +16,21 @@ namespace stms {
 
     static void workerFunc(ThreadPool *parent, size_t index);
 
-    struct ThreadPoolTask {
-        uint32_t priority = 8;
-        std::packaged_task<void *(void *)> *pTask{};
-        void *pData{};
-    };
-
     class ThreadPool {
     private:
+        struct ThreadPoolTask {
+        public:
+            uint32_t priority = 8;
+            std::packaged_task<void *(void *)> task;
+            void *pData{};
+
+            ThreadPoolTask() = default;
+
+            ThreadPoolTask(ThreadPoolTask &&rhs) noexcept;
+
+            ThreadPoolTask &operator=(ThreadPoolTask &&rhs) noexcept;
+        };
+
         class TaskComparator {
         private:
             bool reverse;
@@ -70,7 +77,7 @@ namespace stms {
         // No new tasks waiting in queue would be accepted.
         void stop();
 
-        void submitTask(ThreadPoolTask task);
+        std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, uint32_t priority);
 
         void pushWorker();
 

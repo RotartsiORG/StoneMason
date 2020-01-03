@@ -20,18 +20,13 @@ namespace stms {
                 std::this_thread::sleep_for(std::chrono::milliseconds(parent->workerDelay));
                 continue;
             } else {
-                ThreadPoolTask front = parent->tasks.top();
+                ThreadPool::ThreadPoolTask front = std::move(
+                        *const_cast<ThreadPool::ThreadPoolTask *>(&parent->tasks.top()));
+
                 parent->tasks.pop();
                 parent->taskQueueMtx.unlock();
 
-                if (front.pTask == nullptr) {
-                    std::cerr << "For a task submitted to a thread pool, `task.pTask` was `nullptr`!";
-                    std::cerr << " This would've segfaulted! Ignoring this task!" << std::endl;
-                    continue;
-                }
-
-                std::packaged_task<void *(void *)> frontTask = std::move(*front.pTask);
-                frontTask(front.pData);
+                front.task(front.pData);
             }
         }
     }
@@ -102,9 +97,19 @@ namespace stms {
         }
     }
 
-    void ThreadPool::submitTask(ThreadPoolTask task) {
+    std::future<void *> ThreadPool::submitTask(std::function<void *(void *)> func, void *dat, uint32_t priority) {
+        ThreadPoolTask task{};
+        task.pData = dat;
+        task.priority = priority;
+        task.task = std::packaged_task<void *(void *)>(func);
+
+        // Save future to variable since `task` is moved.
+        auto future = task.task.get_future();
+
         std::lock_guard<std::mutex> lg(this->taskQueueMtx);
-        this->tasks.push(task);
+        this->tasks.push(std::move(task));
+
+        return future;
     }
 
     void ThreadPool::pushWorker() {
@@ -155,20 +160,17 @@ namespace stms {
             std::cerr << " This MAY result in a race condition, and you WILL have to debug it!" << std::endl;
         }
 
+        std::lock_guard<std::mutex> rhsWorkerLg(rhs.workerMtx);
+        std::lock_guard<std::mutex> thisWorkerLg(this->workerMtx);
+        std::lock_guard<std::mutex> rhsTaskLg(rhs.taskQueueMtx);
+        std::lock_guard<std::mutex> thisTaskLg(this->taskQueueMtx);
+
         // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
         this->stopRequest = rhs.stopRequest;
         this->running = rhs.running;
         this->workerDelay = rhs.workerDelay;
-        {
-            std::lock_guard<std::mutex> rhsLg(rhs.taskQueueMtx);
-            std::lock_guard<std::mutex> thisLg(this->taskQueueMtx);
-            this->tasks = std::move(rhs.tasks);
-        }
-        {
-            std::lock_guard<std::mutex> rhsLg(rhs.workerMtx);
-            std::lock_guard<std::mutex> thisLg(this->workerMtx);
-            this->workers = std::move(rhs.workers);
-        }
+        this->tasks = std::move(rhs.tasks);
+        this->workers = std::move(rhs.workers);
 
         return *this;
     }
@@ -187,5 +189,21 @@ namespace stms {
                       << " tasks still incomplete! They will NEVER get executed!"
                       << std::endl;
         }
+    }
+
+    ThreadPool::ThreadPoolTask::ThreadPoolTask(ThreadPool::ThreadPoolTask &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    ThreadPool::ThreadPoolTask &ThreadPool::ThreadPoolTask::operator=(ThreadPool::ThreadPoolTask &&rhs) noexcept {
+        if (&rhs == this) {
+            return *this;
+        }
+
+        this->pData = rhs.pData;
+        this->priority = rhs.priority;
+        this->task = std::move(rhs.task);
+
+        return *this;
     }
 }

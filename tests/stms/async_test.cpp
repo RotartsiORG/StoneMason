@@ -6,7 +6,7 @@
 #include "stms/async.hpp"
 
 namespace {
-    class ThreadPoolTest : public ::testing::Test {
+    class ThreadPoolTests : public ::testing::Test {
     protected:
         stms::ThreadPool *pool = nullptr;
 
@@ -14,12 +14,12 @@ namespace {
             this->pool = new stms::ThreadPool();
         }
 
-        virtual void TearDown() {
+        void TearDown() override {
             delete this->pool;
         }
     };
 
-    static void *factorialInPlace(void *dat) {
+    void *factorialInPlace(void *dat) {
         int *x = reinterpret_cast<int *>(dat);
         int result = 1;
         for (int i = *x; i > 1; i--) {
@@ -29,54 +29,62 @@ namespace {
         return nullptr;
     }
 
-    TEST_F(ThreadPoolTest, MoveTest
-    ) {
-//        stms::ThreadPool dis = std::move(*pool);
-//        *pool = std::move(dis);
-}
+    // This function was straight up copy-pasta'ed from GeeksForGeeks: https://www.geeksforgeeks.org/sieve-of-eratosthenes/
+    // Just needed a quick algorithm to run.
+    void *sieveOfEratosthenes(void *pInt) {
+        int n = *reinterpret_cast<int *>(pInt);
 
-TEST_F(ThreadPoolTest, DoingStuffTest
-) {
-int a = 8;
-std::packaged_task<void *(void *)> task(factorialInPlace);
-std::future<void *> future = task.get_future();
+        bool prime[n + 1];
+        memset(prime, true, sizeof(prime));
 
-pool->submitTask({
-});
-pool->submitTask({
-8, &task, &a});
-ASSERT_FALSE(pool
-->
+        for (int p = 2; p * p <= n; p++) {
+            if (prime[p]) {
+                for (int i = p * p; i <= n; i += p) {
+                    prime[i] = false;
+                }
+            }
+        }
 
-isRunning()
+        auto *ret = new std::vector<int>();
 
-);
-pool->
+        for (int p = 2; p <= n; p++) {
+            if (prime[p]) {
+                ret->emplace_back(p);
+            }
+        }
 
-start();
+        return ret;
+    }
 
-ASSERT_TRUE(pool
-->
+    TEST_F(ThreadPoolTests, MoveTest) {
+        stms::ThreadPool dis = std::move(*pool);
+        *pool = std::move(dis);
+    }
 
-isRunning()
+    TEST_F(ThreadPoolTests, TaskTest) {
+        int a = 8;
+        int b = 30;
+        std::vector<int> expectedPrimes({2, 3, 5, 7, 11, 13, 17, 19, 23, 29});
 
-);
-ASSERT_EQ(nullptr, future.
+        auto future0 = pool->submitTask(factorialInPlace, &a, 0);
+        auto future1 = pool->submitTask(sieveOfEratosthenes, &b, 1);
 
-get()
+        ASSERT_FALSE(pool->isRunning());
+        pool->start();
+        ASSERT_TRUE(pool->isRunning());
 
-);
-ASSERT_EQ(40320, a);
-pool->
+        std::vector<int> primes = *reinterpret_cast<std::vector<int> *>(future1.get());
+        ASSERT_EQ(primes, expectedPrimes);
 
-stop();
+        ASSERT_EQ(nullptr, future0.get());
+        ASSERT_EQ(40320, a);
 
-ASSERT_FALSE(pool
-->
+        pool->stop();
+        ASSERT_FALSE(pool->isRunning());
+    }
 
-isRunning()
-
-);
-}
+    TEST_F(ThreadPoolTests, PopPushWorkerTest) {
+        // TODO: Write this test
+    }
 }
 
