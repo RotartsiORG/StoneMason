@@ -42,14 +42,14 @@ namespace stms {
     }
 
 
-    void ThreadPool::start(uint32_t threads) {
+    void ThreadPool::start(unsigned threads) {
         if (this->running) {
             std::cerr << "`ThreadPool::start()` was called when thread pool is already running! Ignoring invocation!"
                       << std::endl;
             return;
         }
         if (threads == 0) {
-            threads = (uint32_t) (std::thread::hardware_concurrency() * 1); // Choose a good multiplier
+            threads = (unsigned) (std::thread::hardware_concurrency() * 1); // Choose a good multiplier
             if (threads == 0) { // If that's STILL 0, default to 8 threads.
                 threads = 8;
             }
@@ -58,7 +58,7 @@ namespace stms {
         this->running = true;
         {
             std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
-            for (uint32_t i = 0; i < threads; i++) {
+            for (unsigned i = 0; i < threads; i++) {
                 this->workers.emplace_back(std::thread(workerFunc, this, i + 1));
             }
         }
@@ -97,7 +97,7 @@ namespace stms {
         }
     }
 
-    std::future<void *> ThreadPool::submitTask(std::function<void *(void *)> func, void *dat, uint32_t priority) {
+    std::future<void *> ThreadPool::submitTask(std::function<void *(void *)> func, void *dat, unsigned priority) {
         ThreadPoolTask task{};
         task.pData = dat;
         task.priority = priority;
@@ -167,7 +167,7 @@ namespace stms {
                     << "A thread pool was moved (using `std::move`) whilst it was still running! This MAY cause issues!";
             std::cerr
                     << " The mutexes cannot be moved with the thread pool, therefore the mutex members are ignored!";
-            std::cerr << " This MAY result in a race condition, and you WILL have to debug it!" << std::endl;
+            std::cerr << " This MAY result in a race condition, and YOU will have to debug it!" << std::endl;
         }
 
         // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)

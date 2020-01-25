@@ -16,14 +16,16 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory(dep/glfw)
 
-add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp)
-add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp)
+#add_subdirectory(dep/bullet3)
+
+add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp)
+add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp)
 
 target_compile_options(stms_shared PUBLIC -O3 -Wall -g3 -ggdb -std=c++17)
 target_compile_options(stms_static PUBLIC -O3 -Wall -g3 -ggdb -std=c++17)
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include ${OPENAL_INCLUDE_DIR})
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include ${OPENAL_INCLUDE_DIR})
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/glm ${OPENAL_INCLUDE_DIR})
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/glm ${OPENAL_INCLUDE_DIR})
 
 target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY})
 target_link_libraries(stms_static PUBLIC glfw ${OPENAL_LIBRARY})

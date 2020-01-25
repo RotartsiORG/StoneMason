@@ -20,7 +20,7 @@ namespace stms {
     private:
         struct ThreadPoolTask {
         public:
-            uint32_t priority = 8;
+            unsigned priority = 8;
             std::packaged_task<void *(void *)> task;
             void *pData{};
 
@@ -58,7 +58,7 @@ namespace stms {
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
         // worker threads may throttle the CPU. If set too high, then the workers would waste time idling.
-        uint32_t workerDelay = 125;
+        unsigned workerDelay = 125;
 
         // Deleted copy constructor and copy assignment operator.
         ThreadPool &operator=(const ThreadPool &rhs) = delete;
@@ -71,16 +71,16 @@ namespace stms {
 
         ThreadPool() = default;
 
-        ~ThreadPool();
+        virtual ~ThreadPool();
 
         // If `threads` is 0, then the ret value of `std::thread::hardware_concurrency()` is used.
-        void start(uint32_t threads = 0);
+        void start(unsigned threads = 0);
 
         // This function will block until all ongoing tasks are complete.
         // No new tasks waiting in queue would be accepted.
         void stop();
 
-        std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, uint32_t priority);
+        std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, unsigned priority);
 
         void pushWorker();
 

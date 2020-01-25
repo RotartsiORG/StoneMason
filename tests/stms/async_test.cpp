@@ -53,7 +53,7 @@ namespace {
             delete this->pool;
         }
 
-        void startPool(uint32_t numThreads = 0) {
+        void startPool(unsigned numThreads = 0) {
             workArgs.clear();
             for (unsigned i = 0; i < numTasks; i++) {
                 std::string id = std::to_string(i);
