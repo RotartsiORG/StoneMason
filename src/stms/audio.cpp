@@ -5,6 +5,7 @@
 #include "stms/audio.hpp"
 #include "stb/stb_vorbis.c"
 #include <iostream>
+#include <stms/logging.hpp>
 
 namespace stms {
 
@@ -14,7 +15,7 @@ namespace stms {
     bool handleAlError() {
         ALenum error = alGetError();
         if (error != AL_NO_ERROR) {
-            std::cout << "[*AL ERROR*]: " << error << std::endl;
+            STMS_WARN("[** OpenAL ERROR **]: {}", error);
             return true;
         } else {
             return false;
@@ -23,7 +24,6 @@ namespace stms {
 
     ALBuffer::ALBuffer(const char *filename) {
         len = stb_vorbis_decode_filename(filename, &channels, &sampleRate, &data);
-        std::cout << "len = " << len << ", channels = " << channels << ", sampleRate = " << sampleRate << std::endl;
         alGenBuffers(1, &id);
 
         if (channels > 1) {
@@ -103,7 +103,7 @@ namespace stms {
     bool ALDevice::handleError() {
         ALCenum error = alcGetError(id);
         if (error != ALC_NO_ERROR) {
-            std::cout << "[*ALC ERROR*] " << error << std::endl;
+            STMS_WARN("[** ALC ERROR **] {}", error);
             return true;
         } else {
             return false;

@@ -2,5 +2,15 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/bullet3" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/glfw" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/glm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/googletest" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/openssl" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/openssl/boringssl" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/openssl/krb5" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/openssl/pyca-cryptography" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/spdlog" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/dep/stb" vcs="Git" />
   </component>
 </project>

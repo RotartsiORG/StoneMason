@@ -13,3 +13,9 @@
 [submodule "dep/bullet3"]
 	path = dep/bullet3
 	url = https://github.com/bulletphysics/bullet3/
+[submodule "dep/openssl"]
+	path = dep/openssl
+	url = https://github.com/openssl/openssl
+[submodule "dep/spdlog"]
+	path = dep/spdlog
+	url = https://github.com/gabime/spdlog

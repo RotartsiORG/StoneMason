@@ -3,6 +3,7 @@
 //
 
 #include <iostream>
+#include <stms/logging.hpp>
 #include "stms/async.hpp"
 
 namespace stms {
@@ -44,8 +45,7 @@ namespace stms {
 
     void ThreadPool::start(unsigned threads) {
         if (this->running) {
-            std::cerr << "`ThreadPool::start()` was called when thread pool is already running! Ignoring invocation!"
-                      << std::endl;
+            STMS_INFO("`ThreadPool::start()` was called when thread pool is already running! Ignoring invocation!");
             return;
         }
         if (threads == 0) {
@@ -66,8 +66,7 @@ namespace stms {
 
     void ThreadPool::stop() {
         if (!this->running) {
-            std::cerr << "`ThreadPool::stop()` was called when thread pool is already stopped! Ignoring invocation!"
-                      << std::endl;
+            STMS_INFO("`ThreadPool::stop()` was called when thread pool is already stopped! Ignoring invocation!");
             return;
         }
         this->running = false;
@@ -114,8 +113,7 @@ namespace stms {
 
     void ThreadPool::pushWorker() {
         if (!this->running) {
-            std::cerr << "`ThreadPool::pushWorker()` called while the thread pool was stopped! Ignoring invocation!"
-                      << std::endl;
+            STMS_INFO("`ThreadPool::pushWorker()` called while the thread pool was stopped! Ignoring invocation!");
             return;
         }
 
@@ -127,7 +125,8 @@ namespace stms {
 
     void ThreadPool::popWorker() {
         if (!this->running) {
-            throw std::runtime_error("A worker was popped while the thread pool was stopped!");
+            STMS_INFO("`ThreadPool::popWorker()` was called while the thread pool was stopped! Ignoring invocation");
+            return;
         }
 
         std::thread back;
@@ -138,7 +137,7 @@ namespace stms {
             this->workers.pop_back();
             if (this->workers.empty()) {
                 this->running = false;
-                std::cerr << "The last worker was popped from ThreadPool! Stopping the pool!" << std::endl;
+                STMS_DEBUG("The last worker was popped from ThreadPool! Stopping the pool!");
             }
         }
 
@@ -161,14 +160,6 @@ namespace stms {
         std::lock_guard<std::recursive_mutex> thisTaskLg(this->taskQueueMtx);
 
         this->destroy();
-
-        if (rhs.running) {
-            std::cerr
-                    << "A thread pool was moved (using `std::move`) whilst it was still running! This MAY cause issues!";
-            std::cerr
-                    << " The mutexes cannot be moved with the thread pool, therefore the mutex members are ignored!";
-            std::cerr << " This MAY result in a race condition, and YOU will have to debug it!" << std::endl;
-        }
 
         // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
         this->stopRequest = rhs.stopRequest;
@@ -201,9 +192,9 @@ namespace stms {
         }
         std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
         if (!tasks.empty()) {
-            std::cerr << "Warning! Thread pool destroyed with " << tasks.size()
-                      << " tasks still incomplete! They will NEVER get executed!"
-                      << std::endl;
+            STMS_WARN(
+                    "Warning! A thread pool was destroyed with {} tasks still incomplete! They will NEVER be executed!",
+                    tasks.size());
         }
     }
 

@@ -4,11 +4,14 @@
 
 #include <thread>
 #include "gtest/gtest.h"
+
 #include "stms/audio.hpp"
+#include "stms/config.hpp"
+#include "stms/logging.hpp"
 
 namespace {
     TEST(AL, Play) {
-        stms::ALBuffer testBuf("/home/grant/Desktop/StoneMason/build/tests/test.ogg");
+        stms::ALBuffer testBuf("./res/test.ogg");
         stms::ALSource testSrc;
         testSrc.enqueueBuf(&testBuf);
         testSrc.play();
@@ -24,5 +27,16 @@ namespace {
         while (stms::defaultAlDevice.handleError()) {
             FAIL() << "stms::defaultAlDevice.handleError() failed!";
         }
+    }
+
+    TEST(Log, Log) {
+        stms::logging.init();
+        STMS_TRACE("STMS_TRACE: Pi is {1}, and the answer to life is {0}, I'm running STMS {2}", 42, 3.14,
+                   STMS_VERSION);
+        STMS_DEBUG("STMS_DEBUG");
+        STMS_INFO("STMS_INFO");
+        STMS_WARN("STMS_WARN");
+        STMS_FATAL("STMS_FATAL, same as STMS_CRITICAL");
+        STMS_CRITICAL("STMS_CRITICAL, same as STMS_FATAL");
     }
 }

@@ -4,6 +4,8 @@ mkdir build
 $CMK_EXE -DSTMS_GENERATE_DOCS=ON -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
 
 cd build
-make
+$CMK_EXE --build .
 
-./tests/stms_tests
+cd ..
+
+./build/tests/stms_tests

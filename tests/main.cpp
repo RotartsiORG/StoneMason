@@ -4,4 +4,4 @@
 
 #include "gtest/gtest.h"
 #include "stms/async_test.cpp"
-#include "stms/audio_test.cpp"
+#include "stms/log_audio_test.cpp"
