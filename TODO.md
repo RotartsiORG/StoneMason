@@ -1,4 +1,10 @@
+
+[comment]: # (This is a markdown document, but can still be read in plaintext.
+              If you're seeing this, then you're reading the plaintext version.)
+
 # StoneMason TODO list
+### Misc
+1. Add mutexes for the various queues in `IOService`?
 
 ### Physics
 1. Learn Bullet Physics (bullet3: https://github.com/bulletphysics/bullet3) 

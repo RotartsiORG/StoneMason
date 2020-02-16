@@ -24,8 +24,8 @@ add_subdirectory(dep/spdlog)
 add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp)
 add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp)
 
-target_compile_options(stms_shared PUBLIC -O3 -Wall -g3 -ggdb -std=c++17)
-target_compile_options(stms_static PUBLIC -O3 -Wall -g3 -ggdb -std=c++17)
+target_compile_options(stms_shared PUBLIC -O3 -Wall -Wextra -g3 -ggdb -std=c++17)
+target_compile_options(stms_static PUBLIC -O3 -Wall -Wextra -g3 -ggdb -std=c++17)
 
 target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR})
 target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR})

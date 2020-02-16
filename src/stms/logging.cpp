@@ -6,6 +6,8 @@
 #include "stms/logging.hpp"
 
 namespace stms {
+    bool LogInitializer::hasRun = false;
+
     std::string getCurrentDatetime() {
         std::ostringstream oss;
         time_t rawTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -16,7 +18,7 @@ namespace stms {
         localtime_r(&rawTime, &timeInfo);
 #endif
 
-        oss << std::put_time(&timeInfo, STMS_TIME_FORMAT) << std::endl;
+        oss << std::put_time(&timeInfo, STMS_TIME_FORMAT);
         return oss.str();
     }
 
@@ -29,7 +31,16 @@ namespace stms {
 #ifdef STMS_ENABLE_LOGGING
 
     LogInitializer::LogInitializer() noexcept {
+        if (hasRun) {
+            STMS_INFO("The constructor for `stms::LogInitializer` has been called twice! This is not intended!");
+            STMS_INFO(
+                    "This is most likely because YOU, the STMS user, has tried to initialize another LogInitializer!");
+            STMS_INFO("Don't do that! This invocation will be ignored, but you BETTER fix it... :(");
+            return;
+        }
         try {
+            spdlog::set_error_handler(onSPDLogError);
+
 #ifdef STMS_ENABLE_ASYNC_LOGGING
             spdlog::init_thread_pool(8192, 1);
 #endif
@@ -95,8 +106,6 @@ namespace stms {
 
             spdlog::set_pattern(STMS_LOG_FORMAT);
 
-            spdlog::set_error_handler(onSPDLogError);
-
             STMS_INFO("Started StoneMason {}! Compiled on {} at {}. The current time is {}", STMS_VERSION, __DATE__,
                       __TIME__, now);
         }
@@ -104,13 +113,13 @@ namespace stms {
             std::cerr << "Log initialization failed: " << ex.what() << std::endl;
             STMS_WARN("Log initialization failed: {}", ex.what());
         }
+        hasRun = true;
     }
 
 #else
     LogInitializer::LogInitializer() noexcept {}
-
-    badcodewontdevencompile xD :)
 #endif
+
 
     volatile LogInitializer logging = LogInitializer();
 }

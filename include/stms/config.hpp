@@ -18,7 +18,7 @@
 
 #define STMS_LOG_DIR "stms_logs"
 
-#define STMS_LOG_FORMAT "%^[%H:%M:%S.%e] [%l] [%P|%t] [%!|%s:%#]: %v%$"
+#define STMS_LOG_FORMAT "%^[%H:%M:%S.%e] [%=8l] [%P|%t] [%!|%s:%#]: %v%$"
 
 #define STMS_TIME_FORMAT "%Y.%m.%d %H:%M:%S"
 

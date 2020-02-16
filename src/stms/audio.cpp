@@ -7,7 +7,7 @@
 #include <iostream>
 #include <stms/logging.hpp>
 
-namespace stms {
+namespace stms::al {
 
     ALDevice defaultAlDevice;
     ALContext defaultAlContext(&defaultAlDevice, nullptr);
@@ -37,7 +37,7 @@ namespace stms {
         alDeleteBuffers(1, &id);
     }
 
-    ALBuffer &ALBuffer::operator=(ALBuffer const &rhs) noexcept {
+    ALBuffer &ALBuffer::operator=(ALBuffer &&rhs) noexcept {
         if (&rhs == this) {
             return *this;
         }
@@ -50,12 +50,13 @@ namespace stms {
         this->sampleRate = rhs.sampleRate;
 
         this->id = rhs.id;
+        rhs.id = 0;
 
         return *this;
     }
 
-    ALBuffer::ALBuffer(ALBuffer &rhs) {
-        *this = rhs;
+    ALBuffer::ALBuffer(ALBuffer &&rhs) noexcept {
+        *this = std::move(rhs);
     }
 
 
@@ -67,11 +68,11 @@ namespace stms {
         alDeleteSources(1, &id);
     }
 
-    ALSource::ALSource(ALSource &rhs) {
-        *this = rhs;
+    ALSource::ALSource(ALSource &&rhs) noexcept {
+        *this = std::move(rhs);
     }
 
-    ALSource &ALSource::operator=(ALSource const &rhs) noexcept {
+    ALSource &ALSource::operator=(ALSource &&rhs) noexcept {
         if (this == &rhs) {
             return *this;
         }
@@ -79,6 +80,7 @@ namespace stms {
         alDeleteSources(1, &id);
 
         this->id = rhs.id;
+        rhs.id = 0;
 
         return *this;
     }
@@ -91,6 +93,24 @@ namespace stms {
     ALContext::~ALContext() {
         alcDestroyContext(id);
     }
+
+    ALContext::ALContext(ALContext &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    ALContext &ALContext::operator=(ALContext &&rhs) noexcept {
+        if (&rhs == this) {
+            return *this;
+        }
+
+        alcDestroyContext(this->id);
+
+        this->id = rhs.id;
+        rhs.id = nullptr;
+
+        return *this;
+    }
+
 
     ALDevice::ALDevice(const ALCchar *devname) noexcept {
         id = alcOpenDevice(devname);
@@ -108,5 +128,22 @@ namespace stms {
         } else {
             return false;
         }
+    }
+
+    ALDevice::ALDevice(ALDevice &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    ALDevice &ALDevice::operator=(ALDevice &&rhs) noexcept {
+        if (this == &rhs) {
+            return *this;
+        }
+
+        alcCloseDevice(this->id);
+
+        this->id = rhs.id;
+        rhs.id = nullptr;
+
+        return *this;
     }
 }

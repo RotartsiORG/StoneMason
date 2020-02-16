@@ -13,7 +13,7 @@
 #include "al.h"
 #include "alc.h"
 
-namespace stms {
+namespace stms::al {
     class ALDevice {
     private:
         ALCdevice *id{};
@@ -31,6 +31,14 @@ namespace stms {
         inline void flushErrors() {
             while (handleError());
         };
+
+        ALDevice(ALDevice &rhs) = delete;
+
+        ALDevice &operator=(ALDevice &rhs) = delete;
+
+        ALDevice(ALDevice &&rhs) noexcept;
+
+        ALDevice &operator=(ALDevice &&rhs) noexcept;
     };
 
     class ALContext {
@@ -46,6 +54,14 @@ namespace stms {
         inline void bind() {
             alcMakeContextCurrent(id);
         }
+
+        ALContext(ALContext &rhs) = delete;
+
+        ALContext &operator=(ALContext &rhs) = delete;
+
+        ALContext(ALContext &&rhs) noexcept;
+
+        ALContext &operator=(ALContext &&rhs) noexcept;
     };
 
     class ALBuffer {
@@ -66,9 +82,13 @@ namespace stms {
 
         virtual ~ALBuffer();
 
-        ALBuffer &operator=(ALBuffer const &rhs) noexcept;
+        ALBuffer &operator=(ALBuffer &rhs) = delete;
 
-        ALBuffer(ALBuffer &rhs);
+        ALBuffer(ALBuffer &rhs) = delete;
+
+        ALBuffer &operator=(ALBuffer &&rhs) noexcept;
+
+        ALBuffer(ALBuffer &&rhs) noexcept;
     };
 
     class ALSource {
@@ -139,9 +159,13 @@ namespace stms {
             return state == AL_PLAYING;
         }
 
-        ALSource(ALSource &rhs);
+        ALSource(ALSource &rhs) = delete;
 
-        ALSource &operator=(ALSource const &rhs) noexcept;
+        ALSource &operator=(ALSource &rhs) = delete;
+
+        ALSource(ALSource &&rhs) noexcept;
+
+        ALSource &operator=(ALSource &&rhs) noexcept;
     };
 
     namespace ALListener {

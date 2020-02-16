@@ -11,8 +11,8 @@
 
 namespace {
     TEST(AL, Play) {
-        stms::ALBuffer testBuf("./res/test.ogg");
-        stms::ALSource testSrc;
+        stms::al::ALBuffer testBuf("./res/test.ogg");
+        stms::al::ALSource testSrc;
         testSrc.enqueueBuf(&testBuf);
         testSrc.play();
 
@@ -21,10 +21,10 @@ namespace {
             std::this_thread::sleep_for(std::chrono::milliseconds(125));
         }
 
-        while (stms::handleAlError()) {
+        while (stms::al::handleAlError()) {
             FAIL() << "stms::handleAlError() failed!";
         }
-        while (stms::defaultAlDevice.handleError()) {
+        while (stms::al::defaultAlDevice.handleError()) {
             FAIL() << "stms::defaultAlDevice.handleError() failed!";
         }
     }

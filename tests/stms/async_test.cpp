@@ -112,14 +112,14 @@ namespace {
     TEST_F(ThreadPoolTests, PopPushWorkerTest) {
         startPool(1);
         for (int i = 0; i < (numTasks / 2); i++) {
-            pool->pushWorker();
+            pool->pushThread();
         }
-        ASSERT_EQ(pool->getNumWorkers(), (numTasks / 2) + 1);
+        ASSERT_EQ(pool->getNumThreads(), (numTasks / 2) + 1);
 
         for (int i = 0; i < (numTasks / 2); i++) {
-            pool->popWorker();
+            pool->popThread();
         }
-        ASSERT_EQ(pool->getNumWorkers(), 1);
+        ASSERT_EQ(pool->getNumThreads(), 1);
         stopPool();
     }
 }

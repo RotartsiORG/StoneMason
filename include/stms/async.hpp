@@ -56,6 +56,10 @@ namespace stms {
         void
         destroy(); // This function is needed since the destructor does unwanted dumb shit when we call it from operator=
 
+        void rawSubmit(std::packaged_task<void *(void *)> *task, void *data, unsigned priority);
+
+        friend class IOService;
+
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
         // worker threads may throttle the CPU. If set too high, then the workers would waste time idling.
@@ -83,11 +87,11 @@ namespace stms {
 
         std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, unsigned priority);
 
-        void pushWorker();
+        void pushThread();
 
-        void popWorker();
+        void popThread();
 
-        inline size_t getNumWorkers() {
+        inline size_t getNumThreads() {
             std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
             return workers.size();
         }
@@ -102,6 +106,83 @@ namespace stms {
         inline bool isRunning() {
             return running;
         }
+    };
+
+    class IOService {
+    private:
+        struct PoolAndRange {
+            ThreadPool *threadPool = nullptr;
+            unsigned id = 0;
+
+            // Ranges are inclusive
+            unsigned minPriority = 0;
+            unsigned maxPriority = -1;
+        };
+
+        struct Timeout {
+            std::packaged_task<void *(void *)> task;
+            unsigned id = 0;
+            void *data{};
+            std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds> start;
+            unsigned delay;
+            unsigned priority;
+        };
+
+        struct Interval {
+            std::function<void(void *)> func;
+            unsigned id = 0;
+            void *data{};
+            bool timeExec;
+        };
+
+        std::vector<PoolAndRange> pools;
+        unsigned nextPoolID = 0;
+
+        std::vector<Interval> intervals;
+        unsigned nextIntervalID = 0;
+
+        std::vector<Timeout> timeouts;
+        unsigned nextTiemoutID = 0;
+
+        void rawSubmit(std::packaged_task<void *(void *)> *task, void *data, unsigned priority);
+
+    public:
+        IOService();
+
+        virtual ~IOService();
+
+        // Returns pool ID to be used in `removePool`
+        unsigned addPool(ThreadPool *pool, unsigned min = 0, unsigned max = -1);
+
+        void removePool(unsigned pool);
+
+        std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, unsigned priority);
+
+        // Should the execution time count towards the cooldown?
+        unsigned setInterval(const std::function<void(void *)> &func, void *data, bool timeExecution);
+
+        void clearInterval(unsigned interval);
+
+        unsigned setSubmitInterval(const std::function<void *(void *)> &func, void *data);
+
+        void clearSubmitInterval(unsigned interval);
+
+        // Delay in milliseconds
+        std::future<void *>
+        setTimeout(std::function<void *(void *)> func, void *data, unsigned delay, unsigned priority,
+                   unsigned *timeoutID = nullptr);
+
+        void clearTimeout(unsigned timeout);
+
+        void update();
+
+        IOService &operator=(IOService &rhs) = delete;
+
+        IOService(IOService &rhs) = delete;
+
+        IOService &operator=(IOService &&rhs) noexcept;
+
+        IOService(IOService &&rhs) noexcept;
     };
 }
 

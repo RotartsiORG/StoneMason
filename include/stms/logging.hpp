@@ -59,19 +59,23 @@
 namespace stms {
     std::string getCurrentDatetime();
 
-    static void onSPDLogError(const std::string &msg);
-
     class LogInitializer {
     public:
+        static bool hasRun;
+
         uint8_t specialValue = 0;
 
         LogInitializer() noexcept;
 
-        // Dummy function to make sure the constructor is called
+        // Dummy function to make sure the constructor is called and not optimized out
         inline uint8_t init() volatile {
             std::cout << specialValue;
             return specialValue;
         }
+
+        LogInitializer(LogInitializer &rhs) = delete;
+
+        LogInitializer &operator=(LogInitializer &rhs) = delete;
     };
 
     extern volatile LogInitializer logging;
