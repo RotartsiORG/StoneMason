@@ -3,11 +3,13 @@
 //
 
 #include <thread>
+#include <bitset>
 #include "gtest/gtest.h"
 
 #include "stms/audio.hpp"
 #include "stms/config.hpp"
 #include "stms/logging.hpp"
+#include "stms/util.hpp"
 
 namespace {
     TEST(AL, Play) {
@@ -38,5 +40,25 @@ namespace {
         STMS_WARN("STMS_WARN");
         STMS_FATAL("STMS_FATAL, same as STMS_CRITICAL");
         STMS_CRITICAL("STMS_CRITICAL, same as STMS_FATAL");
+    }
+
+    TEST(UUID, GenUUID4) {
+        for (int i = 0; i < 25; i++) {
+            stms::UUID uuid = stms::genUUID4();
+
+            std::bitset<8> uuidClockSeqHiAndReserved(uuid.clockSeqHiAndReserved);
+            ASSERT_EQ(uuidClockSeqHiAndReserved.test(6), 0);
+            ASSERT_EQ(uuidClockSeqHiAndReserved.test(7), 1);
+
+            std::cout << "clockSeqHiAndReserved = " << uuidClockSeqHiAndReserved;
+            std::bitset<16> uuidTimeHiAndVersion(uuid.timeHiAndVersion);
+            ASSERT_EQ(uuidTimeHiAndVersion.test(15), 0);
+            ASSERT_EQ(uuidTimeHiAndVersion.test(14), 1);
+            ASSERT_EQ(uuidTimeHiAndVersion.test(13), 0);
+            ASSERT_EQ(uuidTimeHiAndVersion.test(12), 0);
+
+            std::cout << "\ttimeHiAndVersion = " << uuidTimeHiAndVersion;
+            std::cout << "\t" << uuid.getStr() << std::endl;
+        }
     }
 }
