@@ -32,7 +32,7 @@ namespace {
     }
 
     TEST(Log, Log) {
-        stms::logging.init();
+        stms::initAll();
         STMS_TRACE("STMS_TRACE: Pi is {1}, and the answer to life is {0}, I'm running STMS {2}", 42, 3.14,
                    STMS_VERSION);
         STMS_DEBUG("STMS_DEBUG");
@@ -42,23 +42,30 @@ namespace {
         STMS_CRITICAL("STMS_CRITICAL, same as STMS_FATAL");
     }
 
-    TEST(UUID, GenUUID4) {
-        for (int i = 0; i < 25; i++) {
+    TEST(UUID, Collisions) {
+        const int numIter = 16384;
+        std::vector<std::string> seen;
+        seen.resize(numIter);
+
+        for (int i = 0; i < numIter; i++) {
             stms::UUID uuid = stms::genUUID4();
+            uuid.getStr();
 
             std::bitset<8> uuidClockSeqHiAndReserved(uuid.clockSeqHiAndReserved);
             ASSERT_EQ(uuidClockSeqHiAndReserved.test(6), 0);
             ASSERT_EQ(uuidClockSeqHiAndReserved.test(7), 1);
 
-            std::cout << "clockSeqHiAndReserved = " << uuidClockSeqHiAndReserved;
             std::bitset<16> uuidTimeHiAndVersion(uuid.timeHiAndVersion);
             ASSERT_EQ(uuidTimeHiAndVersion.test(15), 0);
             ASSERT_EQ(uuidTimeHiAndVersion.test(14), 1);
             ASSERT_EQ(uuidTimeHiAndVersion.test(13), 0);
             ASSERT_EQ(uuidTimeHiAndVersion.test(12), 0);
 
-            std::cout << "\ttimeHiAndVersion = " << uuidTimeHiAndVersion;
-            std::cout << "\t" << uuid.getStr() << std::endl;
+            ASSERT_EQ(uuid.strCache.length(), 36);
+
+            ASSERT_EQ(std::find(seen.begin(), seen.end(), uuid.strCache), seen.end())
+                                        << "UUID Collision for " << uuid.strCache;
+            seen.emplace_back(uuid.strCache);
         }
     }
 }

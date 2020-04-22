@@ -12,7 +12,10 @@
 
 namespace stms {
     extern std::default_random_engine stmsRand;
-    extern char hexDigits[16];
+
+    extern int (*sslRand)(uint8_t *, int);
+
+    extern int (*privateSslRand)(uint8_t *, int);
 
     struct UUID {
     public:
@@ -33,6 +36,23 @@ namespace stms {
     int intRand(int min, int max);
 
     float floatRand(float min, float max);
+
+    class STMSInitializer {
+    public:
+        static bool hasRun;
+
+        uint8_t specialValue = 0;
+
+        STMSInitializer() noexcept;
+
+        STMSInitializer(STMSInitializer &rhs) = delete;
+
+        STMSInitializer &operator=(STMSInitializer &rhs) = delete;
+    };
+
+    extern STMSInitializer stmsInitializer;
+
+    void initAll();
 }
 
 #endif //__STONEMASON_UTIL_HPP

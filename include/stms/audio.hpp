@@ -100,60 +100,60 @@ namespace stms::al {
 
         virtual ~ALSource();
 
-        inline void play() {
+        inline void play() const {
             alSourcePlay(id);
         }
 
-        inline void enqueueBuf(ALBuffer *buf) {
+        inline void enqueueBuf(ALBuffer *buf) const {
             alSourceQueueBuffers(id, 1, &buf->id);
         }
 
-        inline void stop() {
+        inline void stop() const {
             alSourceStop(id);
         }
 
-        inline void pause() {
+        inline void pause() const {
             alSourcePause(id);
         }
 
-        inline void rewind() {
+        inline void rewind() const {
             alSourceRewind(id);
         }
 
-        inline void dequeueBuf(ALBuffer *bufs) {
+        inline void dequeueBuf(ALBuffer *bufs) const {
             alSourceUnqueueBuffers(id, 1, &bufs->id);
         }
 
-        inline void setLooping(bool looping) {
+        inline void setLooping(bool looping) const {
             alSourcei(id, AL_LOOPING, looping ? AL_TRUE : AL_FALSE);
         }
 
-        inline void setPitch(float pitch) {
+        inline void setPitch(float pitch) const {
             alSourcef(id, AL_PITCH, pitch);
         }
 
-        inline void setGain(float gain) {
+        inline void setGain(float gain) const {
             alSourcef(id, AL_GAIN, gain);
         }
 
-        inline void setVel(glm::vec3 vel) {
+        inline void setVel(glm::vec3 vel) const {
             alSource3f(id, AL_VELOCITY, vel.x, vel.y, vel.z);
         }
 
-        inline void setPos(glm::vec3 pos) {
+        inline void setPos(glm::vec3 pos) const {
             alSource3f(id, AL_POSITION, pos.x, pos.y, pos.z);
         }
 
-        inline void setOri(glm::vec3 forward, glm::vec3 up) {
+        inline void setOri(glm::vec3 forward, glm::vec3 up) const {
             float ori[6] = {forward.x, forward.y, forward.z, up.x, up.y, up.z};
             alSourcefv(id, AL_ORIENTATION, ori);
         }
 
-        inline void bindBuffer(ALBuffer *buf) {
+        inline void bindBuffer(ALBuffer *buf) const {
             alSourcei(id, AL_BUFFER, buf->id);
         }
 
-        inline bool isPlaying() {
+        inline bool isPlaying() const {
             ALint state;
             alGetSourcei(id, AL_SOURCE_STATE, &state);
             return state == AL_PLAYING;

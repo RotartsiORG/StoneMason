@@ -103,7 +103,7 @@ namespace stms {
 
         void waitIdle();
 
-        inline bool isRunning() {
+        [[nodiscard]] inline bool isRunning() const {
             return running;
         }
     };
