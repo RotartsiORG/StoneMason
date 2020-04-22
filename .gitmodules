@@ -19,3 +19,15 @@
 [submodule "dep/spdlog"]
 	path = dep/spdlog
 	url = https://github.com/gabime/spdlog
+[submodule "dep/tinyobjloader"]
+	path = dep/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader
+[submodule "dep/glew"]
+	path = dep/glew
+	url = https://github.com/nigels-com/glew
+[submodule "dep/tinygltf"]
+	path = dep/tinygltf
+	url = https://github.com/syoyo/tinygltf
+[submodule "dep/imgui"]
+	path = dep/imgui
+	url = https://github.com/ocornut/imgui
