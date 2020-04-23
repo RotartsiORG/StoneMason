@@ -7,7 +7,7 @@
 
 namespace {
     TEST(DLTS, Server) {
-        stms::net::DTLSServer serv = stms::net::DTLSServer("127.0.0.1");
+        stms::net::DTLSServer serv = stms::net::DTLSServer("192.168.1.83");
         serv.start();
         serv.stop();
     }

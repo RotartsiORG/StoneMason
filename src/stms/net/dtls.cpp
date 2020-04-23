@@ -5,9 +5,13 @@
 #include "stms/net/dtls.hpp"
 #include "stms/util.hpp"
 #include "stms/logging.hpp"
+
+#include <unistd.h>
 #include <unordered_map>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+
+
 #include "openssl/ssl.h"
 #include "openssl/rand.h"
 
@@ -74,9 +78,24 @@ namespace stms::net {
     static void mainThreadWorker(DTLSServer *server) {
         bool on = true;
 
-        server->serverSock = socket(AF_INET6, SOCK_DGRAM, 0);
+        server->serverSock = socket(AF_INET6, SOCK_DGRAM, 0);  // ip46
+        if (server->serverSock == -1) {
+            STMS_INFO("Failed to start DTLS Server: Unable to create socket (Errno: {})", strerror(errno));
+            server->isRunning = false;
+            return;
+        }
+
         //setsockopt(server->serverSock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(bool));
-        bind(server->serverSock, reinterpret_cast<const sockaddr *>(&server->serverAddr), sizeof(sockaddr_in6));
+        if (bind(server->serverSock, reinterpret_cast<const struct sockaddr *>(&server->serverAddr),
+                 sizeof(server->serverAddr)) == -1) {
+            STMS_INFO("Failed to start DTLS Server: Unable to bind socket (Errno: {})", strerror(errno));
+            server->isRunning = false;
+            return;
+        }
+
+        char addr[32];
+        inet_ntop(AF_INET6, &server->serverAddr.sin6_addr, addr, 32);
+        STMS_INFO("DTLS server started on {}:{}", addr, ntohs(server->serverAddr.sin6_port)); // ip46
 
         while (server->isRunning) {
             BIO *bio = BIO_new_dgram(server->serverSock, BIO_NOCLOSE);
@@ -87,27 +106,47 @@ namespace stms::net {
 
             BioAddrType cliAddr{};
             while (!DTLSv1_listen(ssl, reinterpret_cast<BIO_ADDR *>(&cliAddr)));
-            if (cliAddr.sockStore.ss_family != AF_INET6) {
+            // Start thread here
+
+            if (cliAddr.sockStore.ss_family != AF_INET6) { // ip46
                 STMS_INFO(
-                        "Client tried to connect using an internet layer protocol other than IPv6! Refusing connection.");
+                        "Client tried to connect using an internet layer protocol other than IPv4! Refusing connection.");
                 continue;
             }
 
-            int clientSock = socket(AF_INET6, SOCK_DGRAM, 0);
-            bind(clientSock, reinterpret_cast<const sockaddr *>(&server->serverAddr), sizeof(sockaddr_in6));
-            connect(clientSock, reinterpret_cast<const sockaddr *>(&cliAddr.sock6), sizeof(sockaddr_in6));
+            int clientSock = socket(AF_INET6, SOCK_DGRAM, 0); // ip46
+            if (clientSock == -1) {
+                STMS_INFO("Unable to create client socket (Errno: {})", strerror(errno));
+                server->isRunning = false;
+                return;
+            }
+
+            if (bind(clientSock, reinterpret_cast<const sockaddr *>(&server->serverAddr), sizeof(server->serverAddr)) ==
+                -1) {
+                STMS_INFO("Unable to bind client socket: (Errno: {})", strerror(errno));
+                server->isRunning = false;
+                return;
+            }
+            if (connect(clientSock, reinterpret_cast<const sockaddr *>(&cliAddr.sock6), sizeof(cliAddr.sock6)) ==
+                -1) { // ip46
+                STMS_INFO("Unable to connect client socket: (Errno: {})", strerror(errno));
+                server->isRunning = false;
+                return;
+            }
 
             BIO *clientBio = SSL_get_rbio(ssl);
             BIO_set_fd(clientBio, clientSock, BIO_NOCLOSE);
-            BIO_ctrl(clientBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &cliAddr.sock6);
+            BIO_ctrl(clientBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &cliAddr.sock6); // ip46
 
             int err;
             do { err = SSL_accept(ssl); } while (err == 0);
-
         }
+
+        close(server->serverSock);
+        server->serverSock = 0;
     }
 
-    DTLSServer::DTLSServer(const std::string &ipAddr, unsigned int port, const std::string &certPem,
+    DTLSServer::DTLSServer(const std::string &ipAddr, unsigned short port, const std::string &certPem,
                            const std::string &keyPem) {
         ctx = SSL_CTX_new(DTLS_server_method());
         SSL_CTX_use_certificate_chain_file(ctx, certPem.c_str());
@@ -117,8 +156,15 @@ namespace stms::net {
         SSL_CTX_set_cookie_generate_cb(ctx, genCookie);
         SSL_CTX_set_cookie_verify_cb(ctx, verifyCookie);
 
-        inet_pton(AF_INET6, ipAddr.c_str(), &serverAddr.sin6_addr);
-        serverAddr.sin6_port = port;
+        int status = inet_pton(AF_INET6, ipAddr.c_str(), &serverAddr.sin6_addr); // ip46
+        serverAddr.sin6_port = htons(port);
+        serverAddr.sin6_family = AF_INET6;  // ip46
+
+        if (status == 0) {
+            STMS_INFO("Failed to resolve IP Address for DTLS Server: \"{}\" isn't a valid IP address!", ipAddr);
+        } else if (status == -1) {
+            STMS_INFO("Failed to resolve IP Address for DTLS Server: (Errno: {})", strerror(errno));
+        }
 
     }
 

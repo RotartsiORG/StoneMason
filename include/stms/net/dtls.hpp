@@ -28,7 +28,7 @@ namespace stms::net {
 
     class DTLSServer {
     private:
-        sockaddr_in6 serverAddr{};
+        sockaddr_in6 serverAddr{}; // ip46
         SSL_CTX *ctx{};
         int serverSock{};
         bool isRunning = false;
@@ -39,7 +39,7 @@ namespace stms::net {
 
         DTLSServer() = default;
 
-        explicit DTLSServer(const std::string &ipAddr, unsigned port = 4433,
+        explicit DTLSServer(const std::string &ipAddr, unsigned short port = 80,
                             const std::string &certPem = "server-cert.pem",
                             const std::string &keyPem = "server-key.pem");
 
