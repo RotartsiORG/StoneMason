@@ -69,6 +69,35 @@ namespace stms {
         return strCache;
     }
 
+    UUID::UUID(const UUID &rhs) {
+        *this = rhs;
+    }
+
+    UUID &UUID::operator=(const UUID &rhs) {
+        if (this == &rhs) {
+            return *this;
+        }
+        strCache = rhs.strCache;
+        timeLow = rhs.timeLow;
+        timeMid = rhs.timeMid;
+        timeHiAndVersion = rhs.timeHiAndVersion;
+        clockSeqLow = rhs.clockSeqLow;
+        clockSeqHiAndReserved = rhs.clockSeqHiAndReserved;
+        std::copy(std::begin(rhs.node), std::end(rhs.node), std::begin(node));
+
+        return *this;
+    }
+
+    bool UUID::operator==(const UUID &rhs) const {
+        return (timeLow == rhs.timeLow) && (timeMid == rhs.timeMid) && (timeHiAndVersion == rhs.timeHiAndVersion) &&
+               (clockSeqLow == rhs.clockSeqLow) && (clockSeqHiAndReserved == rhs.clockSeqHiAndReserved) &&
+               (memcmp(node, rhs.node, sizeof(uint8_t) * 6) == 0);
+    }
+
+    bool UUID::operator!=(const UUID &rhs) const {
+        return !(*this == rhs);
+    }
+
     STMSInitializer::STMSInitializer() noexcept {
         if (hasRun) {
             STMS_INFO("The constructor for `stms::STMSInitializer` has been called twice! This is not intended!");

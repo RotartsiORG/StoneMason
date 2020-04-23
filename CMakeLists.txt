@@ -22,8 +22,8 @@ add_subdirectory(dep/glfw)
 set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 add_subdirectory(dep/spdlog)
 
-add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp)
-add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp)
+add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls.cpp include/stms/net/dtls.hpp)
+add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls.cpp include/stms/net/dtls.hpp)
 
 target_compile_options(stms_shared PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17)  # -O3
 target_compile_options(stms_static PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17) # -O3
@@ -31,7 +31,6 @@ target_compile_options(stms_static PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17
 target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 
-message("OpenSSL ${OPENSSL_LIBRARIES}")
 target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES})
 target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES})
 

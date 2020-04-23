@@ -24,10 +24,12 @@
 
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
+#define STMS_LOG_TO_UNIQUE
+
 // Unless you plan on NEVER using cryptography or can stand UUID collisions, DO NOT set this to true.
 #define STMS_IGNORE_BAD_RNG false
 
-#define STMS_LOG_TO_UNIQUE
+#define STMS_DTLS_COOKIE_SECRET_LEN 16
 
 namespace stms {
 
