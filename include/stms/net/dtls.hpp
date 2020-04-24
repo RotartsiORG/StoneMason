@@ -10,15 +10,19 @@
 #include <string>
 #include <thread>
 #include <netinet/in.h>
+#include <unordered_map>
 
 #include "openssl/ssl.h"
 #include "openssl/bio.h"
 #include "openssl/err.h"
+#include "stms/util.hpp"
 
 namespace stms::net {
     class DTLSServer;
 
     static void mainThreadWorker(DTLSServer *server);
+
+    static void clientThreadWorker(DTLSServer *server, const std::string &uuid);
 
     struct BioAddrType {
         sockaddr_storage sockStore;
@@ -26,16 +30,28 @@ namespace stms::net {
         sockaddr_in sock4;
     };
 
+    struct DTLSClientRepresentation {
+        std::thread thread;
+        BioAddrType addr;
+        BIO *bio;
+        SSL *ssl;
+        int sock;
+    };
+
     class DTLSServer {
     private:
+        bool IPv4Enabled = true;
         sockaddr_in6 serverAddr{}; // ip46
         SSL_CTX *ctx{};
         int serverSock{};
         bool isRunning = false;
         std::thread controlThread;
+        std::unordered_map<std::string, DTLSClientRepresentation> clients;
 
     public:
         friend void mainThreadWorker(DTLSServer *server);
+
+        friend void clientThreadWorker(DTLSServer *server, const std::string &uuid);
 
         DTLSServer() = default;
 

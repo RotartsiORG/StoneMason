@@ -75,22 +75,69 @@ namespace stms::net {
 
     }
 
+    static void clientThreadWorker(DTLSServer *server, const std::string &uuid) {
+#define __SDC server->clients[uuid]
+        if (__SDC.addr.sockStore.ss_family != AF_INET6 && !server->IPv4Enabled) { // ip46
+            STMS_INFO(
+                    "Client tried to connect using an internet layer protocol other than IPv4! Refusing connection.");
+            goto clientClean;
+        }
+
+        __SDC.sock = socket(AF_INET6, SOCK_DGRAM, 0); // ip46
+        if (__SDC.sock == -1) {
+            STMS_INFO("Unable to create client socket (Errno: {})", strerror(errno));
+            goto clientClean;
+        }
+
+        if (bind(__SDC.sock, reinterpret_cast<const sockaddr *>(&server->serverAddr), sizeof(server->serverAddr)) ==
+            -1) {
+            STMS_INFO("Unable to bind client socket: (Errno: {})", strerror(errno));
+            goto clientClean;
+        }
+        if (connect(__SDC.sock, reinterpret_cast<const sockaddr *>(&__SDC.addr.sock6), sizeof(__SDC.addr.sock6)) ==
+            -1) { // ip46
+            STMS_INFO("Unable to connect client socket: (Errno: {})", strerror(errno));
+            goto clientClean;
+        }
+
+        __SDC.bio = SSL_get_rbio(__SDC.ssl);
+        BIO_set_fd(__SDC.bio, __SDC.sock, BIO_NOCLOSE);
+        BIO_ctrl(__SDC.bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &__SDC.addr.sock6); // ip46
+
+        int err;
+        do { err = SSL_accept(__SDC.ssl); } while (err == 0);
+
+        // Loop here
+
+        clientClean:
+        SSL_free(__SDC.ssl);
+        BIO_free(__SDC.bio);
+        close(__SDC.sock);
+        __SDC.thread.detach();
+        server->clients.erase(uuid);
+#undef __SDC
+    }
+
     static void mainThreadWorker(DTLSServer *server) {
         bool on = true;
 
         server->serverSock = socket(AF_INET6, SOCK_DGRAM, 0);  // ip46
         if (server->serverSock == -1) {
             STMS_INFO("Failed to start DTLS Server: Unable to create socket (Errno: {})", strerror(errno));
-            server->isRunning = false;
-            return;
+            goto clean;
+        }
+
+        server->IPv4Enabled = true;
+        if (setsockopt(server->serverSock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(bool)) == -1) {
+            server->IPv4Enabled = false;
+            STMS_INFO("Failed to setsockopt to allow IPv4 connections!");
         }
 
         //setsockopt(server->serverSock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(bool));
         if (bind(server->serverSock, reinterpret_cast<const struct sockaddr *>(&server->serverAddr),
                  sizeof(server->serverAddr)) == -1) {
             STMS_INFO("Failed to start DTLS Server: Unable to bind socket (Errno: {})", strerror(errno));
-            server->isRunning = false;
-            return;
+            goto clean;
         }
 
         char addr[32];
@@ -98,50 +145,22 @@ namespace stms::net {
         STMS_INFO("DTLS server started on {}:{}", addr, ntohs(server->serverAddr.sin6_port)); // ip46
 
         while (server->isRunning) {
-            BIO *bio = BIO_new_dgram(server->serverSock, BIO_NOCLOSE);
-            SSL *ssl = SSL_new(server->ctx);
-            SSL_set_bio(ssl, bio, bio);
+            DTLSClientRepresentation cli{};
+            cli.bio = BIO_new_dgram(server->serverSock, BIO_NOCLOSE);
+            cli.ssl = SSL_new(server->ctx);
+            SSL_set_bio(cli.ssl, cli.bio, cli.bio);
 
-            SSL_set_options(ssl, SSL_OP_COOKIE_EXCHANGE);
+            SSL_set_options(cli.ssl, SSL_OP_COOKIE_EXCHANGE);
 
-            BioAddrType cliAddr{};
-            while (!DTLSv1_listen(ssl, reinterpret_cast<BIO_ADDR *>(&cliAddr)));
+            while (!DTLSv1_listen(cli.ssl, reinterpret_cast<BIO_ADDR *>(&cli.addr)));
             // Start thread here
-
-            if (cliAddr.sockStore.ss_family != AF_INET6) { // ip46
-                STMS_INFO(
-                        "Client tried to connect using an internet layer protocol other than IPv4! Refusing connection.");
-                continue;
-            }
-
-            int clientSock = socket(AF_INET6, SOCK_DGRAM, 0); // ip46
-            if (clientSock == -1) {
-                STMS_INFO("Unable to create client socket (Errno: {})", strerror(errno));
-                server->isRunning = false;
-                return;
-            }
-
-            if (bind(clientSock, reinterpret_cast<const sockaddr *>(&server->serverAddr), sizeof(server->serverAddr)) ==
-                -1) {
-                STMS_INFO("Unable to bind client socket: (Errno: {})", strerror(errno));
-                server->isRunning = false;
-                return;
-            }
-            if (connect(clientSock, reinterpret_cast<const sockaddr *>(&cliAddr.sock6), sizeof(cliAddr.sock6)) ==
-                -1) { // ip46
-                STMS_INFO("Unable to connect client socket: (Errno: {})", strerror(errno));
-                server->isRunning = false;
-                return;
-            }
-
-            BIO *clientBio = SSL_get_rbio(ssl);
-            BIO_set_fd(clientBio, clientSock, BIO_NOCLOSE);
-            BIO_ctrl(clientBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &cliAddr.sock6); // ip46
-
-            int err;
-            do { err = SSL_accept(ssl); } while (err == 0);
+            std::string uuid = stms::genUUID4().getStr();
+            server->clients[uuid] = std::move(cli);
+            server->clients[uuid].thread = std::thread(clientThreadWorker, server, uuid);
         }
 
+        clean:
+        server->isRunning = false;
         close(server->serverSock);
         server->serverSock = 0;
     }
