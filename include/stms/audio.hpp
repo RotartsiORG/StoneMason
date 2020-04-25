@@ -184,10 +184,10 @@ namespace stms::al {
     }
 
     // Returns true if there was an error handled
-    bool handleAlError();
+    ALenum handleAlError();
 
     inline void flushAlErrors() {
-        while (handleAlError());
+        while (handleAlError() != AL_NO_ERROR);
     }
 
     // Initiate stuff

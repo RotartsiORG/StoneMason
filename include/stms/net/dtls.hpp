@@ -9,8 +9,12 @@
 
 #include <string>
 #include <thread>
-#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <unordered_map>
+#include <stms/async.hpp>
+#include <stms/logging.hpp>
 
 #include "openssl/ssl.h"
 #include "openssl/bio.h"
@@ -24,15 +28,14 @@ namespace stms::net {
 
     static void clientThreadWorker(DTLSServer *server, const std::string &uuid);
 
-    struct BioAddrType {
-        sockaddr_storage sockStore;
-        sockaddr_in6 sock6;
-        sockaddr_in sock4;
-    };
+    unsigned long handleSSLError();
+
+    inline void flushSSLErrors() {
+        while (handleSSLError() != 0);
+    }
 
     struct DTLSClientRepresentation {
-        std::thread thread;
-        BioAddrType addr;
+        BIO_ADDR *addr;
         BIO *bio;
         SSL *ssl;
         int sock;
@@ -40,13 +43,13 @@ namespace stms::net {
 
     class DTLSServer {
     private:
-        bool IPv4Enabled = true;
-        sockaddr_in6 serverAddr{}; // ip46
+        bool v6 = false;
+        addrinfo servAddr{};
+        std::string servAddrStr;
         SSL_CTX *ctx{};
         int serverSock{};
         bool isRunning = false;
-        std::thread controlThread;
-        std::unordered_map<std::string, DTLSClientRepresentation> clients;
+        stms::ThreadPool *pool{};
 
     public:
         friend void mainThreadWorker(DTLSServer *server);
@@ -55,7 +58,8 @@ namespace stms::net {
 
         DTLSServer() = default;
 
-        explicit DTLSServer(const std::string &ipAddr, unsigned short port = 80,
+        explicit DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any", bool preferV6 = true,
+                            const std::string &port = "3000",
                             const std::string &certPem = "server-cert.pem",
                             const std::string &keyPem = "server-key.pem");
 
@@ -70,6 +74,8 @@ namespace stms::net {
         DTLSServer(DTLSServer &&rhs) noexcept;
 
         void start();
+
+        bool tick();
 
         void stop();
     };

@@ -12,14 +12,12 @@ namespace stms::al {
     ALDevice defaultAlDevice;
     ALContext defaultAlContext(&defaultAlDevice, nullptr);
 
-    bool handleAlError() {
+    ALenum handleAlError() {
         ALenum error = alGetError();
         if (error != AL_NO_ERROR) {
             STMS_WARN("[** OpenAL ERROR **]: {}", error);
-            return true;
-        } else {
-            return false;
         }
+        return error;
     }
 
     ALBuffer::ALBuffer(const char *filename) {
