@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include <fcntl.h>
 
 #include "openssl/ssl.h"
 #include "openssl/rand.h"
@@ -21,7 +22,6 @@ namespace stms::net {
     static uint8_t secretCookie[STMS_DTLS_COOKIE_SECRET_LEN];
 
     struct HashAddr {
-        // int fam;
         unsigned short port;
         uint8_t addr[INET6_ADDRSTRLEN];
     };
@@ -34,7 +34,9 @@ namespace stms::net {
     unsigned long handleSSLError() {
         unsigned long ret = ERR_get_error();
         if (ret != 0) {
-            STMS_WARN("[** OPENSSL ERROR **]: {}", ret);
+            char errStr[256]; // Min length specified by man pages for ERR_error_string_n()
+            ERR_error_string_n(ret, errStr, 256);
+            STMS_WARN("[** OPENSSL ERROR **]: {}", errStr);
         }
         return ret;
     }
@@ -58,10 +60,9 @@ namespace stms::net {
 
         size_t addrLen = INET6_ADDRSTRLEN;
         HashAddr addr{};
-        // addr.fam = BIO_ADDR_family(peer); // TODO: Do i need this field?
         addr.port = BIO_ADDR_rawport(peer);
         BIO_ADDR_rawaddress(peer, addr.addr, &addrLen);
-        addrLen += sizeof(unsigned short);  // + sizeof(int);
+        addrLen += sizeof(unsigned short);
 
         auto result = new uint8_t[DTLS1_COOKIE_LENGTH - 1];
         *len = DTLS1_COOKIE_LENGTH - 1;
@@ -96,53 +97,9 @@ namespace stms::net {
 
     }
 
-//    static void clientThreadWorker(DTLSServer *server, const std::string &uuid) {
-//#define __SDC server->clients[uuid]
-//        if (__SDC.addr.sockStore.ss_family != AF_INET6 && !server->IPv4Enabled) { // ip46
-//            STMS_INFO(
-//                    "Client tried to connect using an internet layer protocol other than IPv4! Refusing connection.");
-//            goto clientClean;
-//        }
-//
-//        __SDC.sock = socket(AF_INET6, SOCK_DGRAM, 0); // ip46
-//        if (__SDC.sock == -1) {
-//            STMS_INFO("Unable to create client socket (Errno: {})", strerror(errno));
-//            goto clientClean;
-//        }
-//
-//        if (bind(__SDC.sock, reinterpret_cast<const sockaddr *>(&server->serverAddr), sizeof(server->serverAddr)) ==
-//            -1) {
-//            STMS_INFO("Unable to bind client socket: (Errno: {})", strerror(errno));
-//            goto clientClean;
-//        }
-//        if (connect(__SDC.sock, reinterpret_cast<const sockaddr *>(&__SDC.addr.sock6), sizeof(__SDC.addr.sock6)) ==
-//            -1) { // ip46
-//            STMS_INFO("Unable to connect client socket: (Errno: {})", strerror(errno));
-//            goto clientClean;
-//        }
-//
-//        __SDC.bio = SSL_get_rbio(__SDC.ssl);
-//        BIO_set_fd(__SDC.bio, __SDC.sock, BIO_NOCLOSE);
-//        BIO_ctrl(__SDC.bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &__SDC.addr.sock6); // ip46
-//
-//        int err;
-//        do { err = SSL_accept(__SDC.ssl); } while (err == 0);
-//
-//        // Loop here
-//
-//        clientClean:
-//        SSL_free(__SDC.ssl);
-//        BIO_free(__SDC.bio);
-//        close(__SDC.sock);
-//        __SDC.thread.detach();
-//        server->clients.erase(uuid);
-//#undef __SDC
-//    }
-//
-
     DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr, bool preferV6, const std::string &port,
                            const std::string &certPem,
-                           const std::string &keyPem) : pool(pool) {
+                           const std::string &keyPem) : wantV6(preferV6), pool(pool) {
         ctx = SSL_CTX_new(DTLS_server_method());
         SSL_CTX_use_certificate_chain_file(ctx, certPem.c_str());
         SSL_CTX_use_PrivateKey_file(ctx, keyPem.c_str(), SSL_FILETYPE_PEM);
@@ -159,56 +116,17 @@ namespace stms::net {
             hints.ai_flags = AI_PASSIVE;
         }
 
-        addrinfo *res;
-        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &res);
+        STMS_INFO("Creating new DTLS server to be hosted on {}:{}", addr, port);
+        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &servAddr);
         if (lookupStatus != 0) {
             STMS_INFO("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
         }
-
-        bool found = false;
-        for (addrinfo *i = res; i != nullptr; i = i->ai_next) {
-            if (i->ai_family == AF_INET6) {
-                if (!found && preferV6) {
-                    servAddr = *i;
-                    v6 = false;
-                } else if (!preferV6) {
-                    servAddr = *i;
-                    v6 = false;
-                    found = true;
-                }
-            } else if (i->ai_family == AF_INET) {
-                if (!found && !preferV6) {
-                    v6 = true;
-                    servAddr = *i;
-                } else if (preferV6) {
-                    v6 = true;
-                    servAddr = *i;
-                    found = true;
-                }
-            } else {
-                STMS_INFO("No available IPv6 or IPv4 addresses can be resolved for DTLS server!");
-            }
-        }
-
-        freeaddrinfo(res);
-
-        if (!v6) {
-            auto *v4Addr = reinterpret_cast<sockaddr_in *>(servAddr.ai_addr);
-            char ipStr[INET_ADDRSTRLEN];
-            inet_ntop(servAddr.ai_family, &(v4Addr->sin_addr), ipStr, INET_ADDRSTRLEN);
-            servAddrStr = std::string(ipStr) + ":" + std::to_string(ntohs(v4Addr->sin_port));
-        } else {
-            auto *v6Addr = reinterpret_cast<sockaddr_in6 *>(servAddr.ai_addr);
-            char ipStr[INET6_ADDRSTRLEN];
-            inet_ntop(servAddr.ai_family, &(v6Addr->sin6_addr), ipStr, INET_ADDRSTRLEN);
-            servAddrStr = std::string(ipStr) + ":" + std::to_string(ntohs(v6Addr->sin6_port));
-        }
-
-        STMS_INFO("Successfully resolved hostname to IPv{} address: {}", v6 ? 6 : 4, servAddrStr);
     }
 
     DTLSServer::~DTLSServer() {
+        stop();
         SSL_CTX_free(ctx);
+        freeaddrinfo(servAddr);
     }
 
     DTLSServer &DTLSServer::operator=(DTLSServer &&rhs) noexcept {
@@ -223,55 +141,51 @@ namespace stms::net {
         isRunning = true;
         int on = 1;
 
-        serverSock = socket(servAddr.ai_family, SOCK_DGRAM, servAddr.ai_protocol);  // ip46
-        if (serverSock == -1) {
-            STMS_INFO("[DTLSServer.start()]: Unable to create socket: {}", strerror(errno));
-            stop();
-        }
-
-        if (fcntl(serverSock, F_SETFL, O_NONBLOCK) == -1) {
-            STMS_INFO("[DTLSServer.start()]: Failed to set socket to non-blocking: {}", strerror(errno));
-        }
-
-        if (v6) {
-            if (setsockopt(serverSock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
-                STMS_INFO("[DTLSServer.start()]: Failed to setsockopt to allow IPv4 connections: {}", strerror(errno));
+        int i = 0;
+        for (addrinfo *p = servAddr; p != nullptr; p = p->ai_next) {
+            if (p->ai_family == AF_INET6) {
+                if (tryAddr(p, i)) {
+                    if (wantV6) {
+                        STMS_INFO("Using Candidate {} because it is IPv6", i);
+                        return;
+                    }
+                }
+            } else if (p->ai_family == AF_INET) {
+                if (tryAddr(p, i)) {
+                    if (!wantV6) {
+                        STMS_INFO("Using Candidate {} because it is IPv4", i);
+                        return;
+                    }
+                }
+            } else {
+                STMS_INFO("Candidate {} has unsupported family. Ignoring.", i);
             }
+            i++;
         }
 
-        if (setsockopt(serverSock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) == -1) {
-            STMS_INFO(
-                    "[DTLSServer.start()]: Failed to setscokopt to reuse address (this may result in 'Socket in Use' errors): {}",
-                    strerror(errno));
-        }
-
-        if (setsockopt(serverSock, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(int)) == -1) {
-            STMS_INFO(
-                    "[DTLSServer.start()]: Failed to setsockopt to reuse port (this may result in 'Socket in Use' errors): {}",
-                    strerror(errno));
-        }
-
-        if (bind(serverSock, servAddr.ai_addr, servAddr.ai_addrlen) == -1) {
-            STMS_INFO("[DTLSServer.start()]: Unable to bind socket: {}", strerror(errno));
-            stop();
-        }
-
-        STMS_INFO("DTLS Server started on {}", servAddrStr);
+        STMS_WARN("No IP addresses resolved from supplied addr and port can be used to host the DTLS Server!");
+        isRunning = false;
     }
 
     void DTLSServer::stop() {
         isRunning = false;
+        if (serverSock == 0) {
+            return;
+        }
+
         if (shutdown(serverSock, 0) == -1) {
-            STMS_INFO("[DTLSServer.stop()]: Failed to shutdown server socket: {}", strerror(errno));
+            STMS_INFO("Failed to shutdown server socket: {}", strerror(errno));
         }
         if (close(serverSock) == -1) {
-
+            STMS_INFO("Failed to close server socket: {}", strerror(errno));
         }
         serverSock = 0;
-        STMS_INFO("[DTLSServer.stop()]: DTLS server stopped. Resources freed.");
+        STMS_INFO("DTLS server stopped. Resources freed.");
     }
 
     bool DTLSServer::tick() {
+        int on = 1;
+
         if (!isRunning) {
             return false;
         }
@@ -279,15 +193,212 @@ namespace stms::net {
         DTLSClientRepresentation cli{};
         cli.bio = BIO_new_dgram(serverSock, BIO_NOCLOSE);
         cli.ssl = SSL_new(ctx);
+        cli.addr = BIO_ADDR_new();
         SSL_set_bio(cli.ssl, cli.bio, cli.bio);
 
         SSL_set_options(cli.ssl, SSL_OP_COOKIE_EXCHANGE);
 
         int listenStatus = DTLSv1_listen(cli.ssl, cli.addr);
+
         if (listenStatus < 0) {
-            STMS_INFO("DTLSv1_listen failed!");
+            STMS_WARN("Fatal error from DTLSv1_listen!");
+        } else if (listenStatus >= 1) {
+            if (BIO_ADDR_family(cli.addr) != AF_INET6 && BIO_ADDR_family(cli.addr) != AF_INET) {
+                STMS_INFO("A client tried to connect with an unsupported family! Refusing to connect.");
+                goto skipClientConnect;
+            }
+
+            if (BIO_ADDR_family(cli.addr) == AF_INET6) {
+                auto *v6Addr = new sockaddr_in6{};
+                v6Addr->sin6_family = AF_INET6;
+                v6Addr->sin6_port = BIO_ADDR_rawport(cli.addr);
+
+                cli.sockAddrLen = sizeof(in6_addr);
+                BIO_ADDR_rawaddress(cli.addr, &v6Addr->sin6_addr, &cli.sockAddrLen);
+                cli.sockAddr = reinterpret_cast<sockaddr *>(v6Addr);
+            } else {
+                auto *v4Addr = new sockaddr_in{};
+                v4Addr->sin_family = AF_INET;
+                v4Addr->sin_port = BIO_ADDR_rawport(cli.addr);
+
+                cli.sockAddrLen = sizeof(in_addr);
+                BIO_ADDR_rawaddress(cli.addr, &v4Addr->sin_addr, &cli.sockAddrLen);
+                cli.sockAddr = reinterpret_cast<sockaddr *>(v4Addr);
+            }
+
+            cli.addrStr = getAddrStr(cli.sockAddr);
+            STMS_INFO("New client at {} is trying to connect.", cli.addrStr);
+
+            cli.sock = socket(BIO_ADDR_family(cli.addr), activeAddr->ai_socktype, activeAddr->ai_protocol);
+            if (cli.sock == -1) {
+                STMS_INFO("Failed to bind socket for new client: {}. Refusing to connect.", strerror(errno));
+                goto skipClientConnect;
+            }
+
+            if (fcntl(cli.sock, F_SETFL, O_NONBLOCK) == -1) {
+                STMS_INFO("Failed to set socket to non-blocking: {}. Refusing to connect.", strerror(errno));
+                goto skipClientConnect;
+            }
+
+            if (BIO_ADDR_family(cli.addr) == AF_INET6) {
+                if (setsockopt(cli.sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
+                    STMS_INFO("Failed to setsockopt to allow IPv4 connections on client socket: {}", strerror(errno));
+                }
+            }
+
+            if (setsockopt(cli.sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) == -1) {
+                STMS_INFO(
+                        "Failed to setscokopt to reuse address on client socket (this may result in 'Socket in Use' errors): {}",
+                        strerror(errno));
+            }
+
+            if (setsockopt(cli.sock, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(int)) == -1) {
+                STMS_INFO(
+                        "Failed to setsockopt to reuse port on client socket (this may result in 'Socket in Use' errors): {}",
+                        strerror(errno));
+            }
+
+            if (bind(cli.sock, activeAddr->ai_addr, activeAddr->ai_addrlen) == -1) {
+                STMS_INFO("Failed to bind client socket: {}. Refusing to connect!", strerror(errno));
+                goto skipClientConnect;
+            }
+
+            if (connect(cli.sock, cli.sockAddr, cli.sockAddrLen) == -1) {
+                STMS_INFO("Failed to connect client socket: {}. Refusing to connect!", strerror(errno));
+            }
+
+            BIO_set_fd(SSL_get_rbio(cli.ssl), cli.sock, BIO_NOCLOSE);
+            BIO_ctrl(SSL_get_rbio(cli.ssl), BIO_CTRL_DGRAM_SET_CONNECTED, 0, cli.sockAddr);
+
+            bool doHandshake = true;
+            while (doHandshake) {
+                int handshakeStatus = SSL_accept(cli.ssl);
+                if (handshakeStatus == 1) {
+                    STMS_INFO("Client completed DTLS handshake successfully!");
+                    doHandshake = false;
+                }
+                if (handshakeStatus == 0) {
+                    STMS_INFO("Handshake failed with non-fatal error. Retrying.");
+                }
+                if (handshakeStatus < 0) {
+                    STMS_WARN("Fatal DTLS Handshake error! Refusing to connect.");
+                    goto skipClientConnect;
+                }
+            }
+
+            std::string uuid = stms::genUUID4().getStr();
+            clients[uuid] = std::move(cli);
+        }
+
+        skipClientConnect:  // Please forgive me for using goto
+
+        for (auto client = clients.begin(); client != clients.end(); ++client) {
+
         }
 
         return isRunning;
+    }
+
+    bool DTLSServer::tryAddr(addrinfo *addr, int num) {
+        int on = 1;
+
+        addrStr = getAddrStr(addr->ai_addr);
+        STMS_INFO("Candidate {}: IPv{} {}", num, addr->ai_family == AF_INET6 ? 6 : 4, addrStr);
+
+        if (serverSock != 0) {
+            bool runningPreserve = isRunning;
+            stop();
+            isRunning = runningPreserve;
+        }
+
+        serverSock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+        if (serverSock == -1) {
+            STMS_INFO("Candidate {}: Unable to create socket: {}", num, strerror(errno));
+            return false;
+        }
+
+        if (fcntl(serverSock, F_SETFL, O_NONBLOCK) == -1) {
+            STMS_INFO("Candidate {}: Failed to set socket to non-blocking: {}", num, strerror(errno));
+        }
+
+        if (addr->ai_family == AF_INET6) {
+            if (setsockopt(serverSock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
+                STMS_INFO("Candidate {}: Failed to setsockopt to allow IPv4 connections: {}", num, strerror(errno));
+            }
+        }
+
+        if (setsockopt(serverSock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) == -1) {
+            STMS_INFO(
+                    "Candidate {}: Failed to setscokopt to reuse address (this may result in 'Socket in Use' errors): {}",
+                    num, strerror(errno));
+        }
+
+        if (setsockopt(serverSock, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(int)) == -1) {
+            STMS_INFO(
+                    "Candidate {}: Failed to setsockopt to reuse port (this may result in 'Socket in Use' errors): {}",
+                    num, strerror(errno));
+        }
+
+        if (bind(serverSock, addr->ai_addr, addr->ai_addrlen) == -1) {
+            STMS_INFO("Candidate {}: Unable to bind socket: {}", num, strerror(errno));
+            return false;
+        }
+
+        activeAddr = addr;
+        STMS_INFO("Candidate {} is viable and being used.", num);
+        return true;
+    }
+
+    std::string getAddrStr(sockaddr *addr) {
+        if (addr->sa_family == AF_INET) {
+            auto *v4Addr = reinterpret_cast<sockaddr_in *>(addr);
+            char ipStr[INET_ADDRSTRLEN];
+            inet_ntop(addr->sa_family, &(v4Addr->sin_addr), ipStr, INET_ADDRSTRLEN);
+            return std::string(ipStr) + ":" + std::to_string(ntohs(v4Addr->sin_port));
+        } else if (addr->sa_family == AF_INET6) {
+            auto *v6Addr = reinterpret_cast<sockaddr_in6 *>(addr);
+            char ipStr[INET6_ADDRSTRLEN];
+            inet_ntop(addr->sa_family, &(v6Addr->sin6_addr), ipStr, INET6_ADDRSTRLEN);
+            return std::string(ipStr) + ":" + std::to_string(ntohs(v6Addr->sin6_port));
+        }
+        return "[ERR: BAD FAM]";
+    }
+
+    DTLSClientRepresentation::~DTLSClientRepresentation() {
+        if (ssl != nullptr) {
+            SSL_free(ssl);
+        }
+        // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
+        if (addr != nullptr) {
+            BIO_ADDR_free(addr);
+        }
+
+        delete sockAddr;  // No need to check this, as `delete nullptr` has no effect
+    }
+
+    DTLSClientRepresentation &DTLSClientRepresentation::operator=(DTLSClientRepresentation &&rhs) noexcept {
+        if (&rhs == this) {
+            return *this;
+        }
+
+        addrStr = rhs.addrStr;
+        addr = rhs.addr;
+        sockAddr = rhs.sockAddr;
+        sockAddrLen = rhs.sockAddrLen;
+        bio = rhs.bio;
+        ssl = rhs.ssl;
+        sock = rhs.sock;
+
+        rhs.sock = 0;
+        rhs.ssl = nullptr;
+        rhs.bio = nullptr;
+        rhs.sockAddr = nullptr;
+        rhs.addr = nullptr;
+
+        return *this;
+    }
+
+    DTLSClientRepresentation::DTLSClientRepresentation(DTLSClientRepresentation &&rhs) noexcept {
+        *this = std::move(rhs);
     }
 }

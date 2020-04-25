@@ -7,8 +7,11 @@
 
 namespace {
     TEST(DLTS, Server) {
-        stms::net::DTLSServer serv = stms::net::DTLSServer("192.168.1.83");
+        stms::ThreadPool pool;
+        stms::net::DTLSServer serv = stms::net::DTLSServer(&pool, "Grant-PC.local", false);
         serv.start();
-        serv.stop();
+        for (int i = 0; i < 100; i++) { serv.tick(); }
+        serv.stop();  // Stop is automatically called in destructor.
+        stms::net::flushSSLErrors();
     }
 }

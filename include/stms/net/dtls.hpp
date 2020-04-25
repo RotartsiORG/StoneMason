@@ -22,39 +22,51 @@
 #include "stms/util.hpp"
 
 namespace stms::net {
-    class DTLSServer;
-
-    static void mainThreadWorker(DTLSServer *server);
-
-    static void clientThreadWorker(DTLSServer *server, const std::string &uuid);
-
     unsigned long handleSSLError();
 
     inline void flushSSLErrors() {
         while (handleSSLError() != 0);
     }
 
+    std::string getAddrStr(sockaddr *addr);
+
     struct DTLSClientRepresentation {
-        BIO_ADDR *addr;
-        BIO *bio;
-        SSL *ssl;
-        int sock;
+        std::string addrStr{};
+        BIO_ADDR *addr = nullptr;
+        sockaddr *sockAddr = nullptr;
+        size_t sockAddrLen{};
+        BIO *bio = nullptr;
+        SSL *ssl = nullptr;
+        int sock = 0;
+
+        DTLSClientRepresentation() = default;
+
+        virtual ~DTLSClientRepresentation();
+
+        DTLSClientRepresentation &operator=(const DTLSClientRepresentation &rhs) = delete;
+
+        DTLSClientRepresentation(const DTLSClientRepresentation &rhs) = delete;
+
+        DTLSClientRepresentation &operator=(DTLSClientRepresentation &&rhs) noexcept;
+
+        DTLSClientRepresentation(DTLSClientRepresentation &&rhs) noexcept;
     };
 
     class DTLSServer {
-    private:
-        bool v6 = false;
-        addrinfo servAddr{};
-        std::string servAddrStr;
+    private:;
+        bool wantV6{};
+        std::string addrStr;
+        addrinfo *servAddr{};
+        addrinfo *activeAddr{};
         SSL_CTX *ctx{};
-        int serverSock{};
+        int serverSock = 0;
         bool isRunning = false;
         stms::ThreadPool *pool{};
+        std::unordered_map<std::string, DTLSClientRepresentation> clients;
+
+        bool tryAddr(addrinfo *addr, int num);
 
     public:
-        friend void mainThreadWorker(DTLSServer *server);
-
-        friend void clientThreadWorker(DTLSServer *server, const std::string &uuid);
 
         DTLSServer() = default;
 
