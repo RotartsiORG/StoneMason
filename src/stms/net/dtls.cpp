@@ -55,8 +55,8 @@ namespace stms::net {
 
 
         BIO_ADDR *peer{};
-        BIO_dgram_get_peer(SSL_get_rbio(ssl),
-                           &peer); // TODO: Find documentation for this mystery macro. Is peer really a BIO_ADDR? Stackoverflow this
+        // TODO: Find documentation for this mystery macro. Is peer really a BIO_ADDR? Stackoverflow this
+        BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
         size_t addrLen = INET6_ADDRSTRLEN;
         HashAddr addr{};
@@ -66,8 +66,8 @@ namespace stms::net {
 
         auto result = new uint8_t[DTLS1_COOKIE_LENGTH - 1];
         *len = DTLS1_COOKIE_LENGTH - 1;
-        HMAC(EVP_sha1(), secretCookie, STMS_DTLS_COOKIE_SECRET_LEN, (uint8_t *) &addr, addrLen, result,
-             len);  // TODO: Should i really be using SHA1?
+        // TODO: Should i really be using SHA1?
+        HMAC(EVP_sha1(), secretCookie, STMS_DTLS_COOKIE_SECRET_LEN, (uint8_t *) &addr, addrLen, result, len);
         return result;
     }
 
@@ -100,11 +100,15 @@ namespace stms::net {
     DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr, bool preferV6, const std::string &port,
                            const std::string &certPem,
                            const std::string &keyPem) : wantV6(preferV6), pool(pool) {
+        timeout.tv_sec = STMS_DTLS_SEC_TIMEOUT;
+        timeout.tv_usec = STMS_DTLS_USEC_TIMEOUT;
+
+        // TODO: Should i disable session caching?
         ctx = SSL_CTX_new(DTLS_server_method());
         SSL_CTX_use_certificate_chain_file(ctx, certPem.c_str());
         SSL_CTX_use_PrivateKey_file(ctx, keyPem.c_str(), SSL_FILETYPE_PEM);
 
-        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verifyCert);
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verifyCert);
         SSL_CTX_set_cookie_generate_cb(ctx, genCookie);
         SSL_CTX_set_cookie_verify_cb(ctx, verifyCookie);
 
@@ -127,10 +131,6 @@ namespace stms::net {
         stop();
         SSL_CTX_free(ctx);
         freeaddrinfo(servAddr);
-    }
-
-    DTLSServer &DTLSServer::operator=(DTLSServer &&rhs) noexcept {
-        return *this;
     }
 
     DTLSServer::DTLSServer(DTLSServer &&rhs) noexcept {
@@ -192,6 +192,7 @@ namespace stms::net {
 
         DTLSClientRepresentation cli{};
         cli.bio = BIO_new_dgram(serverSock, BIO_NOCLOSE);
+        BIO_ctrl(cli.bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
         cli.ssl = SSL_new(ctx);
         cli.addr = BIO_ADDR_new();
         SSL_set_bio(cli.ssl, cli.bio, cli.bio);
@@ -286,14 +287,28 @@ namespace stms::net {
                 }
             }
 
+            BIO_ctrl(SSL_get_rbio(cli.ssl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+
             std::string uuid = stms::genUUID4().getStr();
             clients[uuid] = std::move(cli);
         }
 
         skipClientConnect:  // Please forgive me for using goto
 
-        for (auto client = clients.begin(); client != clients.end(); ++client) {
+        // We must use this as modifying `clients` while we are looping through is a TERRIBLE idea
+        std::vector<std::string> deadClients;
 
+        for (auto &client : clients) {
+            if ((SSL_get_shutdown(client.second.ssl) & SSL_RECEIVED_SHUTDOWN) ||
+                client.second.timeouts >= STMS_DTLS_MAX_TIMEOUTS) {
+                deadClients.emplace_back(client.first);
+            } else {
+                // TODO: reading/ writing
+            }
+        }
+
+        for (const auto &cliUuid : deadClients) {
+            clients.erase(cliUuid);
         }
 
         return isRunning;
@@ -365,13 +380,10 @@ namespace stms::net {
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {
-        if (ssl != nullptr) {
-            SSL_free(ssl);
-        }
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
         // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
-        if (addr != nullptr) {
-            BIO_ADDR_free(addr);
-        }
+        BIO_ADDR_free(addr);
 
         delete sockAddr;  // No need to check this, as `delete nullptr` has no effect
     }

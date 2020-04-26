@@ -31,6 +31,7 @@ namespace stms::net {
     std::string getAddrStr(sockaddr *addr);
 
     struct DTLSClientRepresentation {
+        uint8_t timeouts = 0;
         std::string addrStr{};
         BIO_ADDR *addr = nullptr;
         sockaddr *sockAddr = nullptr;
@@ -60,6 +61,7 @@ namespace stms::net {
         addrinfo *activeAddr{};
         SSL_CTX *ctx{};
         int serverSock = 0;
+        timeval timeout{};
         bool isRunning = false;
         stms::ThreadPool *pool{};
         std::unordered_map<std::string, DTLSClientRepresentation> clients;

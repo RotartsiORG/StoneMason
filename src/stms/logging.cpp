@@ -33,9 +33,8 @@ namespace stms {
     LogInitializer::LogInitializer() noexcept {
         if (hasRun) {
             STMS_INFO("The constructor for `stms::LogInitializer` has been called twice! This is not intended!");
-            STMS_INFO(
-                    "This is most likely because YOU, the STMS user, has tried to initialize another LogInitializer!");
-            STMS_INFO("Don't do that! This invocation will be ignored, but you BETTER fix it... :(");
+            STMS_INFO("This is likely because a second LogInitializer was created by non-STMS code.");
+            STMS_INFO("This invocation will be ignored.");
             return;
         }
         try {

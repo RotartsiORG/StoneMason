@@ -48,6 +48,7 @@ namespace stms {
     float floatRand(float min, float max);
 
     class STMSInitializer {
+
     public:
         static bool hasRun;
 
@@ -58,6 +59,8 @@ namespace stms {
         STMSInitializer(STMSInitializer &rhs) = delete;
 
         STMSInitializer &operator=(STMSInitializer &rhs) = delete;
+
+        static void initOpenSsl();
     };
 
     extern STMSInitializer stmsInitializer;

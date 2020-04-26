@@ -101,14 +101,39 @@ namespace stms {
     STMSInitializer::STMSInitializer() noexcept {
         if (hasRun) {
             STMS_INFO("The constructor for `stms::STMSInitializer` has been called twice! This is not intended!");
-            STMS_INFO(
-                    "This is most likely because YOU, the STMS user, has tried to initialize another STMSInitializer!");
-            STMS_INFO("Don't do that! This invocation will be ignored, but you BETTER fix it... :(");
+            STMS_INFO("This is likely because a second STMSInitializer was created by non-STMS code.");
+            STMS_INFO("This invocation will be ignored.");
             return;
         }
         stms::logging.init();
 
+        initOpenSsl();
+    }
+
+    void STMSInitializer::initOpenSsl() {
         // OpenSSL initialization
+        if (OpenSSL_version_num() != OPENSSL_VERSION_NUMBER) {
+            STMS_CRITICAL("[* FATAL ERROR *] OpenSSL version mismatch! "
+                          "Linked and compiled/included OpenSSL versions are not the same!");
+            STMS_CRITICAL("Compiled/Included OpenSSL {} while linked OpenSSL {}",
+                          OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
+            if (OpenSSL_version_num() >> 20 != OPENSSL_VERSION_NUMBER >> 20) {
+                STMS_CRITICAL("OpenSSL major and minor version numbers do not match. Aborting.");
+                // TODO: implement
+                STMS_CRITICAL("Set `STMS_IGNORE_SSL_MISMATCH` to `true` in `config.hpp` to ignore this error.");
+                STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
+                exit(1);
+            }
+        }
+
+        if (OPENSSL_VERSION_NUMBER < 0x1010102fL) {
+            STMS_CRITICAL("OpenSSL{} is outdated and insecure! OpenSSL 1.1.1a is required!");
+            // TODO: implement
+            STMS_CRITICAL("Set `STMS_IGNORE_OLD_SSL` to `true` in `config.hpp` to ignore this error.");
+            STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
+            exit(1);
+        }
+
         SSL_library_init();
         SSL_load_error_strings();
         OpenSSL_add_all_algorithms();
@@ -117,15 +142,19 @@ namespace stms {
         int pollStatus = RAND_poll();
         if (pollStatus != 1 || RAND_status() != 1) {
             STMS_CRITICAL("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data!");
-            STMS_CRITICAL(
-                    "Using this insecure RNG will result in UUID collisions and insecure cryptographic key generation!");
+            STMS_CRITICAL("OpenSSL may generate insecure cryptographic keys, and UUID collisions may occur");
             if (!STMS_IGNORE_BAD_RNG) {
-                STMS_CRITICAL(
-                        "Aborting! (Compile with `STMS_IGNORE_BAD_RNG` in `config.hpp` set to `true` to force the use of the insecure RNG)");
+                STMS_CRITICAL("Aborting! Set `STMS_IGNORE_BAD_RNG` to ignore this fatal error.");
+                STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
                 exit(1);
             } else {
-                STMS_CRITICAL("!!! Using insecure RNG! Set `STMS_IGNORE_BAD_RNG` to `false` in `config.hpp` !!!");
+                STMS_CRITICAL("Using insecure RNG! Only do this if you plan on NEVER using OpenSSL functionality.");
+                STMS_CRITICAL("Otherwise, set `STMS_IGNORE_BAD_RNG` to `false` in `config.hpp`");
             }
         }
+
+        // TODO: thread safety
+
+        STMS_INFO("Initialized OpenSSL {}!", OpenSSL_version(OPENSSL_VERSION));
     }
 }
