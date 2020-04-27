@@ -6,7 +6,6 @@
 #include "stms/logging.hpp"
 
 namespace stms {
-    bool LogInitializer::hasRun = false;
 
     std::string getCurrentDatetime() {
         std::ostringstream oss;
@@ -30,7 +29,9 @@ namespace stms {
 
 #ifdef STMS_ENABLE_LOGGING
 
-    LogInitializer::LogInitializer() noexcept {
+    static bool hasRun = false;
+
+    void initLogging() {
         if (hasRun) {
             STMS_INFO("The constructor for `stms::LogInitializer` has been called twice! This is not intended!");
             STMS_INFO("This is likely because a second LogInitializer was created by non-STMS code.");
@@ -116,9 +117,7 @@ namespace stms {
     }
 
 #else
-    LogInitializer::LogInitializer() noexcept {}
+    void initLogging() {};
 #endif
 
-
-    volatile LogInitializer logging = LogInitializer();
 }

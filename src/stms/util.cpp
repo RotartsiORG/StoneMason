@@ -6,7 +6,6 @@
 #include <bitset>
 #include "spdlog/fmt/fmt.h"
 #include "openssl/rand.h"
-#include "openssl/ssl.h"
 #include "openssl/err.h"
 #include "stms/logging.hpp"
 
@@ -105,7 +104,7 @@ namespace stms {
             STMS_INFO("This invocation will be ignored.");
             return;
         }
-        stms::logging.init();
+        stms::initLogging();
 
         initOpenSsl();
     }
@@ -134,11 +133,6 @@ namespace stms {
             exit(1);
         }
 
-        SSL_library_init();
-        SSL_load_error_strings();
-        OpenSSL_add_all_algorithms();
-        ERR_load_crypto_strings();
-
         int pollStatus = RAND_poll();
         if (pollStatus != 1 || RAND_status() != 1) {
             STMS_CRITICAL("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data!");
@@ -152,8 +146,6 @@ namespace stms {
                 STMS_CRITICAL("Otherwise, set `STMS_IGNORE_BAD_RNG` to `false` in `config.hpp`");
             }
         }
-
-        // TODO: thread safety
 
         STMS_INFO("Initialized OpenSSL {}!", OpenSSL_version(OPENSSL_VERSION));
     }

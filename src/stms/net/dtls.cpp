@@ -133,9 +133,9 @@ namespace stms::net {
         freeaddrinfo(servAddr);
     }
 
-    DTLSServer::DTLSServer(DTLSServer &&rhs) noexcept {
-        *this = std::move(rhs);
-    }
+//    DTLSServer::DTLSServer(DTLSServer &&rhs) noexcept {
+//        *this = std::move(rhs);
+//    }
 
     void DTLSServer::start() {
         isRunning = true;
@@ -169,6 +169,9 @@ namespace stms::net {
 
     void DTLSServer::stop() {
         isRunning = false;
+
+        clients.clear();
+
         if (serverSock == 0) {
             return;
         }
