@@ -8,7 +8,9 @@
 namespace {
     TEST(DLTS, Server) {
         stms::ThreadPool pool;
-        stms::net::DTLSServer serv = stms::net::DTLSServer(&pool, "Grant-PC.local", false);
+        stms::net::DTLSServer serv = stms::net::DTLSServer(&pool, "Grant-PC.local", "3000", false,
+                                                           "./res/ssl/serv-pub-cert.pem", "./res/ssl/serv-priv-key.pem",
+                                                           "./res/ssl/ca-pub-cert.pem", "", "");
         serv.start();
         for (int i = 0; i < 100; i++) { serv.tick(); }
         serv.stop();  // Stop is automatically called in destructor.

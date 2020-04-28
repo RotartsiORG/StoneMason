@@ -199,16 +199,6 @@ namespace stms {
         }
     }
 
-    void ThreadPool::rawSubmit(std::packaged_task<void *(void *)> *task, void *data, unsigned priority) {
-        ThreadPoolTask obj{};
-        obj.pData = data;
-        obj.priority = priority;
-        obj.task = std::move(*task);
-
-        std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
-        this->tasks.push(std::move(obj));
-    }
-
     ThreadPool::ThreadPoolTask::ThreadPoolTask(ThreadPool::ThreadPoolTask &&rhs) noexcept {
         *this = std::move(rhs);
     }

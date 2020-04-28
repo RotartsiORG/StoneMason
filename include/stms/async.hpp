@@ -56,10 +56,6 @@ namespace stms {
         void
         destroy(); // This function is needed since the destructor does unwanted dumb shit when we call it from operator=
 
-        void rawSubmit(std::packaged_task<void *(void *)> *task, void *data, unsigned priority);
-
-        friend class IOService;
-
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
         // worker threads may throttle the CPU. If set too high, then the workers would waste time idling.

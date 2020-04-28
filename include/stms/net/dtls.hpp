@@ -33,11 +33,11 @@ namespace stms::net {
     struct DTLSClientRepresentation {
         uint8_t timeouts = 0;
         std::string addrStr{};
-        BIO_ADDR *addr = nullptr;
-        sockaddr *sockAddr = nullptr;
+        BIO_ADDR *pBioAddr = nullptr;
+        sockaddr *pSockAddr = nullptr;
         size_t sockAddrLen{};
-        BIO *bio = nullptr;
-        SSL *ssl = nullptr;
+        BIO *pBio = nullptr;
+        SSL *pSsl = nullptr;
         int sock = 0;
 
         DTLSClientRepresentation() = default;
@@ -53,18 +53,29 @@ namespace stms::net {
         DTLSClientRepresentation(DTLSClientRepresentation &&rhs) noexcept;
     };
 
+    enum SSLCacheModeBits {
+        eBoth = SSL_SESS_CACHE_BOTH,
+        eClient = SSL_SESS_CACHE_CLIENT,
+        eServer = SSL_SESS_CACHE_SERVER,
+        eNoAutoClear = SSL_SESS_CACHE_NO_AUTO_CLEAR,
+        eNoInternal = SSL_SESS_CACHE_NO_INTERNAL,
+        eNoInternalLookup = SSL_SESS_CACHE_NO_INTERNAL_LOOKUP,
+        eNoInternalStore = SSL_SESS_CACHE_NO_INTERNAL_STORE
+    };
+
     class DTLSServer {
     private:;
         bool wantV6{};
         std::string addrStr;
-        addrinfo *servAddr{};
-        addrinfo *activeAddr{};
-        SSL_CTX *ctx{};
+        addrinfo *pAddrCandidates{};
+        addrinfo *pAddr{};
+        SSL_CTX *pCtx{};
         int serverSock = 0;
         timeval timeout{};
         bool isRunning = false;
-        stms::ThreadPool *pool{};
+        stms::ThreadPool *pPool{};
         std::unordered_map<std::string, DTLSClientRepresentation> clients;
+        char *password{};
 
         bool tryAddr(addrinfo *addr, int num);
 
@@ -72,10 +83,13 @@ namespace stms::net {
 
         DTLSServer() = default;
 
-        explicit DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any", bool preferV6 = true,
-                            const std::string &port = "3000",
+        explicit DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any",
+                            const std::string &port = "3000", bool preferV6 = true,
                             const std::string &certPem = "server-cert.pem",
-                            const std::string &keyPem = "server-key.pem");
+                            const std::string &keyPem = "server-key.pem",
+                            const std::string &caCert = "", const std::string &caPath = "",
+                            const std::string &password = ""
+        );
 
         virtual ~DTLSServer();
 
@@ -92,6 +106,10 @@ namespace stms::net {
         bool tick();
 
         void stop();
+
+        inline void setCacheMode(SSLCacheModeBits flags) {
+            SSL_CTX_set_session_cache_mode(pCtx, flags);
+        }
     };
 }
 

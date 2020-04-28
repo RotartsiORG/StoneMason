@@ -26,6 +26,15 @@ namespace stms::net {
         uint8_t addr[INET6_ADDRSTRLEN];
     };
 
+    static int getPassword(char *dest, int size, int flag, void *pass) {
+        char *strPass = reinterpret_cast<char *>(pass);
+        int passLen = strlen(strPass);
+
+        strncpy(dest, strPass, size);
+        dest[passLen - 1] = '\0';
+        return passLen;
+    }
+
     static int verifyCert(int ok, X509_STORE_CTX *ctx) {
         // TODO: Ask user if they trust this cert.
         return 1; // Hardcoded "cert ok"
@@ -97,20 +106,45 @@ namespace stms::net {
 
     }
 
-    DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr, bool preferV6, const std::string &port,
-                           const std::string &certPem,
-                           const std::string &keyPem) : wantV6(preferV6), pool(pool) {
+    DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr, const std::string &port, bool preferV6,
+                           const std::string &certPem, const std::string &keyPem, const std::string &caCert,
+                           const std::string &caPath, const std::string &password) : wantV6(preferV6), pPool(pool) {
+
+        if (!password.empty()) {
+            this->password = new char[password.length()];
+            strcpy(this->password, password.c_str());
+        } else {
+            this->password = new char;
+            *this->password = 0;
+        }
+
         timeout.tv_sec = STMS_DTLS_SEC_TIMEOUT;
         timeout.tv_usec = STMS_DTLS_USEC_TIMEOUT;
 
-        // TODO: Should i disable session caching?
-        ctx = SSL_CTX_new(DTLS_server_method());
-        SSL_CTX_use_certificate_chain_file(ctx, certPem.c_str());
-        SSL_CTX_use_PrivateKey_file(ctx, keyPem.c_str(), SSL_FILETYPE_PEM);
+        pCtx = SSL_CTX_new(DTLS_server_method());
 
-        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, verifyCert);
-        SSL_CTX_set_cookie_generate_cb(ctx, genCookie);
-        SSL_CTX_set_cookie_verify_cb(ctx, verifyCookie);
+        SSL_CTX_set_default_passwd_cb_userdata(pCtx, this->password);
+        SSL_CTX_set_default_passwd_cb(pCtx, getPassword);
+
+        if (!SSL_CTX_use_certificate_chain_file(pCtx, certPem.c_str())) {
+            STMS_INFO("Failed to set public cert chain for DTLS Server (cert='{}')", certPem);
+        }
+        if (!SSL_CTX_use_PrivateKey_file(pCtx, keyPem.c_str(), SSL_FILETYPE_PEM)) {
+            STMS_INFO("Failed to set private key for DTLS Server (key='{}')", keyPem);
+        }
+        if (!SSL_CTX_check_private_key(pCtx)) {
+            STMS_INFO("Public cert and private key mismatch in DTLS server"
+                      "for public cert '{}' and private key '{}'", certPem, keyPem);
+        }
+
+        if (!SSL_CTX_load_verify_locations(pCtx, caCert.empty() ? nullptr : caCert.c_str(),
+                                           caPath.empty() ? nullptr : caPath.c_str())) {
+            STMS_INFO("Failed to set the CA certs and paths for DTLS server! Path='{}', cert='{}'", caPath, caCert);
+        }
+
+        SSL_CTX_set_verify(pCtx, SSL_VERIFY_PEER, verifyCert);
+        SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
+        SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
 
         addrinfo hints{};
         hints.ai_family = AF_UNSPEC;
@@ -121,16 +155,17 @@ namespace stms::net {
         }
 
         STMS_INFO("Creating new DTLS server to be hosted on {}:{}", addr, port);
-        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &servAddr);
+        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &pAddrCandidates);
         if (lookupStatus != 0) {
             STMS_INFO("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
         }
     }
 
     DTLSServer::~DTLSServer() {
+        delete[] password;
         stop();
-        SSL_CTX_free(ctx);
-        freeaddrinfo(servAddr);
+        SSL_CTX_free(pCtx);
+        freeaddrinfo(pAddrCandidates);
     }
 
 //    DTLSServer::DTLSServer(DTLSServer &&rhs) noexcept {
@@ -142,7 +177,7 @@ namespace stms::net {
         int on = 1;
 
         int i = 0;
-        for (addrinfo *p = servAddr; p != nullptr; p = p->ai_next) {
+        for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {
             if (p->ai_family == AF_INET6) {
                 if (tryAddr(p, i)) {
                     if (wantV6) {
@@ -163,7 +198,7 @@ namespace stms::net {
             i++;
         }
 
-        STMS_WARN("No IP addresses resolved from supplied addr and port can be used to host the DTLS Server!");
+        STMS_WARN("No IP addresses resolved from supplied address and port can be used to host the DTLS Server!");
         isRunning = false;
     }
 
@@ -194,46 +229,46 @@ namespace stms::net {
         }
 
         DTLSClientRepresentation cli{};
-        cli.bio = BIO_new_dgram(serverSock, BIO_NOCLOSE);
-        BIO_ctrl(cli.bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
-        cli.ssl = SSL_new(ctx);
-        cli.addr = BIO_ADDR_new();
-        SSL_set_bio(cli.ssl, cli.bio, cli.bio);
+        cli.pBio = BIO_new_dgram(serverSock, BIO_NOCLOSE);
+        BIO_ctrl(cli.pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+        cli.pSsl = SSL_new(pCtx);
+        cli.pBioAddr = BIO_ADDR_new();
+        SSL_set_bio(cli.pSsl, cli.pBio, cli.pBio);
 
-        SSL_set_options(cli.ssl, SSL_OP_COOKIE_EXCHANGE);
+        SSL_set_options(cli.pSsl, SSL_OP_COOKIE_EXCHANGE);
 
-        int listenStatus = DTLSv1_listen(cli.ssl, cli.addr);
+        int listenStatus = DTLSv1_listen(cli.pSsl, cli.pBioAddr);
 
         if (listenStatus < 0) {
             STMS_WARN("Fatal error from DTLSv1_listen!");
         } else if (listenStatus >= 1) {
-            if (BIO_ADDR_family(cli.addr) != AF_INET6 && BIO_ADDR_family(cli.addr) != AF_INET) {
+            if (BIO_ADDR_family(cli.pBioAddr) != AF_INET6 && BIO_ADDR_family(cli.pBioAddr) != AF_INET) {
                 STMS_INFO("A client tried to connect with an unsupported family! Refusing to connect.");
                 goto skipClientConnect;
             }
 
-            if (BIO_ADDR_family(cli.addr) == AF_INET6) {
+            if (BIO_ADDR_family(cli.pBioAddr) == AF_INET6) {
                 auto *v6Addr = new sockaddr_in6{};
                 v6Addr->sin6_family = AF_INET6;
-                v6Addr->sin6_port = BIO_ADDR_rawport(cli.addr);
+                v6Addr->sin6_port = BIO_ADDR_rawport(cli.pBioAddr);
 
                 cli.sockAddrLen = sizeof(in6_addr);
-                BIO_ADDR_rawaddress(cli.addr, &v6Addr->sin6_addr, &cli.sockAddrLen);
-                cli.sockAddr = reinterpret_cast<sockaddr *>(v6Addr);
+                BIO_ADDR_rawaddress(cli.pBioAddr, &v6Addr->sin6_addr, &cli.sockAddrLen);
+                cli.pSockAddr = reinterpret_cast<sockaddr *>(v6Addr);
             } else {
                 auto *v4Addr = new sockaddr_in{};
                 v4Addr->sin_family = AF_INET;
-                v4Addr->sin_port = BIO_ADDR_rawport(cli.addr);
+                v4Addr->sin_port = BIO_ADDR_rawport(cli.pBioAddr);
 
                 cli.sockAddrLen = sizeof(in_addr);
-                BIO_ADDR_rawaddress(cli.addr, &v4Addr->sin_addr, &cli.sockAddrLen);
-                cli.sockAddr = reinterpret_cast<sockaddr *>(v4Addr);
+                BIO_ADDR_rawaddress(cli.pBioAddr, &v4Addr->sin_addr, &cli.sockAddrLen);
+                cli.pSockAddr = reinterpret_cast<sockaddr *>(v4Addr);
             }
 
-            cli.addrStr = getAddrStr(cli.sockAddr);
+            cli.addrStr = getAddrStr(cli.pSockAddr);
             STMS_INFO("New client at {} is trying to connect.", cli.addrStr);
 
-            cli.sock = socket(BIO_ADDR_family(cli.addr), activeAddr->ai_socktype, activeAddr->ai_protocol);
+            cli.sock = socket(BIO_ADDR_family(cli.pBioAddr), pAddr->ai_socktype, pAddr->ai_protocol);
             if (cli.sock == -1) {
                 STMS_INFO("Failed to bind socket for new client: {}. Refusing to connect.", strerror(errno));
                 goto skipClientConnect;
@@ -244,7 +279,7 @@ namespace stms::net {
                 goto skipClientConnect;
             }
 
-            if (BIO_ADDR_family(cli.addr) == AF_INET6) {
+            if (BIO_ADDR_family(cli.pBioAddr) == AF_INET6) {
                 if (setsockopt(cli.sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
                     STMS_INFO("Failed to setsockopt to allow IPv4 connections on client socket: {}", strerror(errno));
                 }
@@ -262,21 +297,21 @@ namespace stms::net {
                         strerror(errno));
             }
 
-            if (bind(cli.sock, activeAddr->ai_addr, activeAddr->ai_addrlen) == -1) {
+            if (bind(cli.sock, pAddr->ai_addr, pAddr->ai_addrlen) == -1) {
                 STMS_INFO("Failed to bind client socket: {}. Refusing to connect!", strerror(errno));
                 goto skipClientConnect;
             }
 
-            if (connect(cli.sock, cli.sockAddr, cli.sockAddrLen) == -1) {
+            if (connect(cli.sock, cli.pSockAddr, cli.sockAddrLen) == -1) {
                 STMS_INFO("Failed to connect client socket: {}. Refusing to connect!", strerror(errno));
             }
 
-            BIO_set_fd(SSL_get_rbio(cli.ssl), cli.sock, BIO_NOCLOSE);
-            BIO_ctrl(SSL_get_rbio(cli.ssl), BIO_CTRL_DGRAM_SET_CONNECTED, 0, cli.sockAddr);
+            BIO_set_fd(SSL_get_rbio(cli.pSsl), cli.sock, BIO_NOCLOSE);
+            BIO_ctrl(SSL_get_rbio(cli.pSsl), BIO_CTRL_DGRAM_SET_CONNECTED, 0, cli.pSockAddr);
 
             bool doHandshake = true;
             while (doHandshake) {
-                int handshakeStatus = SSL_accept(cli.ssl);
+                int handshakeStatus = SSL_accept(cli.pSsl);
                 if (handshakeStatus == 1) {
                     STMS_INFO("Client completed DTLS handshake successfully!");
                     doHandshake = false;
@@ -290,7 +325,7 @@ namespace stms::net {
                 }
             }
 
-            BIO_ctrl(SSL_get_rbio(cli.ssl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+            BIO_ctrl(SSL_get_rbio(cli.pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
             std::string uuid = stms::genUUID4().getStr();
             clients[uuid] = std::move(cli);
@@ -302,7 +337,7 @@ namespace stms::net {
         std::vector<std::string> deadClients;
 
         for (auto &client : clients) {
-            if ((SSL_get_shutdown(client.second.ssl) & SSL_RECEIVED_SHUTDOWN) ||
+            if ((SSL_get_shutdown(client.second.pSsl) & SSL_RECEIVED_SHUTDOWN) ||
                 client.second.timeouts >= STMS_DTLS_MAX_TIMEOUTS) {
                 deadClients.emplace_back(client.first);
             } else {
@@ -362,8 +397,8 @@ namespace stms::net {
             return false;
         }
 
-        activeAddr = addr;
-        STMS_INFO("Candidate {} is viable and being used.", num);
+        pAddr = addr;
+        STMS_INFO("Candidate {} is viable and active. However, it is not necessarily preferred.", num);
         return true;
     }
 
@@ -383,12 +418,12 @@ namespace stms::net {
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
+        SSL_shutdown(pSsl);
+        SSL_free(pSsl);
         // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
-        BIO_ADDR_free(addr);
+        BIO_ADDR_free(pBioAddr);
 
-        delete sockAddr;  // No need to check this, as `delete nullptr` has no effect
+        delete pSockAddr;  // No need to check this, as `delete nullptr` has no effect
     }
 
     DTLSClientRepresentation &DTLSClientRepresentation::operator=(DTLSClientRepresentation &&rhs) noexcept {
@@ -397,18 +432,18 @@ namespace stms::net {
         }
 
         addrStr = rhs.addrStr;
-        addr = rhs.addr;
-        sockAddr = rhs.sockAddr;
+        pBioAddr = rhs.pBioAddr;
+        pSockAddr = rhs.pSockAddr;
         sockAddrLen = rhs.sockAddrLen;
-        bio = rhs.bio;
-        ssl = rhs.ssl;
+        pBio = rhs.pBio;
+        pSsl = rhs.pSsl;
         sock = rhs.sock;
 
         rhs.sock = 0;
-        rhs.ssl = nullptr;
-        rhs.bio = nullptr;
-        rhs.sockAddr = nullptr;
-        rhs.addr = nullptr;
+        rhs.pSsl = nullptr;
+        rhs.pBio = nullptr;
+        rhs.pSockAddr = nullptr;
+        rhs.pBioAddr = nullptr;
 
         return *this;
     }
