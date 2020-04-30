@@ -18,6 +18,7 @@
 
 namespace stms::net {
 
+    static constexpr unsigned certAndCipherLen = 256;
     static bool secretCookieInit = false;
     static uint8_t secretCookie[STMS_DTLS_COOKIE_SECRET_LEN];
 
@@ -36,8 +37,16 @@ namespace stms::net {
     }
 
     static int verifyCert(int ok, X509_STORE_CTX *ctx) {
-        // TODO: Ask user if they trust this cert.
-        return 1; // Hardcoded "cert ok"
+        char name[certAndCipherLen];
+
+        X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+        X509_NAME_oneline(X509_get_subject_name(cert), name, certAndCipherLen);
+        if (ok) {
+            STMS_INFO("Trusting certificate: {}", name);
+        } else {
+            STMS_INFO("Rejecting certificate: {}", name);
+        }
+        return ok;
     }
 
     unsigned long handleSSLError() {
@@ -90,6 +99,7 @@ namespace stms::net {
 
     static int verifyCookie(SSL *ssl, const unsigned char *cookie, unsigned int cookieLen) {
         if (!secretCookieInit) {
+            STMS_WARN("Cookie received before a cookie was generated! Are you under a DDoS attack?");
             return 0;
         }
         unsigned expectedLen;
@@ -101,7 +111,7 @@ namespace stms::net {
         }
         delete[] result;
 
-        STMS_WARN("Recieved an invalid cookie! Are you under a DDoS attack?");
+        STMS_WARN("Received an invalid cookie! Are you under a DDoS attack?");
         return 0;
 
     }
@@ -126,25 +136,35 @@ namespace stms::net {
         SSL_CTX_set_default_passwd_cb_userdata(pCtx, this->password);
         SSL_CTX_set_default_passwd_cb(pCtx, getPassword);
 
+        flushSSLErrors();
         if (!SSL_CTX_use_certificate_chain_file(pCtx, certPem.c_str())) {
             STMS_INFO("Failed to set public cert chain for DTLS Server (cert='{}')", certPem);
+            handleSSLError();
         }
         if (!SSL_CTX_use_PrivateKey_file(pCtx, keyPem.c_str(), SSL_FILETYPE_PEM)) {
             STMS_INFO("Failed to set private key for DTLS Server (key='{}')", keyPem);
+            handleSSLError();
         }
         if (!SSL_CTX_check_private_key(pCtx)) {
             STMS_INFO("Public cert and private key mismatch in DTLS server"
                       "for public cert '{}' and private key '{}'", certPem, keyPem);
+            handleSSLError();
         }
 
         if (!SSL_CTX_load_verify_locations(pCtx, caCert.empty() ? nullptr : caCert.c_str(),
                                            caPath.empty() ? nullptr : caPath.c_str())) {
             STMS_INFO("Failed to set the CA certs and paths for DTLS server! Path='{}', cert='{}'", caPath, caCert);
+            handleSSLError();
         }
 
         SSL_CTX_set_verify(pCtx, SSL_VERIFY_PEER, verifyCert);
         SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
         SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
+
+        SSL_CTX_set_mode(pCtx, SSL_MODE_ASYNC | SSL_MODE_AUTO_RETRY);
+        SSL_CTX_clear_mode(pCtx, SSL_MODE_ENABLE_PARTIAL_WRITE);
+        SSL_CTX_set_options(pCtx, SSL_OP_COOKIE_EXCHANGE);
+        SSL_CTX_clear_options(pCtx, SSL_OP_NO_COMPRESSION);
 
         addrinfo hints{};
         hints.ai_family = AF_UNSPEC;
@@ -236,6 +256,7 @@ namespace stms::net {
         SSL_set_bio(cli.pSsl, cli.pBio, cli.pBio);
 
         SSL_set_options(cli.pSsl, SSL_OP_COOKIE_EXCHANGE);
+        SSL_clear_options(cli.pSsl, SSL_OP_NO_COMPRESSION);
 
         int listenStatus = DTLSv1_listen(cli.pSsl, cli.pBioAddr);
 
@@ -313,7 +334,6 @@ namespace stms::net {
             while (doHandshake) {
                 int handshakeStatus = SSL_accept(cli.pSsl);
                 if (handshakeStatus == 1) {
-                    STMS_INFO("Client completed DTLS handshake successfully!");
                     doHandshake = false;
                 }
                 if (handshakeStatus == 0) {
@@ -328,6 +348,20 @@ namespace stms::net {
             BIO_ctrl(SSL_get_rbio(cli.pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
             std::string uuid = stms::genUUID4().getStr();
+
+            char certName[certAndCipherLen];
+            char cipherName[certAndCipherLen];
+            X509_NAME_oneline(X509_get_subject_name(SSL_get_certificate(cli.pSsl)), certName, certAndCipherLen);
+            SSL_CIPHER_description(SSL_get_current_cipher(cli.pSsl), cipherName, certAndCipherLen);
+
+            STMS_INFO("Client (addr='{}', uuid='{}') completed DTLS handshake and connected successfully!",
+                      cli.addrStr, uuid);
+            STMS_INFO("Client (addr='{}', uuid='{}') has cert of {}", cli.addrStr, uuid, certName);
+            STMS_INFO("Client (addr='{}', uuid='{}') is using cipher {}", cli.addrStr, uuid, cipherName);
+            STMS_INFO("Client (addr='{}', uuid='{}') is using compression {} and expansion {}", cli.addrStr, uuid,
+                      SSL_COMP_get_name(SSL_get_current_compression(cli.pSsl)),
+                      SSL_COMP_get_name(SSL_get_current_expansion(cli.pSsl)));
+
             clients[uuid] = std::move(cli);
         }
 
@@ -341,7 +375,31 @@ namespace stms::net {
                 client.second.timeouts >= STMS_DTLS_MAX_TIMEOUTS) {
                 deadClients.emplace_back(client.first);
             } else {
-                // TODO: reading/ writing
+                bool retryRead = true;
+                while (retryRead) {
+                    uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
+                    int readLen = SSL_read(client.second.pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
+                    readLen = handleSslGetErr(client.second.pSsl, readLen);
+
+                    retryRead = false;
+                    if (readLen > 0) {
+                        recvCallback(recvBuf, readLen);
+                    } else if (readLen == -2) {
+                        if (BIO_ctrl(SSL_get_rbio(client.second.pSsl), BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0, nullptr)) {
+                            client.second.timeouts++;
+                            STMS_INFO("SSL_read() timed out for client {}", client.first);
+                        } else {
+                            retryRead = true;
+                        }
+                    } else if (readLen == -1 || readLen == -5) {
+                        STMS_WARN("Connection to client {} closed forcefully!", client.first);
+                        client.second.doShutdown = false;
+                        deadClients.emplace_back(client.first);
+                    } else if (readLen == -999) {
+                        STMS_WARN("Client {} kicked for: Unknown error", client.first);
+                        deadClients.emplace_back(client.first);
+                    }
+                }
             }
         }
 
@@ -402,6 +460,88 @@ namespace stms::net {
         return true;
     }
 
+    int DTLSServer::send(const std::string &clientUuid, char *msg, std::size_t msgLen) {
+        if (clients.find(clientUuid) == clients.end()) {
+            STMS_INFO("Failed to send! Client with UUID {} does not exist!", clientUuid);
+            return 0;
+        }
+
+        int ret = SSL_write(clients[clientUuid].pSsl, msg, msgLen);
+
+        ret = handleSslGetErr(clients[clientUuid].pSsl, ret);
+
+        if (ret == -1 || ret == -5) {
+            STMS_WARN("Connection to client {} closed forcefully!", clientUuid);
+            clients[clientUuid].doShutdown = false;
+            clients.erase(clientUuid);
+        }
+
+        if (ret == -999) {
+            STMS_WARN("Kicking client {} for: Unknown error", clientUuid);
+            clients.erase(clientUuid);
+        }
+
+        return ret;
+    }
+
+    int DTLSServer::handleSslGetErr(SSL *ssl, int ret) {
+        switch (SSL_get_error(ssl, ret)) {
+            case SSL_ERROR_NONE: {
+                return ret;
+            }
+            case SSL_ERROR_ZERO_RETURN: {
+                STMS_WARN("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
+                return -6;
+            }
+            case SSL_ERROR_WANT_WRITE: {
+                STMS_WARN("Unable to complete OpenSSL call: Want Write. Please retry. (Auto Retry is on!)");
+                return -3;
+            }
+            case SSL_ERROR_WANT_READ: {
+                STMS_WARN("Unable to complete OpenSSL call: Want Read. Please retry. (Auto Retry is on!)");
+                return -2;
+            }
+            case SSL_ERROR_SYSCALL: {
+                STMS_WARN("System Error from OpenSSL call: {}", strerror(errno));
+                flushSSLErrors();
+                return -5;
+            }
+            case SSL_ERROR_SSL: {
+                STMS_WARN("Fatal OpenSSL error occurred!");
+                flushSSLErrors();
+                return -1;
+            }
+            case SSL_ERROR_WANT_CONNECT: {
+                STMS_WARN("Unable to complete OpenSSL call: SSL hasn't been connected! Retry later!");
+                return -7;
+            }
+            case SSL_ERROR_WANT_ACCEPT: {
+                STMS_WARN("Unable to complete OpenSSL call: SSL hasn't been accepted! Retry later!");
+                return -8;
+            }
+            case SSL_ERROR_WANT_X509_LOOKUP: {
+                STMS_WARN("The X509 Lookup callback asked to be recalled! Retry later!");
+                return -4;
+            }
+            case SSL_ERROR_WANT_ASYNC: {
+                STMS_WARN("Cannot complete OpenSSL call: Async operation in progress. Retry later!");
+                return -9;
+            }
+            case SSL_ERROR_WANT_ASYNC_JOB: {
+                STMS_WARN("Cannot complete OpenSSL call: Async thread pool is overloaded! Retry later!");
+                return -10;
+            }
+            case SSL_ERROR_WANT_CLIENT_HELLO_CB: {
+                STMS_WARN("ClientHello callback asked to be recalled! Retry Later!");
+                return -11;
+            }
+            default: {
+                STMS_WARN("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
+                return -999;
+            }
+        }
+    }
+
     std::string getAddrStr(sockaddr *addr) {
         if (addr->sa_family == AF_INET) {
             auto *v4Addr = reinterpret_cast<sockaddr_in *>(addr);
@@ -418,7 +558,9 @@ namespace stms::net {
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {
-        SSL_shutdown(pSsl);
+        if (doShutdown) {
+            SSL_shutdown(pSsl);
+        }
         SSL_free(pSsl);
         // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
         BIO_ADDR_free(pBioAddr);
@@ -438,6 +580,8 @@ namespace stms::net {
         pBio = rhs.pBio;
         pSsl = rhs.pSsl;
         sock = rhs.sock;
+        timeouts = rhs.timeouts;
+        doShutdown = rhs.doShutdown;
 
         rhs.sock = 0;
         rhs.pSsl = nullptr;

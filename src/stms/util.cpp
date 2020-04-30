@@ -8,12 +8,10 @@
 #include "openssl/rand.h"
 #include "openssl/err.h"
 #include "stms/logging.hpp"
+#include "stms/audio.hpp"
 
 namespace stms {
     bool STMSInitializer::hasRun = false;
-
-    static std::random_device __seedGen;
-    std::default_random_engine stmsRand(__seedGen());
 
     int (*sslRand)(uint8_t *, int) = RAND_bytes;
 
@@ -21,12 +19,12 @@ namespace stms {
 
     int intRand(int min, int max) {
         std::uniform_int_distribution<> dist(min, max);
-        return dist(stmsRand);
+        return dist(stmsRand());
     }
 
     float floatRand(float min, float max) {
         std::uniform_real_distribution<> dist(min, max);
-        return dist(stmsRand);
+        return dist(stmsRand());
     }
 
     UUID genUUID4() {
@@ -53,7 +51,7 @@ namespace stms {
         return uuid;
     }
 
-    STMSInitializer stmsInitializer;
+    STMSInitializer stmsInitializer = STMSInitializer();
 
     void initAll() {
         std::cout << stmsInitializer.specialValue;
@@ -97,7 +95,7 @@ namespace stms {
         return !(*this == rhs);
     }
 
-    STMSInitializer::STMSInitializer() noexcept {
+    STMSInitializer::STMSInitializer() noexcept: specialValue(0) {
         if (hasRun) {
             STMS_INFO("The constructor for `stms::STMSInitializer` has been called twice! This is not intended!");
             STMS_INFO("This is likely because a second STMSInitializer was created by non-STMS code.");
@@ -107,6 +105,8 @@ namespace stms {
         stms::initLogging();
 
         initOpenSsl();
+
+        stms::al::defaultAlContext();  // Initialize openal
     }
 
     void STMSInitializer::initOpenSsl() {
@@ -126,7 +126,8 @@ namespace stms {
         }
 
         if (OPENSSL_VERSION_NUMBER < 0x1010102fL) {
-            STMS_CRITICAL("OpenSSL{} is outdated and insecure! OpenSSL 1.1.1a is required!");
+            STMS_CRITICAL("{} is outdated and insecure! At least OpenSSL 1.1.1a is required!",
+                          OpenSSL_version(OPENSSL_VERSION));
             // TODO: implement
             STMS_CRITICAL("Set `STMS_IGNORE_OLD_SSL` to `true` in `config.hpp` to ignore this error.");
             STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
@@ -147,6 +148,6 @@ namespace stms {
             }
         }
 
-        STMS_INFO("Initialized OpenSSL {}!", OpenSSL_version(OPENSSL_VERSION));
+        STMS_INFO("Initialized {}!", OpenSSL_version(OPENSSL_VERSION));
     }
 }

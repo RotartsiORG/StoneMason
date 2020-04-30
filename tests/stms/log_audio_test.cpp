@@ -13,6 +13,7 @@
 
 namespace {
     TEST(AL, Play) {
+        stms::initAll();
         stms::al::ALBuffer testBuf("./res/test.ogg");
         stms::al::ALSource testSrc;
         testSrc.enqueueBuf(&testBuf);
@@ -26,7 +27,7 @@ namespace {
         while (stms::al::handleAlError()) {
             FAIL() << "stms::handleAlError() failed!";
         }
-        while (stms::al::defaultAlDevice.handleError()) {
+        while (stms::al::defaultAlDevice().handleError()) {
             FAIL() << "stms::defaultAlDevice.handleError() failed!";
         }
     }

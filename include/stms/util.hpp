@@ -11,7 +11,12 @@
 #include <random>
 
 namespace stms {
-    extern std::default_random_engine stmsRand;
+
+    inline std::default_random_engine &stmsRand() {
+        static std::random_device seedGen = std::random_device();
+        static std::default_random_engine ret(seedGen());
+        return ret;
+    }
 
     extern int (*sslRand)(uint8_t *, int);
 
@@ -52,7 +57,7 @@ namespace stms {
     public:
         static bool hasRun;
 
-        uint8_t specialValue = 0;
+        uint8_t specialValue;
 
         STMSInitializer() noexcept;
 

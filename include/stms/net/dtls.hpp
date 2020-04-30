@@ -39,6 +39,7 @@ namespace stms::net {
         BIO *pBio = nullptr;
         SSL *pSsl = nullptr;
         int sock = 0;
+        bool doShutdown = true;
 
         DTLSClientRepresentation() = default;
 
@@ -77,7 +78,11 @@ namespace stms::net {
         std::unordered_map<std::string, DTLSClientRepresentation> clients;
         char *password{};
 
+        void (*recvCallback)(uint8_t *, int) = nullptr;
+
         bool tryAddr(addrinfo *addr, int num);
+
+        static int handleSslGetErr(SSL *, int);
 
     public:
 
@@ -100,6 +105,12 @@ namespace stms::net {
         DTLSServer &operator=(DTLSServer &&rhs) noexcept;
 
         DTLSServer(DTLSServer &&rhs) noexcept;
+
+        inline void setRecvCallback(void (*newCb)(uint8_t *, int)) {
+            recvCallback = newCb;
+        }
+
+        int send(const std::string &clientUuid, char *msg, std::size_t msgLen);
 
         void start();
 

@@ -9,9 +9,6 @@
 
 namespace stms::al {
 
-    ALDevice defaultAlDevice;
-    ALContext defaultAlContext(&defaultAlDevice, nullptr);
-
     ALenum handleAlError() {
         ALenum error = alGetError();
         if (error != AL_NO_ERROR) {
@@ -25,9 +22,9 @@ namespace stms::al {
         alGenBuffers(1, &id);
 
         if (channels > 1) {
-            alBufferData(id, AL_FORMAT_STEREO16, (const void *) data, len * 2 * sizeof(short), sampleRate);
+            alBufferData(id, AL_FORMAT_STEREO16, data, len * 2 * sizeof(short), sampleRate);
         } else {
-            alBufferData(id, AL_FORMAT_MONO16, (const void *) data, len * sizeof(short), sampleRate);
+            alBufferData(id, AL_FORMAT_MONO16, data, len * sizeof(short), sampleRate);
         }
     }
 

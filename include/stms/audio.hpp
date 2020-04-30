@@ -153,7 +153,7 @@ namespace stms::al {
             alSourcei(id, AL_BUFFER, buf->id);
         }
 
-        inline bool isPlaying() const {
+        [[nodiscard]] inline bool isPlaying() const {
             ALint state;
             alGetSourcei(id, AL_SOURCE_STATE, &state);
             return state == AL_PLAYING;
@@ -190,13 +190,19 @@ namespace stms::al {
         while (handleAlError() != AL_NO_ERROR);
     }
 
-    // Initiate stuff
-    extern ALDevice defaultAlDevice;
-    extern ALContext defaultAlContext;
+    inline ALDevice &defaultAlDevice() {
+        static ALDevice alDevice = ALDevice();
+        return alDevice;
+    }
+
+    inline ALContext &defaultAlContext() {
+        static ALContext alContext = ALContext(&defaultAlDevice());
+        return alContext;
+    }
 
     inline void refreshAlDefaults() {
-        defaultAlDevice = ALDevice();
-        defaultAlContext = ALContext(&defaultAlDevice, nullptr);
+        defaultAlDevice() = ALDevice();
+        defaultAlContext() = ALContext(&defaultAlDevice());
     }
 }
 
