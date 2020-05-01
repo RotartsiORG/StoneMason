@@ -2,7 +2,7 @@
 // Created by grant on 4/22/20.
 //
 
-#include "stms/net/dtls.hpp"
+#include "stms/net/dtls_server.hpp"
 #include "stms/util.hpp"
 #include "stms/logging.hpp"
 
@@ -49,16 +49,6 @@ namespace stms::net {
         return ok;
     }
 
-    unsigned long handleSSLError() {
-        unsigned long ret = ERR_get_error();
-        if (ret != 0) {
-            char errStr[256]; // Min length specified by man pages for ERR_error_string_n()
-            ERR_error_string_n(ret, errStr, 256);
-            STMS_WARN("[** OPENSSL ERROR **]: {}", errStr);
-        }
-        return ret;
-    }
-
     static bool hashSSL(SSL *ssl, unsigned *len, uint8_t result[]) {
         if (!secretCookieInit) {
             if (RAND_bytes(secretCookie, sizeof(uint8_t) * STMS_DTLS_COOKIE_SECRET_LEN) != 1) {
@@ -77,7 +67,6 @@ namespace stms::net {
             struct sockaddr_in s4;
         } peer{};
 
-        // TODO: Find documentation for this mystery macro. Is peer really a BIO_ADDR? Stackoverflow this
         BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
         size_t addrLen = sizeof(unsigned short);
@@ -176,7 +165,7 @@ namespace stms::net {
         SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
         SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
 
-        SSL_CTX_set_mode(pCtx, SSL_MODE_ASYNC | SSL_MODE_AUTO_RETRY);
+        SSL_CTX_set_mode(pCtx, SSL_MODE_AUTO_RETRY | SSL_MODE_ASYNC);
         SSL_CTX_clear_mode(pCtx, SSL_MODE_ENABLE_PARTIAL_WRITE);
         SSL_CTX_set_options(pCtx, SSL_OP_COOKIE_EXCHANGE | SSL_OP_NO_ANTI_REPLAY);
         SSL_CTX_clear_options(pCtx, SSL_OP_NO_COMPRESSION);
@@ -288,18 +277,18 @@ namespace stms::net {
                 v6Addr->sin6_family = AF_INET6;
                 v6Addr->sin6_port = BIO_ADDR_rawport(cli.pBioAddr);
 
-                cli.inAddrLen = sizeof(in6_addr);
+                std::size_t inAddrLen = sizeof(in6_addr);
                 cli.sockAddrLen = sizeof(sockaddr_in6);
-                BIO_ADDR_rawaddress(cli.pBioAddr, &v6Addr->sin6_addr, &cli.inAddrLen);
+                BIO_ADDR_rawaddress(cli.pBioAddr, &v6Addr->sin6_addr, &inAddrLen);
                 cli.pSockAddr = reinterpret_cast<sockaddr *>(v6Addr);
             } else {
                 auto *v4Addr = new sockaddr_in{};
                 v4Addr->sin_family = AF_INET;
                 v4Addr->sin_port = BIO_ADDR_rawport(cli.pBioAddr);
 
-                cli.inAddrLen = sizeof(in_addr);
+                std::size_t inAddrLen = sizeof(in_addr);
                 cli.sockAddrLen = sizeof(sockaddr_in);
-                BIO_ADDR_rawaddress(cli.pBioAddr, &v4Addr->sin_addr, &cli.inAddrLen);
+                BIO_ADDR_rawaddress(cli.pBioAddr, &v4Addr->sin_addr, &inAddrLen);
                 cli.pSockAddr = reinterpret_cast<sockaddr *>(v4Addr);
             }
 
@@ -312,10 +301,10 @@ namespace stms::net {
                 goto skipClientConnect;
             }
 
-            if (fcntl(cli.sock, F_SETFL, O_NONBLOCK) == -1) {
-                STMS_INFO("Failed to set socket to non-blocking: {}. Refusing to connect.", strerror(errno));
-                goto skipClientConnect;
-            }
+//            if (fcntl(cli.sock, F_SETFL, O_NONBLOCK) == -1) {
+//                STMS_INFO("Failed to set socket to non-blocking: {}. Refusing to connect.", strerror(errno));
+//                goto skipClientConnect;
+//            }
 
             if (BIO_ADDR_family(cli.pBioAddr) == AF_INET6) {
                 if (setsockopt(cli.sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
@@ -374,13 +363,16 @@ namespace stms::net {
             X509_NAME_oneline(X509_get_subject_name(SSL_get_certificate(cli.pSsl)), certName, certAndCipherLen);
             SSL_CIPHER_description(SSL_get_current_cipher(cli.pSsl), cipherName, certAndCipherLen);
 
-            STMS_INFO("Client (addr='{}', uuid='{}') completed DTLS handshake and connected successfully!",
-                      cli.addrStr, uuid);
+            const char *compression = SSL_COMP_get_name(SSL_get_current_compression(cli.pSsl));
+            const char *expansion = SSL_COMP_get_name(SSL_get_current_expansion(cli.pSsl));
+
+            STMS_INFO("Client (addr='{}', uuid='{}') connected: {}",
+                      cli.addrStr, uuid, SSL_state_string_long(cli.pSsl));
             STMS_INFO("Client (addr='{}', uuid='{}') has cert of {}", cli.addrStr, uuid, certName);
             STMS_INFO("Client (addr='{}', uuid='{}') is using cipher {}", cli.addrStr, uuid, cipherName);
             STMS_INFO("Client (addr='{}', uuid='{}') is using compression {} and expansion {}", cli.addrStr, uuid,
-                      SSL_COMP_get_name(SSL_get_current_compression(cli.pSsl)),
-                      SSL_COMP_get_name(SSL_get_current_expansion(cli.pSsl)));
+                      compression == nullptr ? "NULL" : compression,
+                      expansion == nullptr ? "NULL" : expansion);
             connectCallback(uuid, cli.pSockAddr);
             clients[uuid] = std::move(cli);
         }
@@ -418,6 +410,8 @@ namespace stms::net {
                     } else if (readLen == -999) {
                         STMS_WARN("Client {} kicked for: Unknown error", client.first);
                         deadClients.emplace_back(client.first);
+                    } else {
+                        STMS_WARN("Client {} SSL_read failed for the reason above!", client.first);
                     }
                 }
             }
@@ -425,6 +419,7 @@ namespace stms::net {
 
         for (const auto &cliUuid : deadClients) {
             disconnectCallback(cliUuid, clients[cliUuid].pSockAddr);
+            STMS_INFO("Client {} at {} disconnected!", cliUuid, clients[cliUuid].addrStr);
             clients.erase(cliUuid);
         }
 
@@ -492,97 +487,36 @@ namespace stms::net {
         ret = handleSslGetErr(clients[clientUuid].pSsl, ret);
 
         if (ret == -1 || ret == -5) {
-            STMS_WARN("Connection to client {} closed forcefully!", clientUuid);
+            STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, clients[clientUuid].addrStr);
             clients[clientUuid].doShutdown = false;
             clients.erase(clientUuid);
             disconnectCallback(clientUuid, clients[clientUuid].pSockAddr);
-        }
-
-        if (ret == -999) {
-            STMS_WARN("Kicking client {} for: Unknown error", clientUuid);
+        } else if (ret == -999) {
+            STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, clients[clientUuid].addrStr);
             clients.erase(clientUuid);
             disconnectCallback(clientUuid, clients[clientUuid].pSockAddr);
+        } else {
+            STMS_WARN("SSL_write failed for the reason above!");
         }
 
         return ret;
     }
 
-    int DTLSServer::handleSslGetErr(SSL *ssl, int ret) {
-        switch (SSL_get_error(ssl, ret)) {
-            case SSL_ERROR_NONE: {
-                return ret;
-            }
-            case SSL_ERROR_ZERO_RETURN: {
-                STMS_WARN("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
-                return -6;
-            }
-            case SSL_ERROR_WANT_WRITE: {
-                STMS_WARN("Unable to complete OpenSSL call: Want Write. Please retry. (Auto Retry is on!)");
-                return -3;
-            }
-            case SSL_ERROR_WANT_READ: {
-                STMS_WARN("Unable to complete OpenSSL call: Want Read. Please retry. (Auto Retry is on!)");
-                return -2;
-            }
-            case SSL_ERROR_SYSCALL: {
-                STMS_WARN("System Error from OpenSSL call: {}", strerror(errno));
-                flushSSLErrors();
-                return -5;
-            }
-            case SSL_ERROR_SSL: {
-                STMS_WARN("Fatal OpenSSL error occurred!");
-                flushSSLErrors();
-                return -1;
-            }
-            case SSL_ERROR_WANT_CONNECT: {
-                STMS_WARN("Unable to complete OpenSSL call: SSL hasn't been connected! Retry later!");
-                return -7;
-            }
-            case SSL_ERROR_WANT_ACCEPT: {
-                STMS_WARN("Unable to complete OpenSSL call: SSL hasn't been accepted! Retry later!");
-                return -8;
-            }
-            case SSL_ERROR_WANT_X509_LOOKUP: {
-                STMS_WARN("The X509 Lookup callback asked to be recalled! Retry later!");
-                return -4;
-            }
-            case SSL_ERROR_WANT_ASYNC: {
-                STMS_WARN("Cannot complete OpenSSL call: Async operation in progress. Retry later!");
-                return -9;
-            }
-            case SSL_ERROR_WANT_ASYNC_JOB: {
-                STMS_WARN("Cannot complete OpenSSL call: Async thread pool is overloaded! Retry later!");
-                return -10;
-            }
-            case SSL_ERROR_WANT_CLIENT_HELLO_CB: {
-                STMS_WARN("ClientHello callback asked to be recalled! Retry Later!");
-                return -11;
-            }
-            default: {
-                STMS_WARN("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
-                return -999;
-            }
-        }
-    }
-
-    std::string getAddrStr(sockaddr *addr) {
-        if (addr->sa_family == AF_INET) {
-            auto *v4Addr = reinterpret_cast<sockaddr_in *>(addr);
-            char ipStr[INET_ADDRSTRLEN];
-            inet_ntop(addr->sa_family, &(v4Addr->sin_addr), ipStr, INET_ADDRSTRLEN);
-            return std::string(ipStr) + ":" + std::to_string(ntohs(v4Addr->sin_port));
-        } else if (addr->sa_family == AF_INET6) {
-            auto *v6Addr = reinterpret_cast<sockaddr_in6 *>(addr);
-            char ipStr[INET6_ADDRSTRLEN];
-            inet_ntop(addr->sa_family, &(v6Addr->sin6_addr), ipStr, INET6_ADDRSTRLEN);
-            return std::string(ipStr) + ":" + std::to_string(ntohs(v6Addr->sin6_port));
-        }
-        return "[ERR: BAD FAM]";
-    }
-
     DTLSClientRepresentation::~DTLSClientRepresentation() {
-        if (doShutdown) {
-            SSL_shutdown(pSsl);
+        if (doShutdown && pSsl != nullptr) {
+            int shutdownRet = 0;
+            while (shutdownRet == 0) {
+                shutdownRet = SSL_shutdown(pSsl);
+                if (shutdownRet < 0) {
+                    handleSslGetErr(pSsl, shutdownRet);
+                    flushSSLErrors();
+                    STMS_WARN("Error in SSL_shutdown (see above)!");
+                    break;
+                } else if (shutdownRet == 0) {
+                    flushSSLErrors();
+                    STMS_INFO("SSL_shutdown needs to be recalled! Retrying...");
+                }
+            }
         }
         SSL_free(pSsl);
         // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
@@ -599,12 +533,12 @@ namespace stms::net {
         addrStr = rhs.addrStr;
         pBioAddr = rhs.pBioAddr;
         pSockAddr = rhs.pSockAddr;
-        inAddrLen = rhs.inAddrLen;
         pBio = rhs.pBio;
         pSsl = rhs.pSsl;
         sock = rhs.sock;
         timeouts = rhs.timeouts;
         doShutdown = rhs.doShutdown;
+        sockAddrLen = rhs.sockAddrLen;
 
         rhs.sock = 0;
         rhs.pSsl = nullptr;

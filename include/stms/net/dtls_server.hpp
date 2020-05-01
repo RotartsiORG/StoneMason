@@ -19,23 +19,15 @@
 #include "openssl/ssl.h"
 #include "openssl/bio.h"
 #include "openssl/err.h"
+#include "stms/net/ssl.hpp"
 #include "stms/util.hpp"
 
 namespace stms::net {
-    unsigned long handleSSLError();
-
-    inline void flushSSLErrors() {
-        while (handleSSLError() != 0);
-    }
-
-    std::string getAddrStr(sockaddr *addr);
-
     struct DTLSClientRepresentation {
         uint8_t timeouts = 0;
         std::string addrStr{};
         BIO_ADDR *pBioAddr = nullptr;
         sockaddr *pSockAddr = nullptr;
-        size_t inAddrLen{};
         size_t sockAddrLen{};
         BIO *pBio = nullptr;
         SSL *pSsl = nullptr;
@@ -89,8 +81,6 @@ namespace stms::net {
                                                                                                 const sockaddr *const) {};
 
         bool tryAddr(addrinfo *addr, int num);
-
-        static int handleSslGetErr(SSL *, int);
 
     public:
 

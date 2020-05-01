@@ -6,9 +6,9 @@
 #include <bitset>
 #include "spdlog/fmt/fmt.h"
 #include "openssl/rand.h"
-#include "openssl/err.h"
 #include "stms/logging.hpp"
 #include "stms/audio.hpp"
+#include "stms/net/ssl.hpp"
 
 namespace stms {
     bool STMSInitializer::hasRun = false;
@@ -104,50 +104,8 @@ namespace stms {
         }
         stms::initLogging();
 
-        initOpenSsl();
+        net::initOpenSsl();
 
         stms::al::defaultAlContext();  // Initialize openal
-    }
-
-    void STMSInitializer::initOpenSsl() {
-        // OpenSSL initialization
-        if (OpenSSL_version_num() != OPENSSL_VERSION_NUMBER) {
-            STMS_CRITICAL("[* FATAL ERROR *] OpenSSL version mismatch! "
-                          "Linked and compiled/included OpenSSL versions are not the same!");
-            STMS_CRITICAL("Compiled/Included OpenSSL {} while linked OpenSSL {}",
-                          OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
-            if (OpenSSL_version_num() >> 20 != OPENSSL_VERSION_NUMBER >> 20) {
-                STMS_CRITICAL("OpenSSL major and minor version numbers do not match. Aborting.");
-                // TODO: implement
-                STMS_CRITICAL("Set `STMS_IGNORE_SSL_MISMATCH` to `true` in `config.hpp` to ignore this error.");
-                STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
-                exit(1);
-            }
-        }
-
-        if (OPENSSL_VERSION_NUMBER < 0x1010102fL) {
-            STMS_CRITICAL("{} is outdated and insecure! At least OpenSSL 1.1.1a is required!",
-                          OpenSSL_version(OPENSSL_VERSION));
-            // TODO: implement
-            STMS_CRITICAL("Set `STMS_IGNORE_OLD_SSL` to `true` in `config.hpp` to ignore this error.");
-            STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
-            exit(1);
-        }
-
-        int pollStatus = RAND_poll();
-        if (pollStatus != 1 || RAND_status() != 1) {
-            STMS_CRITICAL("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data!");
-            STMS_CRITICAL("OpenSSL may generate insecure cryptographic keys, and UUID collisions may occur");
-            if (!STMS_IGNORE_BAD_RNG) {
-                STMS_CRITICAL("Aborting! Set `STMS_IGNORE_BAD_RNG` to ignore this fatal error.");
-                STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
-                exit(1);
-            } else {
-                STMS_CRITICAL("Using insecure RNG! Only do this if you plan on NEVER using OpenSSL functionality.");
-                STMS_CRITICAL("Otherwise, set `STMS_IGNORE_BAD_RNG` to `false` in `config.hpp`");
-            }
-        }
-
-        STMS_INFO("Initialized {}!", OpenSSL_version(OPENSSL_VERSION));
     }
 }

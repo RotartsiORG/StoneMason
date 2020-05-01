@@ -10,6 +10,8 @@
 #include <string>
 #include <random>
 
+#include "openssl/ssl.h"
+
 namespace stms {
 
     inline std::default_random_engine &stmsRand() {
@@ -64,8 +66,6 @@ namespace stms {
         STMSInitializer(STMSInitializer &rhs) = delete;
 
         STMSInitializer &operator=(STMSInitializer &rhs) = delete;
-
-        static void initOpenSsl();
     };
 
     extern STMSInitializer stmsInitializer;
