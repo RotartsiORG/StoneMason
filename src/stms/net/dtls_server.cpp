@@ -301,10 +301,10 @@ namespace stms::net {
                 goto skipClientConnect;
             }
 
-//            if (fcntl(cli.sock, F_SETFL, O_NONBLOCK) == -1) {
-//                STMS_INFO("Failed to set socket to non-blocking: {}. Refusing to connect.", strerror(errno));
-//                goto skipClientConnect;
-//            }
+            if (fcntl(cli.sock, F_SETFL, O_NONBLOCK) == -1) {
+                STMS_INFO("Failed to set socket to non-blocking: {}. Refusing to connect.", strerror(errno));
+                goto skipClientConnect;
+            }
 
             if (BIO_ADDR_family(cli.pBioAddr) == AF_INET6) {
                 if (setsockopt(cli.sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
@@ -346,12 +346,65 @@ namespace stms::net {
                     STMS_INFO("Handshake failed with non-fatal error. Retrying.");
                 }
                 if (handshakeStatus < 0) {
-                    STMS_WARN("Fatal DTLS Handshake error! Refusing to connect.");
-                    handleSslGetErr(cli.pSsl, handshakeStatus);
+                    STMS_WARN("Fatal DTLS Handshake error!");
+                    handshakeStatus = handleSslGetErr(cli.pSsl, handshakeStatus);
                     flushSSLErrors();
-                    goto skipClientConnect;
+                    if (handshakeStatus == -5 || handshakeStatus == -1 || handshakeStatus == -999) {
+                        STMS_WARN("Dropping connection to client because of SSL_accept() error!");
+                        goto skipClientConnect;
+                    }
+
+                    if (handshakeStatus == -3) { // Want write
+                        STMS_WARN("Calling SSL_write() in response to SSL_accept() [WANT_WRITE was returned!]");
+                        int writeRet = -3;
+                        while (writeRet == -3) {
+                            writeRet = SSL_write(cli.pSsl, &on, 0);
+                            writeRet = handleSslGetErr(cli.pSsl, writeRet);
+                            if (writeRet == -3) {
+                                STMS_WARN("SSL_write() in response to SSL_accept() failed with WANT_WRITE! Retrying!");
+                            }
+                        }
+                        if (writeRet == -1 || writeRet == -5 || writeRet == -999) {
+                            STMS_WARN("Fatal SSL_write() error in response to SSL_accept()!");
+                        } else {
+                            STMS_WARN("SSL_write failed for the reason above!");
+                        }
+                    } else if (handshakeStatus == -2) { // Want read
+                        STMS_WARN("Calling SSL_read() in response to SSL_accept() [WANT_READ was returned!]");
+                        bool retryRead = true;
+                        int thisAttemptTimeouts = 0;
+                        while (retryRead && thisAttemptTimeouts < STMS_DTLS_MAX_TIMEOUTS) {
+                            uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
+                            int readLen = SSL_read(cli.pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
+                            readLen = handleSslGetErr(cli.pSsl, readLen);
+
+                            if (readLen > 0) {
+                                STMS_WARN("Discarding {} bytes from client trying to connect!", readLen);
+                                retryRead = false;
+                            } else if (readLen == -2) {
+                                if (BIO_ctrl(SSL_get_rbio(cli.pSsl), BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0, nullptr)) {
+                                    thisAttemptTimeouts++;
+                                    STMS_INFO("SSL_read() timed out for client trying to connect! (timeout #{})",
+                                              thisAttemptTimeouts);
+                                } else {
+                                    retryRead = true;
+                                }
+                            } else if (readLen == -1 || readLen == -5) {
+                                STMS_WARN("Connection to client trying to connect closed forcefully!");
+                                cli.doShutdown = false;
+                                goto skipClientConnect;
+                            } else if (readLen == -999) {
+                                STMS_WARN("Client trying to connect kicked for: Unknown error");
+                                goto skipClientConnect;
+                            } else {
+                                STMS_WARN("Client trying to connect: SSL_read failed for the reason above!");
+                                retryRead = true;
+                            }
+                        }
+                    }
                 }
             }
+
             cli.doShutdown = true; // Handshake completed, we can shutdown!
 
             BIO_ctrl(SSL_get_rbio(cli.pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
@@ -388,20 +441,19 @@ namespace stms::net {
                 deadClients.emplace_back(client.first);
             } else {
                 bool retryRead = true;
-                while (retryRead) {
+                while (retryRead && client.second.timeouts < STMS_DTLS_MAX_TIMEOUTS) {
                     uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
                     int readLen = SSL_read(client.second.pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
                     readLen = handleSslGetErr(client.second.pSsl, readLen);
 
-                    retryRead = false;
                     if (readLen > 0) {
                         recvCallback(client.first, client.second.pSockAddr, recvBuf, readLen);
+                        retryRead = false;
                     } else if (readLen == -2) {
                         if (BIO_ctrl(SSL_get_rbio(client.second.pSsl), BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0, nullptr)) {
                             client.second.timeouts++;
-                            STMS_INFO("SSL_read() timed out for client {}", client.first);
-                        } else {
-                            retryRead = true;
+                            STMS_INFO("SSL_read() timed out for client {} (timeout #{})", client.first,
+                                      client.second.timeouts);
                         }
                     } else if (readLen == -1 || readLen == -5) {
                         STMS_WARN("Connection to client {} closed forcefully!", client.first);
@@ -410,8 +462,10 @@ namespace stms::net {
                     } else if (readLen == -999) {
                         STMS_WARN("Client {} kicked for: Unknown error", client.first);
                         deadClients.emplace_back(client.first);
+                        retryRead = false;
                     } else {
                         STMS_WARN("Client {} SSL_read failed for the reason above!", client.first);
+                        // Retry.
                     }
                 }
             }
@@ -482,9 +536,16 @@ namespace stms::net {
             return 0;
         }
 
-        int ret = SSL_write(clients[clientUuid].pSsl, msg, msgLen);
+        int ret = -3;
 
-        ret = handleSslGetErr(clients[clientUuid].pSsl, ret);
+        while (ret == -3) {
+            ret = SSL_write(clients[clientUuid].pSsl, msg, msgLen);
+            ret = handleSslGetErr(clients[clientUuid].pSsl, ret);
+
+            if (ret == -3) {
+                STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+            }
+        }
 
         if (ret == -1 || ret == -5) {
             STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, clients[clientUuid].addrStr);
