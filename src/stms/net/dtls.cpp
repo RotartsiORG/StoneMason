@@ -59,7 +59,7 @@ namespace stms::net {
         return ret;
     }
 
-    static uint8_t *hashSSL(SSL *ssl, unsigned *len) {
+    static bool hashSSL(SSL *ssl, unsigned *len, uint8_t result[]) {
         if (!secretCookieInit) {
             if (RAND_bytes(secretCookie, sizeof(uint8_t) * STMS_DTLS_COOKIE_SECRET_LEN) != 1) {
                 STMS_WARN(
@@ -71,28 +71,42 @@ namespace stms::net {
             secretCookieInit = true;
         }
 
+        union {
+            struct sockaddr_storage ss;
+            struct sockaddr_in6 s6;
+            struct sockaddr_in s4;
+        } peer{};
 
-        BIO_ADDR *peer{};
         // TODO: Find documentation for this mystery macro. Is peer really a BIO_ADDR? Stackoverflow this
         BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
-        size_t addrLen = INET6_ADDRSTRLEN;
+        size_t addrLen = sizeof(unsigned short);
         HashAddr addr{};
-        addr.port = BIO_ADDR_rawport(peer);
-        BIO_ADDR_rawaddress(peer, addr.addr, &addrLen);
-        addrLen += sizeof(unsigned short);
+        if (peer.ss.ss_family == AF_INET6) {
+            addrLen += sizeof(sockaddr_in6);
+            addr.port = peer.s6.sin6_port;
+            memcpy(&addr.addr, &peer.s6.sin6_addr, sizeof(sockaddr_in6));
+        } else if (peer.ss.ss_family == AF_INET) {
+            addrLen += sizeof(sockaddr_in);
+            addr.port = peer.s4.sin_port;
+            memcpy(&addr.addr, &peer.s4.sin_addr, sizeof(sockaddr_in));
+        } else {
+            STMS_WARN("Cannot generate cookie for client with invalid family!");
+            return false;
+        }
 
-        auto result = new uint8_t[DTLS1_COOKIE_LENGTH - 1];
         *len = DTLS1_COOKIE_LENGTH - 1;
         // TODO: Should i really be using SHA1?
         HMAC(EVP_sha1(), secretCookie, STMS_DTLS_COOKIE_SECRET_LEN, (uint8_t *) &addr, addrLen, result, len);
-        return result;
+        return true;
     }
 
     static int genCookie(SSL *ssl, unsigned char *cookie, unsigned int *cookieLen) {
-        uint8_t *result = hashSSL(ssl, cookieLen);
+        uint8_t result[DTLS1_COOKIE_LENGTH - 1];
+        if (!hashSSL(ssl, cookieLen, result)) {
+            return 0;
+        }
         memcpy(cookie, result, *cookieLen);
-        delete[] result;
 
         return 1;
     }
@@ -103,13 +117,14 @@ namespace stms::net {
             return 0;
         }
         unsigned expectedLen;
-        uint8_t *result = hashSSL(ssl, &expectedLen);
+        uint8_t result[DTLS1_COOKIE_LENGTH - 1];
+        if (!hashSSL(ssl, &expectedLen, result)) {
+            return 0;
+        }
 
         if (cookieLen == expectedLen && memcmp(result, cookie, expectedLen) == 0) {
-            delete[] result;
             return 1;
         }
-        delete[] result;
 
         STMS_WARN("Received an invalid cookie! Are you under a DDoS attack?");
         return 0;
@@ -163,7 +178,7 @@ namespace stms::net {
 
         SSL_CTX_set_mode(pCtx, SSL_MODE_ASYNC | SSL_MODE_AUTO_RETRY);
         SSL_CTX_clear_mode(pCtx, SSL_MODE_ENABLE_PARTIAL_WRITE);
-        SSL_CTX_set_options(pCtx, SSL_OP_COOKIE_EXCHANGE);
+        SSL_CTX_set_options(pCtx, SSL_OP_COOKIE_EXCHANGE | SSL_OP_NO_ANTI_REPLAY);
         SSL_CTX_clear_options(pCtx, SSL_OP_NO_COMPRESSION);
 
         addrinfo hints{};
@@ -194,7 +209,6 @@ namespace stms::net {
 
     void DTLSServer::start() {
         isRunning = true;
-        int on = 1;
 
         int i = 0;
         for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {
@@ -249,6 +263,7 @@ namespace stms::net {
         }
 
         DTLSClientRepresentation cli{};
+        cli.doShutdown = false;
         cli.pBio = BIO_new_dgram(serverSock, BIO_NOCLOSE);
         BIO_ctrl(cli.pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
         cli.pSsl = SSL_new(pCtx);
@@ -273,16 +288,18 @@ namespace stms::net {
                 v6Addr->sin6_family = AF_INET6;
                 v6Addr->sin6_port = BIO_ADDR_rawport(cli.pBioAddr);
 
-                cli.sockAddrLen = sizeof(in6_addr);
-                BIO_ADDR_rawaddress(cli.pBioAddr, &v6Addr->sin6_addr, &cli.sockAddrLen);
+                cli.inAddrLen = sizeof(in6_addr);
+                cli.sockAddrLen = sizeof(sockaddr_in6);
+                BIO_ADDR_rawaddress(cli.pBioAddr, &v6Addr->sin6_addr, &cli.inAddrLen);
                 cli.pSockAddr = reinterpret_cast<sockaddr *>(v6Addr);
             } else {
                 auto *v4Addr = new sockaddr_in{};
                 v4Addr->sin_family = AF_INET;
                 v4Addr->sin_port = BIO_ADDR_rawport(cli.pBioAddr);
 
-                cli.sockAddrLen = sizeof(in_addr);
-                BIO_ADDR_rawaddress(cli.pBioAddr, &v4Addr->sin_addr, &cli.sockAddrLen);
+                cli.inAddrLen = sizeof(in_addr);
+                cli.sockAddrLen = sizeof(sockaddr_in);
+                BIO_ADDR_rawaddress(cli.pBioAddr, &v4Addr->sin_addr, &cli.inAddrLen);
                 cli.pSockAddr = reinterpret_cast<sockaddr *>(v4Addr);
             }
 
@@ -341,9 +358,12 @@ namespace stms::net {
                 }
                 if (handshakeStatus < 0) {
                     STMS_WARN("Fatal DTLS Handshake error! Refusing to connect.");
+                    handleSslGetErr(cli.pSsl, handshakeStatus);
+                    flushSSLErrors();
                     goto skipClientConnect;
                 }
             }
+            cli.doShutdown = true; // Handshake completed, we can shutdown!
 
             BIO_ctrl(SSL_get_rbio(cli.pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
@@ -361,7 +381,7 @@ namespace stms::net {
             STMS_INFO("Client (addr='{}', uuid='{}') is using compression {} and expansion {}", cli.addrStr, uuid,
                       SSL_COMP_get_name(SSL_get_current_compression(cli.pSsl)),
                       SSL_COMP_get_name(SSL_get_current_expansion(cli.pSsl)));
-
+            connectCallback(uuid, cli.pSockAddr);
             clients[uuid] = std::move(cli);
         }
 
@@ -383,7 +403,7 @@ namespace stms::net {
 
                     retryRead = false;
                     if (readLen > 0) {
-                        recvCallback(recvBuf, readLen);
+                        recvCallback(client.first, client.second.pSockAddr, recvBuf, readLen);
                     } else if (readLen == -2) {
                         if (BIO_ctrl(SSL_get_rbio(client.second.pSsl), BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0, nullptr)) {
                             client.second.timeouts++;
@@ -404,6 +424,7 @@ namespace stms::net {
         }
 
         for (const auto &cliUuid : deadClients) {
+            disconnectCallback(cliUuid, clients[cliUuid].pSockAddr);
             clients.erase(cliUuid);
         }
 
@@ -460,7 +481,7 @@ namespace stms::net {
         return true;
     }
 
-    int DTLSServer::send(const std::string &clientUuid, char *msg, std::size_t msgLen) {
+    int DTLSServer::send(const std::string &clientUuid, const uint8_t *msg, int msgLen) {
         if (clients.find(clientUuid) == clients.end()) {
             STMS_INFO("Failed to send! Client with UUID {} does not exist!", clientUuid);
             return 0;
@@ -474,11 +495,13 @@ namespace stms::net {
             STMS_WARN("Connection to client {} closed forcefully!", clientUuid);
             clients[clientUuid].doShutdown = false;
             clients.erase(clientUuid);
+            disconnectCallback(clientUuid, clients[clientUuid].pSockAddr);
         }
 
         if (ret == -999) {
             STMS_WARN("Kicking client {} for: Unknown error", clientUuid);
             clients.erase(clientUuid);
+            disconnectCallback(clientUuid, clients[clientUuid].pSockAddr);
         }
 
         return ret;
@@ -576,7 +599,7 @@ namespace stms::net {
         addrStr = rhs.addrStr;
         pBioAddr = rhs.pBioAddr;
         pSockAddr = rhs.pSockAddr;
-        sockAddrLen = rhs.sockAddrLen;
+        inAddrLen = rhs.inAddrLen;
         pBio = rhs.pBio;
         pSsl = rhs.pSsl;
         sock = rhs.sock;

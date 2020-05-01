@@ -11,8 +11,22 @@ namespace {
         stms::net::DTLSServer serv = stms::net::DTLSServer(&pool, "Grant-PC.local", "3000", false,
                                                            "./res/ssl/serv-pub-cert.pem", "./res/ssl/serv-priv-key.pem",
                                                            "./res/ssl/ca-pub-cert.pem", "", "");
+
+        serv.setRecvCallback([&](const std::string &cliuuid, const sockaddr *const sockaddr, uint8_t *buf, int size) {
+            serv.send(cliuuid, buf, size);
+        });
+        serv.setConnectCallback([](const std::string &uuid, const sockaddr *const addr) {
+            STMS_FATAL("CONNECT!");
+        });
+        serv.setDisconnectCallback([](const std::string &uuid, const sockaddr *const addr) {
+            STMS_FATAL("DISCONNECT!");
+        });
+
         serv.start();
-        for (int i = 0; i < 100; i++) { serv.tick(); }
+        while (serv.tick()) {
+            stms::net::flushSSLErrors();
+        }
+
         serv.stop();  // Stop is automatically called in destructor.
         stms::net::flushSSLErrors();
     }
