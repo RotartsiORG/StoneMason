@@ -28,7 +28,7 @@ namespace stms::net {
         std::string addrStr{};
         BIO_ADDR *pBioAddr = nullptr;
         sockaddr *pSockAddr = nullptr;
-        size_t sockAddrLen{};
+        socklen_t sockAddrLen{};
         BIO *pBio = nullptr;
         SSL *pSsl = nullptr;
         int sock = 0;
@@ -46,6 +46,10 @@ namespace stms::net {
 
         DTLSClientRepresentation(DTLSClientRepresentation &&rhs) noexcept;
     };
+
+    class DTLSServer;
+
+    static void handleClientConnection(DTLSClientRepresentation *cli, DTLSServer *voidServ);
 
     enum SSLCacheModeBits {
         eBoth = SSL_SESS_CACHE_BOTH,
@@ -70,6 +74,8 @@ namespace stms::net {
         stms::ThreadPool *pPool{};
         std::unordered_map<std::string, DTLSClientRepresentation> clients;
         char *password{};
+        std::queue<std::string> deadClients;
+        std::mutex deadCliMtx;
 
         // When called, int is the len, which is ALWAYS >0. uint8_t is an array of bytes with that length.
         // The string is client uuid, sockaddr is client address
@@ -77,10 +83,12 @@ namespace stms::net {
                 const std::string &, const sockaddr *const, uint8_t *, int) {};
         std::function<void(const std::string &, const sockaddr *const)> connectCallback = [](const std::string &,
                                                                                              const sockaddr *const) {};
-        std::function<void(const std::string &, const sockaddr *const)> disconnectCallback = [](const std::string &,
-                                                                                                const sockaddr *const) {};
+        std::function<void(const std::string &, const std::string &)> disconnectCallback = [](const std::string &,
+                                                                                              const std::string &) {};
 
         bool tryAddr(addrinfo *addr, int num);
+
+        friend void handleClientConnection(DTLSClientRepresentation *cli, DTLSServer *voidServ);
 
     public:
 
@@ -139,7 +147,7 @@ namespace stms::net {
         }
 
         inline void setDisconnectCallback(const std::function<void(const std::string &,
-                                                                   const sockaddr *const)> &newCb) {
+                                                                   const std::string &)> &newCb) {
             disconnectCallback = newCb;
         }
 

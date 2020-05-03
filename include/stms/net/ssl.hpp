@@ -22,7 +22,7 @@ namespace stms::net {
         while (handleSSLError() != 0);
     }
 
-    std::string getAddrStr(sockaddr *addr);
+    std::string getAddrStr(const sockaddr *const addr);
 }
 
 #endif //__STONEMASON_SSL_HPP

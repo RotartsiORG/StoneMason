@@ -10,14 +10,14 @@
 #include "openssl/err.h"
 
 namespace stms::net {
-    std::string getAddrStr(sockaddr *addr) {
+    std::string getAddrStr(const sockaddr *const addr) {
         if (addr->sa_family == AF_INET) {
-            auto *v4Addr = reinterpret_cast<sockaddr_in *>(addr);
+            auto *v4Addr = reinterpret_cast<const sockaddr_in *const>(addr);
             char ipStr[INET_ADDRSTRLEN];
             inet_ntop(addr->sa_family, &(v4Addr->sin_addr), ipStr, INET_ADDRSTRLEN);
             return std::string(ipStr) + ":" + std::to_string(ntohs(v4Addr->sin_port));
         } else if (addr->sa_family == AF_INET6) {
-            auto *v6Addr = reinterpret_cast<sockaddr_in6 *>(addr);
+            auto *v6Addr = reinterpret_cast<const sockaddr_in6 *const>(addr);
             char ipStr[INET6_ADDRSTRLEN];
             inet_ntop(addr->sa_family, &(v6Addr->sin6_addr), ipStr, INET6_ADDRSTRLEN);
             return std::string(ipStr) + ":" + std::to_string(ntohs(v6Addr->sin6_port));
@@ -42,6 +42,7 @@ namespace stms::net {
             }
             case SSL_ERROR_ZERO_RETURN: {
                 STMS_WARN("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
+                flushSSLErrors();
                 return -6;
             }
             case SSL_ERROR_WANT_WRITE: {
