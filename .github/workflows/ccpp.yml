@@ -1,0 +1,24 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: lukka/get-cmake@latest
+    - uses: actions/checkout@v2
+    - name: cmake
+      run: cmake -Wdev -Wdeprecated -DSTMS_GENERATE_DOCS=ON -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
+    - name: mkdir build
+      run: mkdir build
+    - name: cmake build
+      working-directory: build
+      run: cmake --build . -j 8
+     
