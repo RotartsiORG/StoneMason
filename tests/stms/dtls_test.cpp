@@ -23,8 +23,8 @@ namespace {
         serv.setConnectCallback([](const std::string &uuid, const sockaddr *const addr) {
             STMS_WARN("CONNECT: UUID={}, ADDR={}", uuid, stms::net::getAddrStr(addr));
         });
-        serv.setDisconnectCallback([&](const std::string &uuid, const sockaddr *const addr) {
-            STMS_WARN("DISCONNECT: UUID={} ADDR={}", uuid, stms::net::getAddrStr(addr));
+        serv.setDisconnectCallback([&](const std::string &uuid, const std::string &addr) {
+            STMS_WARN("DISCONNECT: UUID={} ADDR={}", uuid, addr);
             serv.stop();
         });
 

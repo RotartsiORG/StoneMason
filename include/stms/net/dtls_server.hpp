@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <stms/async.hpp>
 #include <stms/logging.hpp>
+#include <stms/timers.hpp>
 
 #include "openssl/ssl.h"
 #include "openssl/bio.h"
@@ -33,6 +34,8 @@ namespace stms::net {
         SSL *pSsl = nullptr;
         int sock = 0;
         bool doShutdown = true;
+        bool isReading = false;
+        stms::Stopwatch timeoutTimer;
 
         DTLSClientRepresentation() = default;
 
@@ -45,11 +48,13 @@ namespace stms::net {
         DTLSClientRepresentation &operator=(DTLSClientRepresentation &&rhs) noexcept;
 
         DTLSClientRepresentation(DTLSClientRepresentation &&rhs) noexcept;
+
+        void shutdownClient() const;
     };
 
     class DTLSServer;
 
-    static void handleClientConnection(DTLSClientRepresentation *cli, DTLSServer *voidServ);
+    static void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
 
     enum SSLCacheModeBits {
         eBoth = SSL_SESS_CACHE_BOTH,
@@ -70,12 +75,13 @@ namespace stms::net {
         SSL_CTX *pCtx{};
         int serverSock = 0;
         timeval timeout{};
+        unsigned timeoutMs = 1000;
         bool isRunning = false;
         stms::ThreadPool *pPool{};
-        std::unordered_map<std::string, DTLSClientRepresentation> clients;
+        std::unordered_map<std::string, std::shared_ptr<DTLSClientRepresentation>> clients;
         char *password{};
         std::queue<std::string> deadClients;
-        std::mutex deadCliMtx;
+        std::mutex clientsMtx;
 
         // When called, int is the len, which is ALWAYS >0. uint8_t is an array of bytes with that length.
         // The string is client uuid, sockaddr is client address
@@ -88,7 +94,7 @@ namespace stms::net {
 
         bool tryAddr(addrinfo *addr, int num);
 
-        friend void handleClientConnection(DTLSClientRepresentation *cli, DTLSServer *voidServ);
+        friend void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
 
     public:
 

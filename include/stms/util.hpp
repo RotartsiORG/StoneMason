@@ -71,6 +71,35 @@ namespace stms {
     extern STMSInitializer stmsInitializer;
 
     void initAll();
+
+    template<typename T>
+    class _stms_flag {
+    private:
+        T state = 0;
+    public:
+        _stms_flag() = default;
+
+        _stms_flag(const _stms_flag &rhs) = default;
+
+        _stms_flag &operator=(const _stms_flag &rhs) = default;
+
+        inline void setBit(T bit, bool on) {
+            if (on) {
+                state |= (1u << bit);
+            } else {
+                state &= (255u ^ (1u << bit));
+            }
+        }
+
+        [[nodiscard]] inline bool getBit(T bit) const {
+            return state & (1u << bit);
+        }
+    };
+
+    typedef _stms_flag<uint8_t> Flag8Bit;
+    typedef _stms_flag<uint16_t> Flag16Bit;
+    typedef _stms_flag<uint32_t> Flag32Bit;
+    typedef _stms_flag<uint64_t> Flag64Bit;
 }
 
 #endif //__STONEMASON_UTIL_HPP

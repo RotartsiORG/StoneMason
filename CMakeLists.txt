@@ -25,8 +25,8 @@ add_subdirectory(dep/glfw)
 set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 add_subdirectory(dep/spdlog)
 
-add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp)
-add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp)
+add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp)
+add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp)
 
 target_compile_options(stms_shared PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17)  # -O3
 target_compile_options(stms_static PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17) # -O3
