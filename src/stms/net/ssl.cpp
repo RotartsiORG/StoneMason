@@ -133,6 +133,7 @@ namespace stms::net {
             }
         }
 
+        SSL_COMP_add_compression_method(0, COMP_zlib());
         STMS_INFO("Initialized {}!", OpenSSL_version(OPENSSL_VERSION));
     }
 }

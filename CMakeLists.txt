@@ -25,8 +25,8 @@ add_subdirectory(dep/glfw)
 set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 add_subdirectory(dep/spdlog)
 
-add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp)
-add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp)
+add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp)
+add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp)
 
 target_compile_options(stms_shared PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17)  # -O3
 target_compile_options(stms_static PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17) # -O3
@@ -34,34 +34,19 @@ target_compile_options(stms_static PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17
 target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 
+# Do not include spdlog in shared lib, linknig will fail
 target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES})
 target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES})
 
-if (Vulkan_FOUND)
-    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})
-    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})
+target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})
+target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})
 
-    target_link_libraries(stms_shared PUBLIC ${Vulkan_LIBRARIES})
-    target_link_libraries(stms_static PUBLIC ${Vulkan_LIBRARIES})
-else (Vulkan_FOUND)
-    # TODO: Remove this code; They are required to make CLion stop shouting at me.
-    # Last ditch effort to find vulkan if for some reason FindVulkan fails (*ahem CLION*)
-    # Should work on Linux/Mac, but WILL NOT WORK on Windows! Tweak to point to correct paths on your machine.
-
-    target_include_directories(stms_shared PUBLIC $ENV{VULKAN_SDK}/include)
-    target_include_directories(stms_static PUBLIC $ENV{VULKAN_SDK}/include)
-
-    target_link_libraries(stms_shared PUBLIC $ENV{VULKAN_SDK}/lib/libvulkan.so)
-    target_link_libraries(stms_static PUBLIC $ENV{VULKAN_SDK}/lib/libvulkan.so)
-endif (Vulkan_FOUND)
+target_link_libraries(stms_shared PUBLIC ${Vulkan_LIBRARIES})
+target_link_libraries(stms_static PUBLIC ${Vulkan_LIBRARIES})
 
 option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" OFF)
 option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" OFF)
 option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" OFF)
-
-# TODO: Remove the following two lines; They make CLion happy on my machine.
-target_include_directories(stms_static PUBLIC dep/googletest/googletest/include)
-target_include_directories(stms_shared PUBLIC dep/googletest/googletest/include)
 
 if (STMS_BUILD_TESTS)
     add_subdirectory(tests)

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#ifndef __STONEMASON_DTLS_HPP
-#define __STONEMASON_DTLS_HPP
+#ifndef __STONEMASON_DTLS_SERVER_HPP
+#define __STONEMASON_DTLS_SERVER_HPP
 
 #include <string>
 #include <thread>
@@ -205,4 +205,4 @@ namespace stms::net {
 }
 
 
-#endif //__STONEMASON_DTLS_HPP
+#endif //__STONEMASON_DTLS_SERVER_HPP
