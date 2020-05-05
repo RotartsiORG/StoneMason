@@ -19,7 +19,7 @@ namespace stms {
         // Bit 0 is running
         // Bit 1 is startDefined
         // Bit 2 is endDefined
-        Flag8Bit state;
+        uint8_t state{};
 
     public:
 
@@ -40,7 +40,7 @@ namespace stms {
         void reset();
 
         [[nodiscard]] inline bool isRunning() const {
-            return state.getBit(0);
+            return getBit(state, 0);
         }
     };
 

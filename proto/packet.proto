@@ -1,0 +1,16 @@
+syntax = "proto3";
+package stms.proto;
+
+message Packet {
+
+  enum Flags {
+    eDoNotDrop = 0;
+    eDoNotReorder = 1;
+    eDoReplay = 2;
+    eIsACK = 3;
+  }
+
+  uint32 flags = 1;
+  uint64 sequenceNumber = 2;
+  bytes data = 3;
+}

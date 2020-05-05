@@ -8,21 +8,20 @@ namespace stms {
 
     void Stopwatch::start() {
         startTime = std::chrono::steady_clock::now();
-        state.setBit(1, true);
-        state.setBit(0, true);
+        state = setBit(state, 0) | setBit(state, 1);
     }
 
     void Stopwatch::stop() {
         stopTime = std::chrono::steady_clock::now();
-        state.setBit(2, true);
-        state.setBit(0, false);
+        state = setBit(state, 2);
+        state = resetBit8(state, 0);
     }
 
     unsigned Stopwatch::getTime() {
-        if (state.getBit(0) && state.getBit(1)) {
+        if (getBit(state, 0) && getBit(state, 1)) {
             return std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - startTime).count();
-        } else if ((!state.getBit(0)) && state.getBit(1) && state.getBit(2)) {
+        } else if ((!getBit(state, 0)) && getBit(state, 1) && getBit(state, 2)) {
             return std::chrono::duration_cast<std::chrono::milliseconds>(stopTime - startTime).count();
         } else {
             return 0;
@@ -31,8 +30,8 @@ namespace stms {
 
     void Stopwatch::reset() {
         startTime = std::chrono::steady_clock::now();
-        state.setBit(1, true);
-        state.setBit(2, false);
+        setBit(state, 1);
+        resetBit8(state, 2);
     }
 
     void TPSTimer::tick() {
