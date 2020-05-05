@@ -3,8 +3,6 @@
               If you're seeing this, then you're reading the plaintext version.)
 
 # StoneMason TODO list
-### Misc
-1. Add mutexes for the various queues in `IOService`?
 
 ### Physics
 1. Learn Bullet Physics (bullet3: https://github.com/bulletphysics/bullet3) 
@@ -21,3 +19,6 @@
 1. Vulkan rendering 
     - Follow https://vulkan-tutorial.com/, then implement things from https://learnopengl.com/
 2. DirectX 12? OpenGL? Metal? IDK.
+
+### General TODO
+- Add unit tests for timers (Stopwatch & TPSTimer)

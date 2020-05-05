@@ -38,8 +38,8 @@ add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp
         src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp
         include/stms/proto/packet.pb.h src/stms/proto/packet.pb.cc)
 
-target_compile_options(stms_shared PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17)  # -O3
-target_compile_options(stms_static PUBLIC -Wall -Wextra -O3 -g3 -ggdb -std=c++17) # -O3
+target_compile_options(stms_shared PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)  # -O3
+target_compile_options(stms_static PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17) # -O3
 
 target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})

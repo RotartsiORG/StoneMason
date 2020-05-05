@@ -66,20 +66,9 @@ namespace stms::net {
         eNoInternalStore = SSL_SESS_CACHE_NO_INTERNAL_STORE
     };
 
-    class DTLSServer {
-    private:;
-        bool wantV6{};
-        std::string addrStr;
-        addrinfo *pAddrCandidates{};
-        addrinfo *pAddr{};
-        SSL_CTX *pCtx{};
-        int serverSock = 0;
-        timeval timeout{};
-        unsigned timeoutMs = 1000;
-        bool isRunning = false;
-        stms::ThreadPool *pPool{};
+    class DTLSServer : public SSLBase {
+    private:
         std::unordered_map<std::string, std::shared_ptr<DTLSClientRepresentation>> clients;
-        char *password{};
         std::queue<std::string> deadClients;
         std::mutex clientsMtx;
 
@@ -91,8 +80,6 @@ namespace stms::net {
                                                                                              const sockaddr *const) {};
         std::function<void(const std::string &, const std::string &)> disconnectCallback = [](const std::string &,
                                                                                               const std::string &) {};
-
-        bool tryAddr(addrinfo *addr, int num);
 
         friend void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
 
@@ -132,7 +119,7 @@ namespace stms::net {
                             const std::string &password = ""
         );
 
-        virtual ~DTLSServer();
+        ~DTLSServer() override;
 
         DTLSServer &operator=(const DTLSServer &rhs) = delete;
 
@@ -174,12 +161,6 @@ namespace stms::net {
          *         of bytes sent would be returned.
          */
         int send(const std::string &clientUuid, const uint8_t *msg, int msgLen);
-
-        /**
-         * @fn void stms::net::DTLSServer::start()
-         * @brief Starts the server. Opens a connection.
-         */
-        void start();
 
         /**
          * @fn bool stms::net::DTLSServer::tick()

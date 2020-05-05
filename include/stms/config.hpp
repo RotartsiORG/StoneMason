@@ -37,8 +37,8 @@
 #define STMS_DTLS_MAX_RECV_LEN 16384
 
 
-namespace stms {
-
+namespace stms::net {
+    static constexpr unsigned certAndCipherLen = 256;
 }
 
 #endif //__STONEMASON_CONFIG_HPP
