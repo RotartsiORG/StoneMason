@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include "stms/net/ssl.hpp"
 #include "stms/logging.hpp"
@@ -15,12 +16,12 @@
 namespace stms::net {
     std::string getAddrStr(const sockaddr *const addr) {
         if (addr->sa_family == AF_INET) {
-            auto *v4Addr = reinterpret_cast<const sockaddr_in *const>(addr);
+            auto *v4Addr = reinterpret_cast<const sockaddr_in *>(addr);
             char ipStr[INET_ADDRSTRLEN];
             inet_ntop(addr->sa_family, &(v4Addr->sin_addr), ipStr, INET_ADDRSTRLEN);
             return std::string(ipStr) + ":" + std::to_string(ntohs(v4Addr->sin_port));
         } else if (addr->sa_family == AF_INET6) {
-            auto *v6Addr = reinterpret_cast<const sockaddr_in6 *const>(addr);
+            auto *v6Addr = reinterpret_cast<const sockaddr_in6 *>(addr);
             char ipStr[INET6_ADDRSTRLEN];
             inet_ntop(addr->sa_family, &(v6Addr->sin6_addr), ipStr, INET6_ADDRSTRLEN);
             return std::string(ipStr) + ":" + std::to_string(ntohs(v6Addr->sin6_port));
@@ -176,9 +177,6 @@ namespace stms::net {
             this->password = new char;
             *this->password = 0;
         }
-
-        timeout.tv_sec = STMS_DTLS_SEC_TIMEOUT;
-        timeout.tv_usec = STMS_DTLS_USEC_TIMEOUT;
 
         pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
 
@@ -336,6 +334,31 @@ namespace stms::net {
 
     void SSLBase::onStart() {
         // no-op
+    }
+
+    bool SSLBase::blockUntilReady(int fd, SSL *ssl, short event) {
+        pollfd cliPollFd{};
+        cliPollFd.events = event;
+        cliPollFd.fd = fd;
+
+        timeval timevalTimeout{};
+        DTLSv1_get_timeout(ssl, &timevalTimeout);
+        int recvTimeout = static_cast<int>(timevalTimeout.tv_sec * 1000 + timevalTimeout.tv_usec / 1000);
+//        STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
+
+        if (poll(&cliPollFd, 1, recvTimeout) == 0) {
+            STMS_WARN("poll() timed out!");
+            DTLSv1_handle_timeout(ssl);
+            return false;
+        }
+
+        if (!(cliPollFd.revents & event)) {
+            STMS_WARN("Desired flags not set in poll()!");
+            DTLSv1_handle_timeout(ssl);
+            return false;
+        }
+
+        return true;
     }
 }
 

@@ -6,11 +6,13 @@ message Packet {
   enum Flags {
     eDoNotDrop = 0;
     eDoNotReorder = 1;
-    eDoReplay = 2;
-    eIsACK = 3;
+    eDoNotReplay = 2;
+    eDoNotIPFragment = 3;
+    eIsACK = 4;
   }
 
-  uint32 flags = 1;
-  uint64 sequenceNumber = 2;
-  bytes data = 3;
+  uint64 id = 1;
+  uint32 flags = 2;
+  uint64 sequenceNumber = 3;
+  bytes data = 4;
 }

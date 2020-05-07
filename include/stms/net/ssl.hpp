@@ -35,8 +35,8 @@ namespace stms::net {
         addrinfo *pAddr{};
         SSL_CTX *pCtx{};
         int sock = 0;
-        timeval timeout{};
         unsigned timeoutMs = 1000;
+        int maxTimeouts = 1;
         bool isRunning = false;
         stms::ThreadPool *pPool{};
         char *password{};
@@ -57,8 +57,20 @@ namespace stms::net {
 
         virtual ~SSLBase();
 
+        // Returns true if ready
+        static bool blockUntilReady(int fd, SSL *ssl, short event);
+
     public:
         void start();
+
+        inline void setTimeout(unsigned timeout) {
+            timeoutMs = timeout;
+        }
+
+        inline void setMaxIoTimeouts(int newMax) {
+            maxTimeouts = newMax;
+        }
+
     };
 }
 

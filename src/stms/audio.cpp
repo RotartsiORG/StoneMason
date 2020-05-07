@@ -4,7 +4,6 @@
 
 #include "stms/audio.hpp"
 #include "stb/stb_vorbis.c"
-#include <iostream>
 #include <stms/logging.hpp>
 
 namespace stms::al {

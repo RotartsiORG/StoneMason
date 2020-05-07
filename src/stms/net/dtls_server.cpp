@@ -163,7 +163,8 @@ namespace stms::net {
         BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_CONNECTED, 0, cli->pSockAddr);
 
         bool doHandshake = true;
-        while (doHandshake) {
+        int handshakeTimeouts = 0;
+        while (doHandshake && handshakeTimeouts < serv->maxTimeouts) {
             int handshakeStatus = SSL_accept(cli->pSsl);
             if (handshakeStatus == 1) {
                 doHandshake = false;
@@ -182,71 +183,18 @@ namespace stms::net {
                 }
 
                 if (handshakeStatus == -3) { // Want write
-                    STMS_WARN("Calling SSL_write() in response to SSL_accept()");
-                    int writeRet = -3;
-                    while (writeRet == -3) {
-                        writeRet = SSL_write(cli->pSsl, &on, 0);
-                        writeRet = handleSslGetErr(cli->pSsl, writeRet);
-                        if (writeRet == -3) {
-                            STMS_WARN("SSL_write() in response to SSL_accept() failed with WANT_WRITE! Retrying!");
-                        }
-                    }
-                    if (writeRet == -1 || writeRet == -5 || writeRet == -999 || writeRet == -6) {
-                        STMS_WARN("Fatal SSL_write() error in response to SSL_accept()!");
-                    } else if (writeRet < 1) {
-                        STMS_WARN("SSL_write failed for the reason above!");
-                    }
-                } else if (handshakeStatus == -2) { // Want read
-                    STMS_WARN("Calling SSL_read() in response to SSL_accept()");
-
-                    pollfd cliPollFd{};
-                    cliPollFd.events = POLLIN;
-                    cliPollFd.fd = cli->sock;
-
-                    DTLSv1_get_timeout(cli->pSsl, &serv->timeout);
-                    serv->timeoutMs = static_cast<int>((serv->timeout.tv_sec * 1000) + (serv->timeout.tv_usec / 1000));
-
-                    STMS_INFO("DTLS read timeout is set for {} milliseconds", serv->timeoutMs);
-
-                    if (poll(&cliPollFd, 1, static_cast<int>(serv->timeoutMs)) == 0) {
-                        STMS_WARN("poll() timed out!");
-                        DTLSv1_handle_timeout(cli->pSsl);
-                    }
-
-                    if (!(cliPollFd.revents & POLLIN)) {
-                        STMS_WARN("Not ready to read yet! Retrying...");
+                    STMS_INFO("WANT_WRITE returned from SSL_accept! Blocking until write-ready...");
+                    if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
+                        STMS_WARN("SSL_accpet() WANT_WRITE timed out!");
+                        handshakeTimeouts++;
                         continue;
                     }
-
-                    bool retryRead = true;
-                    int thisAttemptTimeouts = 0;
-                    while (retryRead && thisAttemptTimeouts < STMS_DTLS_MAX_TIMEOUTS) {
-                        uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
-                        int readLen = SSL_read(cli->pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
-                        readLen = handleSslGetErr(cli->pSsl, readLen);
-
-                        if (readLen > 0) {
-                            STMS_WARN("Discarding {} bytes from client trying to connect!", readLen);
-                            retryRead = false;
-                        } else if (readLen == -2) {
-                            if (BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0, nullptr)) {
-                                thisAttemptTimeouts++;
-                                STMS_INFO("SSL_read() timed out for client trying to connect! (timeout #{})",
-                                          thisAttemptTimeouts);
-                                retryRead = false;
-                            }
-                            // Retry otherwise
-                        } else if (readLen == -1 || readLen == -5 || readLen == -6) {
-                            STMS_WARN("Connection to client trying to connect closed forcefully!");
-                            cli->doShutdown = false;
-                            return;
-                        } else if (readLen == -999) {
-                            STMS_WARN("Client trying to connect kicked for: Unknown error");
-                            return;
-                        } else {
-                            STMS_WARN("Client trying to connect: SSL_read failed for the reason above!");
-                            // retry
-                        }
+                } else if (handshakeStatus == -2) { // Want read
+                    STMS_INFO("WANT_READ returned from SSL_accept! Blocking until read-ready...");
+                    if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLIN)) {
+                        STMS_INFO("SSL_accpet() WANT_READ timed out!");
+                        handshakeTimeouts++;
+                        continue;
                     }
                 }
             }
@@ -254,8 +202,11 @@ namespace stms::net {
 
         cli->doShutdown = true; // Handshake completed, we can shutdown!
 
-        BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &serv->timeout);
-        BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &serv->timeout);
+        timeval timeout{};
+        timeout.tv_usec = (serv->timeoutMs % 1000) * 1000;
+        timeout.tv_sec = serv->timeoutMs / 1000;
+        BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+        BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
 
         std::string uuid = stms::genUUID4().getStr();
 
@@ -332,8 +283,14 @@ namespace stms::net {
         std::shared_ptr<DTLSClientRepresentation> cli = std::make_shared<DTLSClientRepresentation>();
         cli->doShutdown = false;
         cli->pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
+
+        timeval timeout{};
+        timeout.tv_usec = (timeoutMs % 1000) * 1000;
+        timeout.tv_sec = timeoutMs / 1000;
         BIO_ctrl(cli->pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
         BIO_ctrl(cli->pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+
+
         cli->pSsl = SSL_new(pCtx);
         cli->pBioAddr = BIO_ADDR_new();
         SSL_set_bio(cli->pSsl, cli->pBio, cli->pBio);
@@ -363,13 +320,10 @@ namespace stms::net {
         std::lock_guard<std::mutex> lg(clientsMtx);
         for (auto &client : clients) {
             if ((SSL_get_shutdown(client.second->pSsl) & SSL_RECEIVED_SHUTDOWN) ||
-                client.second->timeouts >= STMS_DTLS_MAX_TIMEOUTS) {
+                client.second->timeouts >= 1) {
                 deadClients.push(client.first);
             } else {
                 char peekBuf[STMS_DTLS_MAX_RECV_LEN];
-
-                DTLSv1_get_timeout(cli->pSsl, &timeout);
-                timeoutMs = static_cast<int>((timeout.tv_sec * 1000) + (timeout.tv_usec / 1000));
 
                 if (client.second->timeoutTimer.getTime() >= timeoutMs) {
                     client.second->timeouts++;
@@ -389,8 +343,16 @@ namespace stms::net {
                                               lambUUid = std::string(client.first)](void *in) -> void * {
 
                         bool retryRead = true;
-                        while (retryRead && lambCli->timeouts < STMS_DTLS_MAX_TIMEOUTS) {
+                        int readTimeouts = 0;
+                        while (retryRead && lambCli->timeouts < 1 && readTimeouts < maxTimeouts) {
                             uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
+
+                            if (!stms::net::DTLSServer::blockUntilReady(client.second->sock, client.second->pSsl, POLLIN)) {
+                                STMS_WARN("SSL_read() timed out!");
+                                readTimeouts++;
+                                continue;
+                            }
+
                             int readLen = SSL_read(lambCli->pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
                             readLen = handleSslGetErr(lambCli->pSsl, readLen);
 
@@ -399,12 +361,7 @@ namespace stms::net {
                                 recvCallback(lambUUid, lambCli->pSockAddr, recvBuf, readLen);
                                 retryRead = false;
                             } else if (readLen == -2) {
-                                if (BIO_ctrl(SSL_get_rbio(lambCli->pSsl), BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP, 0,
-                                             nullptr)) {
-                                    STMS_INFO("SSL_read() timed out for client {} (Ignoring this)", lambUUid);
-                                    retryRead = false;
-                                }
-                                // Otherwise, just retry
+                                STMS_INFO("Retrying SSL_read(): WANT_READ");
                             } else if (readLen == -1 || readLen == -5 || readLen == -6) {
                                 STMS_WARN("Connection to client {} closed forcefully!", lambUUid);
                                 lambCli->doShutdown = false;
@@ -452,17 +409,27 @@ namespace stms::net {
     }
 
     int DTLSServer::send(const std::string &clientUuid, const uint8_t *msg, int msgLen) {
-        std::lock_guard<std::mutex> lg(clientsMtx);
+        clientsMtx.lock();
         if (clients.find(clientUuid) == clients.end()) {
             STMS_WARN("Failed to send! Client with UUID {} does not exist!", clientUuid);
+            clientsMtx.unlock();
             return 0;
         }
+        std::shared_ptr<DTLSClientRepresentation> cli = clients[clientUuid];
+        clientsMtx.unlock();
 
         int ret = -3;
 
-        while (ret == -3) {
-            ret = SSL_write(clients[clientUuid]->pSsl, msg, msgLen);
-            ret = handleSslGetErr(clients[clientUuid]->pSsl, ret);
+        int sendTimeouts = 0;
+        while (ret == -3 && sendTimeouts < maxTimeouts) {
+            if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
+                STMS_WARN("SSL_write() timed out!");
+                sendTimeouts++;
+                continue;
+            }
+
+            ret = SSL_write(cli->pSsl, msg, msgLen);
+            ret = handleSslGetErr(cli->pSsl, ret);
 
             if (ret == -3) {
                 STMS_WARN("send() failed with WANT_WRITE! Retrying!");
@@ -472,16 +439,25 @@ namespace stms::net {
         }
 
         if (ret == -1 || ret == -5 || ret == -6) {
-            STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, clients[clientUuid]->addrStr);
-            clients[clientUuid]->doShutdown = false;
+            STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, cli->addrStr);
+            cli->doShutdown = false;
 
+            std::lock_guard<std::mutex> lg(clientsMtx);
             deadClients.push(clientUuid);
         } else if (ret == -999) {
-            STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, clients[clientUuid]->addrStr);
+            STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, cli->addrStr);
 
+            std::lock_guard<std::mutex> lg(clientsMtx);
             deadClients.push(clientUuid);
         } else if (ret < 1) {
             STMS_WARN("SSL_write failed for the reason above!");
+        }
+
+        if (sendTimeouts >= maxTimeouts) {
+            STMS_WARN("SSL_write() timed out completely! Dropping connection!");
+
+            std::lock_guard<std::mutex> lg(clientsMtx);
+            deadClients.push(clientUuid);
         }
 
         return ret;
