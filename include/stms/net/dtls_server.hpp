@@ -83,6 +83,8 @@ namespace stms::net {
 
         friend void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
 
+        void onStop() override;
+
     public:
 
         DTLSServer() = default;
@@ -174,11 +176,6 @@ namespace stms::net {
          */
         bool tick();
 
-        /**
-         * @fn void stms::net::DTLSServer::stop()
-         * @brief Stop the server. Kill the connection.
-         */
-        void stop();
 
         inline void setCacheMode(SSLCacheModeBits flags) {
             SSL_CTX_set_session_cache_mode(pCtx, flags);

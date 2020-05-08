@@ -17,10 +17,12 @@
 #include "openssl/opensslv.h"
 
 namespace stms::net {
-    class DTLSClient : SSLBase {
+    class DTLSClient : public SSLBase {
     private:
         BIO *pBio{};
         SSL *pSsl{};
+
+        void onStart() override;
     public:
         DTLSClient() = default;
 
@@ -33,8 +35,6 @@ namespace stms::net {
         );
 
         ~DTLSClient() override;
-
-        void onStart() override;
 
         DTLSClient &operator=(const DTLSClient &rhs) = delete;
 

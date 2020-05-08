@@ -50,6 +50,7 @@ namespace stms::net {
         );
 
         virtual void onStart();
+        virtual void onStop();
 
         bool tryAddr(addrinfo *addr, int num);
 
@@ -62,6 +63,8 @@ namespace stms::net {
 
     public:
         void start();
+
+        void stop();
 
         inline void setTimeout(unsigned timeout) {
             timeoutMs = timeout;

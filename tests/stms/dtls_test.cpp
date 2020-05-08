@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "stms/net/dtls_server.hpp"
+#include "stms/net/dtls_client.hpp"
 
 namespace {
     TEST(DLTS, Server) {
@@ -13,6 +14,9 @@ namespace {
         stms::net::DTLSServer serv = stms::net::DTLSServer(&pool, "Grant-PC.local", "3000", false,
                                                            "./res/ssl/serv-pub-cert.pem", "./res/ssl/serv-priv-key.pem",
                                                            "./res/ssl/ca-pub-cert.pem", "", "");
+        stms::net::DTLSClient cli = stms::net::DTLSClient(&pool, "Grant-PC.local", "3000", false,
+                                                          "./res/ssl/serv-pub-cert.pem", "./res/ssl/serv-priv-key.pem",
+                                                          "./res/ssl/ca-pub-cert.pem", "", "");
 
         serv.setRecvCallback([&](const std::string &cliuuid, const sockaddr *const sockaddr, uint8_t *buf, int size) {
             buf[size] = '\0';
@@ -29,10 +33,12 @@ namespace {
         });
 
         serv.start();
+        cli.start();
         while (serv.tick()) {
             stms::net::flushSSLErrors();
         }
 
+        cli.stop();
         serv.stop();  // Stop is automatically called in destructor.
         stms::net::flushSSLErrors();
     }

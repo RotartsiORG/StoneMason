@@ -226,7 +226,35 @@ namespace stms::net {
         }
     }
 
+    void SSLBase::stop() {
+        if (!isRunning) {
+            STMS_WARN("SSL stop() called when server or client already stopped! Ignoring invocation!");
+            return;
+        }
+
+        isRunning = false;
+        onStop();
+        if (sock == 0) {
+            STMS_INFO("DTLS server stopped. Resources freed. (Skipped socket as fd was 0)");
+            return;
+        }
+
+        if (shutdown(sock, 0) == -1) {
+            STMS_INFO("Failed to shutdown server socket: {}", strerror(errno));
+        }
+        if (close(sock) == -1) {
+            STMS_INFO("Failed to close server socket: {}", strerror(errno));
+        }
+        sock = 0;
+        STMS_INFO("DTLS server stopped. Resources freed.");
+    }
+
     void SSLBase::start() {
+        if (isRunning) {
+            STMS_WARN("SSL start() called when server or client already started! Ignoring invocation!");
+            return;
+        }
+
         if (!pPool->isRunning()) {
             STMS_CRITICAL("DTLSServer started with a stopped thread pool! "
                           "This will result in nothing being proccessed!");
@@ -244,6 +272,7 @@ namespace stms::net {
                 if (tryAddr(p, i)) {
                     if (wantV6) {
                         STMS_INFO("Using Candidate {} because it is IPv6", i);
+                        onStart();
                         return;
                     }
                 }
@@ -251,6 +280,7 @@ namespace stms::net {
                 if (tryAddr(p, i)) {
                     if (!wantV6) {
                         STMS_INFO("Using Candidate {} because it is IPv4", i);
+                        onStart();
                         return;
                     }
                 }
@@ -262,7 +292,6 @@ namespace stms::net {
 
         STMS_WARN("No IP addresses resolved from supplied address and port can be used to host the DTLS Server!");
         isRunning = false;
-        onStart();
     }
 
     bool SSLBase::tryAddr(addrinfo *addr, int num) {
@@ -359,6 +388,10 @@ namespace stms::net {
         }
 
         return true;
+    }
+
+    void SSLBase::onStop() {
+        // no-op
     }
 }
 

@@ -197,7 +197,13 @@ namespace stms::net {
                         continue;
                     }
                 }
+                STMS_WARN("Retrying SSL_accept!");
             }
+        }
+
+        if (handshakeTimeouts >= serv->maxTimeouts) {
+            STMS_WARN("DTLS server handshake timed out completely! Dropping connection");
+            return;
         }
 
         cli->doShutdown = true; // Handshake completed, we can shutdown!
@@ -252,26 +258,9 @@ namespace stms::net {
 //        *this = std::move(rhs);
 //    }
 
-    void DTLSServer::stop() {
-        isRunning = false;
-
-        {
-            std::lock_guard<std::mutex> lg(clientsMtx);
-            clients.clear();
-        }
-
-        if (sock == 0) {
-            return;
-        }
-
-        if (shutdown(sock, 0) == -1) {
-            STMS_INFO("Failed to shutdown server socket: {}", strerror(errno));
-        }
-        if (close(sock) == -1) {
-            STMS_INFO("Failed to close server socket: {}", strerror(errno));
-        }
-        sock = 0;
-        STMS_INFO("DTLS server stopped. Resources freed.");
+    void DTLSServer::onStop() {
+        std::lock_guard<std::mutex> lg(clientsMtx);
+        clients.clear();
     }
 
     bool DTLSServer::tick() {
@@ -376,9 +365,15 @@ namespace stms::net {
                                 deadClients.push(lambUUid);
                                 retryRead = false;
                             } else {
-                                STMS_WARN("Client {} SSL_read failed for the reason above!", lambUUid);
+                                STMS_WARN("Client {} SSL_read failed for the reason above! Retrying!", lambUUid);
                                 // Retry.
                             }
+                        }
+
+                        if (readTimeouts >= maxTimeouts) {
+                            STMS_WARN("SSL_read() timed out completely! Dropping connection!");
+                            std::lock_guard<std::mutex> lg(clientsMtx);
+                            deadClients.push(lambUUid);
                         }
                         lambCli->isReading = false;
                         return nullptr;
@@ -433,24 +428,22 @@ namespace stms::net {
 
             if (ret == -3) {
                 STMS_WARN("send() failed with WANT_WRITE! Retrying!");
-            } else if (ret <= 0) {
-                STMS_WARN("send() failed with error above! Aborting write!");
+            } else if (ret == -1 || ret == -5 || ret == -6) {
+                STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, cli->addrStr);
+                cli->doShutdown = false;
+
+                std::lock_guard<std::mutex> lg(clientsMtx);
+                deadClients.push(clientUuid);
+                return ret;
+            } else if (ret == -999) {
+                STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, cli->addrStr);
+
+                std::lock_guard<std::mutex> lg(clientsMtx);
+                deadClients.push(clientUuid);
+                return ret;
+            } else if (ret < 1) {
+                STMS_WARN("SSL_write failed for the reason above! Retrying!");
             }
-        }
-
-        if (ret == -1 || ret == -5 || ret == -6) {
-            STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, cli->addrStr);
-            cli->doShutdown = false;
-
-            std::lock_guard<std::mutex> lg(clientsMtx);
-            deadClients.push(clientUuid);
-        } else if (ret == -999) {
-            STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, cli->addrStr);
-
-            std::lock_guard<std::mutex> lg(clientsMtx);
-            deadClients.push(clientUuid);
-        } else if (ret < 1) {
-            STMS_WARN("SSL_write failed for the reason above!");
         }
 
         if (sendTimeouts >= maxTimeouts) {
