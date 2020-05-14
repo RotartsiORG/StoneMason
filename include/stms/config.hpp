@@ -36,6 +36,9 @@
 
 namespace stms::net {
     static constexpr unsigned certAndCipherLen = 256;
+    static constexpr int sslShutdownMaxRetries = 10;
+    static constexpr int minIoTimeout = 1000;
+    static constexpr int maxConnectionTimeouts = 1;
 }
 
 #endif //__STONEMASON_CONFIG_HPP

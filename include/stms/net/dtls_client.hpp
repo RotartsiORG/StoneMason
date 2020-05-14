@@ -21,8 +21,11 @@ namespace stms::net {
     private:
         BIO *pBio{};
         SSL *pSsl{};
+        int timeouts{};
 
         void onStart() override;
+
+        void onStop() override;
     public:
         DTLSClient() = default;
 
@@ -39,6 +42,8 @@ namespace stms::net {
         DTLSClient &operator=(const DTLSClient &rhs) = delete;
 
         DTLSClient(const DTLSClient &rhs) = delete;
+
+        bool tick();
 
         DTLSClient &operator=(DTLSClient &&rhs);
 

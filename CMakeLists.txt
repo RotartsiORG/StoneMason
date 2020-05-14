@@ -54,19 +54,27 @@ target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(stms_shared PUBLIC ${Vulkan_LIBRARIES})
 target_link_libraries(stms_static PUBLIC ${Vulkan_LIBRARIES})
 
-option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" OFF)
-option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" OFF)
-option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" OFF)
+option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
+option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" ON)
+option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
+
+# TODO: Remove later. Here bc otherwise clion won't properly see our CMake project.
+set(STMS_BUILD_TESTS ON CACHE BOOL "" FORCE)
+set(STMS_GENERATE_DOCS ON CACHE BOOL "" FORCE)
+set(STMS_BUILD_SAMPLES ON CACHE BOOL "" FORCE)
 
 if (STMS_BUILD_TESTS)
+    message("STMS tests enabled")
     add_subdirectory(tests)
 endif (STMS_BUILD_TESTS)
 
 if (STMS_BUILD_SAMPLES)
+    message("STMS samples enabled")
     add_subdirectory(samples)
 endif (STMS_BUILD_SAMPLES)
 
 if (STMS_GENERATE_DOCS)
+    message("STMS docs enabled")
     find_package(Doxygen REQUIRED)
     # Use a dummy call to project() to populate variables.
     project(StoneMason LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})

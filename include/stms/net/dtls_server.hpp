@@ -83,6 +83,8 @@ namespace stms::net {
 
         friend void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
 
+        friend struct DTLSClientRepresentation;
+
         void onStop() override;
 
     public:

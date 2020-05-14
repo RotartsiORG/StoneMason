@@ -19,23 +19,6 @@ namespace stms::net {
 
     DTLSClient::~DTLSClient() {
         stop();
-
-        if (pSsl != nullptr) {
-            int shutdownRet = 0;
-            while (shutdownRet == 0) {
-                shutdownRet = SSL_shutdown(pSsl);
-                if (shutdownRet < 0) {
-                    handleSslGetErr(pSsl, shutdownRet);
-                    flushSSLErrors();
-                    STMS_WARN("Error in SSL_shutdown (see above)!");
-                    break;
-                } else if (shutdownRet == 0) {
-                    flushSSLErrors();
-                    STMS_INFO("SSL_shutdown needs to be recalled! Retrying...");
-                }
-            }
-        }
-        SSL_free(pSsl);
         // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
     }
 
@@ -50,9 +33,12 @@ namespace stms::net {
         int handshakeTimeouts = 0;
         while (doHandshake && handshakeTimeouts < maxTimeouts) {
             int handshakeRet = SSL_connect(pSsl);
+            handshakeTimeouts++;
 
             if (handshakeRet == 1) {
                 doHandshake = false;
+                handshakeTimeouts = 0;
+                STMS_INFO("Client handshake successful!");
             } else if (handshakeRet == 0) {
                 STMS_INFO("DTLS client handshake failed! Cannot connect!");
                 handleSslGetErr(pSsl, handshakeRet);
@@ -70,14 +56,12 @@ namespace stms::net {
                     STMS_INFO("WANT_READ returned from SSL_connect! Blocking until read-ready...");
                     if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
                         STMS_WARN("SSL_connect() WANT_READ timed out!");
-                        handshakeTimeouts++;
                         continue;
                     }
                 } else if (handshakeRet == -3) { // Write
                     STMS_INFO("WANT_WRITE returned from SSL_connect! Blocking until write-ready...");
                     if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
                         STMS_WARN("SSL_connect() WANT_WRITE timed out!");
-                        handshakeTimeouts++;
                         continue;
                     }
                 }
@@ -87,7 +71,7 @@ namespace stms::net {
         }
 
         if (handshakeTimeouts >= maxTimeouts) {
-            STMS_WARN("SSL_connect timed out completely! Dropping connection!");
+            STMS_WARN("SSL_connect timed out completely ({}/{})! Dropping connection!", handshakeTimeouts, maxTimeouts);
             isRunning = false;
             return;
         }
@@ -107,9 +91,57 @@ namespace stms::net {
 
         STMS_INFO("Connected to server at {}: {}", addrStr, SSL_state_string_long(pSsl));
         STMS_INFO("Connected with cert: {}", certName);
-        STMS_INFO("Connected using cipher {}",  cipherName);
+        STMS_INFO("Connected using cipher {}", cipherName);
         STMS_INFO("Connected using compression {} and expansion {}",
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
+    }
+
+    bool DTLSClient::tick() {
+        if (!isRunning) {
+            return false;
+        }
+
+        if (SSL_get_shutdown(pSsl) & SSL_RECEIVED_SHUTDOWN || timeouts >= maxConnectionTimeouts) {
+            stop();
+            return false;
+        }
+
+        return isRunning;
+    }
+
+    void DTLSClient::onStop() {
+        if (pSsl != nullptr) {
+            int shutdownRet = 0;
+            int numTries = 0;
+            while (shutdownRet == 0 && numTries < sslShutdownMaxRetries) {
+                numTries++;
+                shutdownRet = SSL_shutdown(pSsl);
+                if (shutdownRet < 0) {
+                    shutdownRet = handleSslGetErr(pSsl, shutdownRet);
+                    flushSSLErrors();
+                    STMS_WARN("Error in SSL_shutdown (see above)!");
+
+                    if (shutdownRet == -2) {
+                        if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                            STMS_WARN("Reading timed out for SSL_shutdown!");
+                        }
+                    } else {
+                        STMS_WARN("Skipping SSL_shutdown()!");
+                        break;
+                    }
+                } else if (shutdownRet == 0) {
+                    flushSSLErrors();
+                    STMS_INFO("SSL_shutdown needs to be recalled! Retrying...");
+                }
+            }
+
+            if (numTries >= sslShutdownMaxRetries) {
+                STMS_WARN("Skipping SSL_shutdown: Timed out!");
+            }
+        }
+
+        SSL_free(pSsl);
+        pSsl = nullptr; // Don't double-free!
     }
 }

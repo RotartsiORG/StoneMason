@@ -165,6 +165,7 @@ namespace stms::net {
         bool doHandshake = true;
         int handshakeTimeouts = 0;
         while (doHandshake && handshakeTimeouts < serv->maxTimeouts) {
+            handshakeTimeouts++;
             int handshakeStatus = SSL_accept(cli->pSsl);
             if (handshakeStatus == 1) {
                 doHandshake = false;
@@ -186,14 +187,12 @@ namespace stms::net {
                     STMS_INFO("WANT_WRITE returned from SSL_accept! Blocking until write-ready...");
                     if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
                         STMS_WARN("SSL_accpet() WANT_WRITE timed out!");
-                        handshakeTimeouts++;
                         continue;
                     }
                 } else if (handshakeStatus == -2) { // Want read
                     STMS_INFO("WANT_READ returned from SSL_accept! Blocking until read-ready...");
                     if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLIN)) {
                         STMS_INFO("SSL_accpet() WANT_READ timed out!");
-                        handshakeTimeouts++;
                         continue;
                     }
                 }
@@ -309,7 +308,7 @@ namespace stms::net {
         std::lock_guard<std::mutex> lg(clientsMtx);
         for (auto &client : clients) {
             if ((SSL_get_shutdown(client.second->pSsl) & SSL_RECEIVED_SHUTDOWN) ||
-                client.second->timeouts >= 1) {
+                client.second->timeouts >= maxConnectionTimeouts) {
                 deadClients.push(client.first);
             } else {
                 char peekBuf[STMS_DTLS_MAX_RECV_LEN];
@@ -334,14 +333,14 @@ namespace stms::net {
                         bool retryRead = true;
                         int readTimeouts = 0;
                         while (retryRead && lambCli->timeouts < 1 && readTimeouts < maxTimeouts) {
-                            uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
+                            readTimeouts++;
 
                             if (!stms::net::DTLSServer::blockUntilReady(client.second->sock, client.second->pSsl, POLLIN)) {
                                 STMS_WARN("SSL_read() timed out!");
-                                readTimeouts++;
                                 continue;
                             }
 
+                            uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
                             int readLen = SSL_read(lambCli->pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
                             readLen = handleSslGetErr(lambCli->pSsl, readLen);
 
@@ -417,14 +416,18 @@ namespace stms::net {
 
         int sendTimeouts = 0;
         while (ret == -3 && sendTimeouts < maxTimeouts) {
+            sendTimeouts++;
             if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
                 STMS_WARN("SSL_write() timed out!");
-                sendTimeouts++;
                 continue;
             }
 
             ret = SSL_write(cli->pSsl, msg, msgLen);
             ret = handleSslGetErr(cli->pSsl, ret);
+
+            if (ret > 0) {
+                return ret;
+            }
 
             if (ret == -3) {
                 STMS_WARN("send() failed with WANT_WRITE! Retrying!");
@@ -463,22 +466,45 @@ namespace stms::net {
     void DTLSClientRepresentation::shutdownClient() const {
         if (doShutdown && pSsl != nullptr) {
             int shutdownRet = 0;
-            while (shutdownRet == 0) {
+            int numTries = 0;
+            while (shutdownRet == 0 && numTries < sslShutdownMaxRetries) {
+                numTries++;
                 shutdownRet = SSL_shutdown(pSsl);
                 if (shutdownRet < 0) {
-                    handleSslGetErr(pSsl, shutdownRet);
+                    shutdownRet = handleSslGetErr(pSsl, shutdownRet);
                     flushSSLErrors();
                     STMS_WARN("Error in SSL_shutdown (see above)!");
-                    break;
+
+                    if (shutdownRet == -2) {
+                        if (!stms::net::DTLSServer::blockUntilReady(sock, pSsl, POLLIN)) {
+                            STMS_WARN("Reading timed out for SSL_shutdown!");
+                        }
+                    } else {
+                        STMS_WARN("Skipping SSL_shutdown()!");
+                        break;
+                    }
                 } else if (shutdownRet == 0) {
                     flushSSLErrors();
                     STMS_INFO("SSL_shutdown needs to be recalled! Retrying...");
                 }
             }
+
+            if (numTries >= sslShutdownMaxRetries) {
+                STMS_WARN("Skipping SSL_shutdown: Timed out!");
+            }
         }
         SSL_free(pSsl);
         // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
         BIO_ADDR_free(pBioAddr);
+
+        if (sock != 0) {
+            if (shutdown(sock, 0) == -1) {
+                STMS_INFO("Failed to shutdown client representation socket: {}", strerror(errno));
+            }
+            if (close(sock) == -1) {
+                STMS_INFO("Failed to close client representation socket: {}", strerror(errno));
+            }
+        }
 
         delete pSockAddr;  // No need to check this, as `delete nullptr` has no effect
     }

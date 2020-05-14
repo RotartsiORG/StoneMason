@@ -60,6 +60,8 @@ namespace stms {
 
         void tick();
 
+        void wait(int fps = 60);
+
         unsigned getLatestMspt();
 
         unsigned getLatestTps();

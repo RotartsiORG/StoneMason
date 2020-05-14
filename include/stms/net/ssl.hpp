@@ -36,7 +36,7 @@ namespace stms::net {
         SSL_CTX *pCtx{};
         int sock = 0;
         unsigned timeoutMs = 1000;
-        int maxTimeouts = 1;
+        int maxTimeouts = 9;
         bool isRunning = false;
         stms::ThreadPool *pPool{};
         char *password{};

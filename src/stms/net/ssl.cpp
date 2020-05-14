@@ -373,7 +373,9 @@ namespace stms::net {
         timeval timevalTimeout{};
         DTLSv1_get_timeout(ssl, &timevalTimeout);
         int recvTimeout = static_cast<int>(timevalTimeout.tv_sec * 1000 + timevalTimeout.tv_usec / 1000);
-//        STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
+//        recvTimeout = recvTimeout > minIoTimeout ? recvTimeout : minIoTimeout;
+
+        STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
 
         if (poll(&cliPollFd, 1, recvTimeout) == 0) {
             STMS_WARN("poll() timed out!");

@@ -4,6 +4,8 @@
 
 #include "stms/timers.hpp"
 
+#include <thread>
+
 namespace stms {
 
     void Stopwatch::start() {
@@ -45,5 +47,14 @@ namespace stms {
 
     unsigned TPSTimer::getLatestTps() {
         return 1000 / getLatestMspt();
+    }
+
+    void TPSTimer::wait(int fps) {
+        auto now = std::chrono::steady_clock::now();
+        auto dur = now - latestTick;
+        auto targetDur = std::chrono::milliseconds(1000 / fps);
+        if (targetDur > dur) {
+            std::this_thread::sleep_for(targetDur - dur);
+        }
     }
 }
