@@ -35,7 +35,7 @@ namespace {
     TEST(Log, Log) {
         stms::initAll();
         STMS_TRACE("STMS_TRACE: Pi is {1}, and the answer to life is {0}, I'm running STMS {2}", 42, 3.14,
-                   STMS_VERSION);
+                   stms::versionString);
         STMS_DEBUG("STMS_DEBUG");
         STMS_INFO("STMS_INFO");
         STMS_WARN("STMS_WARN");

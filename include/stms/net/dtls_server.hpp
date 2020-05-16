@@ -165,7 +165,7 @@ namespace stms::net {
          *         Otherwise, if the operation completed successfully, a positive value containing the number
          *         of bytes sent would be returned.
          */
-        int send(const std::string &clientUuid, const uint8_t *msg, int msgLen);
+        std::future<int> send(const std::string &clientUuid, const uint8_t *msg, int msgLen);
 
         /**
          * @fn bool stms::net::DTLSServer::tick()

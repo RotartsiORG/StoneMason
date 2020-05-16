@@ -17,7 +17,7 @@ namespace stms {
         localtime_r(&rawTime, &timeInfo);
 #endif
 
-        oss << std::put_time(&timeInfo, STMS_TIME_FORMAT);
+        oss << std::put_time(&timeInfo, stms::timeFormat);
         return oss.str();
     }
 
@@ -41,9 +41,9 @@ namespace stms {
         try {
             spdlog::set_error_handler(onSPDLogError);
 
-#ifdef STMS_ENABLE_ASYNC_LOGGING
-            spdlog::init_thread_pool(8192, 1);
-#endif
+            if (asyncLogging) {
+                spdlog::init_thread_pool(8192, 1);
+            }
             auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
 #ifdef __APPLE__
@@ -61,21 +61,21 @@ namespace stms {
             std::shared_ptr<spdlog::sinks::basic_file_sink_mt> latest_file_sink;
             std::shared_ptr<spdlog::sinks::basic_file_sink_mt> unique_file_sink;
 
-#ifdef STMS_LOG_TO_LATEST
-            latest_file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("latest.log", true);
-            sink_list.emplace_back(latest_file_sink);
-#endif
+            if (logToLatest) {
+                latest_file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("latest.log", true);
+                sink_list.emplace_back(latest_file_sink);
+            }
 
-#ifdef STMS_LOG_TO_UNIQUE
+            if (logToUniqueFile) {
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
-            mkdir(STMS_LOG_DIR);
+                mkdir(logDir);
 #else
-            mkdir(STMS_LOG_DIR, 0777);
+                mkdir(logDir, 0777);
 #endif
-            unique_file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(STMS_LOG_DIR"/" + now + ".log",
-                                                                                   true);
-            sink_list.emplace_back(unique_file_sink);
-#endif
+                unique_file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logDir + now + ".log",
+                                                                                       true);
+                sink_list.emplace_back(unique_file_sink);
+            }
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
             sink_list.emplace_back(msvc_sink);
@@ -87,14 +87,14 @@ namespace stms {
 
             std::shared_ptr<spdlog::logger> logger;
 
-#ifdef STMS_ENABLE_ASYNC_LOGGING
-            logger = std::make_shared<spdlog::async_logger>("root",
-                                                            sink_list.begin(), sink_list.end(),
-                                                            spdlog::thread_pool(),
-                                                            spdlog::async_overflow_policy::block);
-#else
-            logger = std::make_shared<spdlog::logger>("root", sink_list.begin(), sink_list.end());
-#endif
+            if (asyncLogging) {
+                logger = std::make_shared<spdlog::async_logger>("root",
+                                                                sink_list.begin(), sink_list.end(),
+                                                                spdlog::thread_pool(),
+                                                                spdlog::async_overflow_policy::block);
+            } else {
+                logger = std::make_shared<spdlog::logger>("root", sink_list.begin(), sink_list.end());
+            }
 
             spdlog::register_logger(logger);
             spdlog::set_default_logger(logger);
@@ -104,9 +104,10 @@ namespace stms {
 
             STMS_INFO("{:=^150}", " [NEW LOGGING SESSION | " + now + "] ");
 
-            spdlog::set_pattern(STMS_LOG_FORMAT);
+            spdlog::set_pattern(logFormat);
 
-            STMS_INFO("Started StoneMason {}! Compiled on {} at {}. The current time is {}", STMS_VERSION, __DATE__,
+            STMS_INFO("Started StoneMason {}! Compiled on {} at {}. The current time is {}", stms::versionString,
+                      __DATE__,
                       __TIME__, now);
         }
         catch (const std::exception &ex) {

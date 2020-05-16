@@ -4,7 +4,7 @@
 
 #include "stms/util.hpp"
 #include <bitset>
-#include "spdlog/fmt/fmt.h"
+#include "fmt/format.h"
 #include "openssl/rand.h"
 #include "stms/logging.hpp"
 #include "stms/audio.hpp"

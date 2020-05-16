@@ -6,6 +6,7 @@
 #define __STONEMASON_DTLS_CLIENT_HPP
 
 #include <string>
+#include <stms/timers.hpp>
 
 #include "stms/async.hpp"
 #include "stms/net/ssl.hpp"
@@ -22,10 +23,15 @@ namespace stms::net {
         BIO *pBio{};
         SSL *pSsl{};
         int timeouts{};
+        bool doShutdown = false;
+        bool isReading = false;
+        Stopwatch timeoutTimer{};
 
         void onStart() override;
 
         void onStop() override;
+
+        std::function<void(uint8_t *, size_t)> recvCallback = [](uint8_t *, size_t) {};
     public:
         DTLSClient() = default;
 
@@ -36,6 +42,12 @@ namespace stms::net {
                             const std::string &caCert = "", const std::string &caPath = "",
                             const std::string &password = ""
         );
+
+        inline void setRecvCallback(const std::function<void(uint8_t *, size_t)> &newCb) {
+            recvCallback = newCb;
+        }
+
+        std::future<int> send(uint8_t *, int);
 
         ~DTLSClient() override;
 

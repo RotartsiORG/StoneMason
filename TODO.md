@@ -10,10 +10,11 @@
 ### Networking
 1. ~~Learn OpenSSL (https://github.com/openssl/openssl)~~
 2. Make TCP-Over-UDP
-    - Implement delivery verification, ordered processing, compression, signing/authentication, encryption, etc
+    - Implement delivery verification, anti-replay, anti-reordering, automatic fragmenting, heartbeats etc
  
 ### Audio
 1. Device Enumeration support
+2. Audio capturing
 
 ### Rendering
 1. Vulkan rendering 

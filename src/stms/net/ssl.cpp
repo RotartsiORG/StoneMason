@@ -228,25 +228,25 @@ namespace stms::net {
 
     void SSLBase::stop() {
         if (!isRunning) {
-            STMS_WARN("SSL stop() called when server or client already stopped! Ignoring invocation!");
+            STMS_WARN("DTLS server/client stop() called when server/client already stopped! Ignoring invocation!");
             return;
         }
 
         isRunning = false;
         onStop();
         if (sock == 0) {
-            STMS_INFO("DTLS server stopped. Resources freed. (Skipped socket as fd was 0)");
+            STMS_INFO("DTLS server/client stopped. Resources freed. (Skipped socket as fd was 0)");
             return;
         }
 
         if (shutdown(sock, 0) == -1) {
-            STMS_INFO("Failed to shutdown server socket: {}", strerror(errno));
+            STMS_INFO("Failed to shutdown server/client socket: {}", strerror(errno));
         }
         if (close(sock) == -1) {
-            STMS_INFO("Failed to close server socket: {}", strerror(errno));
+            STMS_INFO("Failed to close server/client socket: {}", strerror(errno));
         }
         sock = 0;
-        STMS_INFO("DTLS server stopped. Resources freed.");
+        STMS_INFO("DTLS server/client stopped. Resources freed.");
     }
 
     void SSLBase::start() {
@@ -258,9 +258,9 @@ namespace stms::net {
         if (!pPool->isRunning()) {
             STMS_CRITICAL("DTLSServer started with a stopped thread pool! "
                           "This will result in nothing being proccessed!");
-            STMS_CRITICAL("Please explicitly start it before calling DTLSServer::start()"
-                          " and leave it running until the server stops!");
-            STMS_CRITICAL("Refusing to start DTLSServer!");
+            STMS_CRITICAL("Please explicitly start it before calling start()"
+                          " and leave it running until the server/client stops!");
+            STMS_CRITICAL("Refusing to start DTLS Server/Client!");
             return;
         }
 

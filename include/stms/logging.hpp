@@ -13,6 +13,8 @@
 
 #include "stms/config.hpp"
 
+#ifdef STMS_ENABLE_LOGGING
+
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -25,7 +27,6 @@
 #include "spdlog/sinks/syslog_sink.h"
 #endif
 
-#ifdef STMS_ENABLE_LOGGING
 
 #define STMS_TRACE SPDLOG_TRACE
 

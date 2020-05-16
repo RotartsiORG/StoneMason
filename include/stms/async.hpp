@@ -59,7 +59,7 @@ namespace stms {
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
         // worker threads may throttle the CPU. If set too high, then the workers would waste time idling.
-        unsigned workerDelay = STMS_DEFAULT_WORKER_DELAY;
+        unsigned workerDelay = threadPoolWorkerDelayMs;
 
         // Deleted copy constructor and copy assignment operator.
         ThreadPool &operator=(const ThreadPool &rhs) = delete;

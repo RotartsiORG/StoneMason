@@ -19,7 +19,7 @@
 
 namespace stms::net {
     static bool secretCookieInit = false;
-    static uint8_t secretCookie[STMS_DTLS_COOKIE_SECRET_LEN];
+    static uint8_t secretCookie[secretCookieLen];
 
     struct HashAddr {
         unsigned short port;
@@ -28,7 +28,7 @@ namespace stms::net {
 
     static bool hashSSL(SSL *ssl, unsigned *len, uint8_t result[]) {
         if (!secretCookieInit) {
-            if (RAND_bytes(secretCookie, sizeof(uint8_t) * STMS_DTLS_COOKIE_SECRET_LEN) != 1) {
+            if (RAND_bytes(secretCookie, sizeof(uint8_t) * secretCookieLen) != 1) {
                 STMS_WARN(
                         "OpenSSL RNG is faulty! Using C++ RNG instead! This may leave you vulnerable to DDoS attacks!");
                 for (unsigned char &i : secretCookie) {
@@ -63,7 +63,7 @@ namespace stms::net {
 
         *len = DTLS1_COOKIE_LENGTH - 1;
         // TODO: Should i really be using SHA1?
-        HMAC(EVP_sha1(), secretCookie, STMS_DTLS_COOKIE_SECRET_LEN, (uint8_t *) &addr, addrLen, result, len);
+        HMAC(EVP_sha1(), secretCookie, secretCookieLen, (uint8_t *) &addr, addrLen, result, len);
         return true;
     }
 
@@ -259,6 +259,13 @@ namespace stms::net {
 
     void DTLSServer::onStop() {
         std::lock_guard<std::mutex> lg(clientsMtx);
+        for (auto &pair : clients) {
+            pPool->submitTask([&, capUuid = std::string(pair.first),
+                                      capStr = std::string(pair.second->addrStr), this](void *in) -> void * {
+                disconnectCallback(capUuid, capStr);
+                return nullptr;
+            }, nullptr, threadPoolPriority);
+        }
         clients.clear();
     }
 
@@ -296,10 +303,10 @@ namespace stms::net {
             if (BIO_ADDR_family(cli->pBioAddr) != AF_INET6 && BIO_ADDR_family(cli->pBioAddr) != AF_INET) {
                 STMS_INFO("A client tried to connect with an unsupported family! Refusing to connect.");
             } else {
-                pPool->submitTask([=, capCli{cli}, this](void *in) -> void * {
+                pPool->submitTask([&, capCli{cli}](void *in) -> void * {
                     handleClientConnection(capCli, this);
                     return nullptr;
-                }, this, 8);
+                }, this, threadPoolPriority);
             }
         }
 
@@ -311,8 +318,6 @@ namespace stms::net {
                 client.second->timeouts >= maxConnectionTimeouts) {
                 deadClients.push(client.first);
             } else {
-                char peekBuf[STMS_DTLS_MAX_RECV_LEN];
-
                 if (client.second->timeoutTimer.getTime() >= timeoutMs) {
                     client.second->timeouts++;
                     client.second->timeoutTimer.reset();
@@ -320,7 +325,7 @@ namespace stms::net {
                     STMS_INFO("Client {} timed out! (timeout #{})", client.first, client.second->timeouts);
                 }
 
-                if (recvfrom(client.second->sock, peekBuf, STMS_DTLS_MAX_RECV_LEN, MSG_PEEK, client.second->pSockAddr,
+                if (recvfrom(client.second->sock, nullptr, 0, MSG_PEEK, client.second->pSockAddr,
                              &client.second->sockAddrLen) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                     continue;  // No data could be read
                 }
@@ -335,13 +340,13 @@ namespace stms::net {
                         while (retryRead && lambCli->timeouts < 1 && readTimeouts < maxTimeouts) {
                             readTimeouts++;
 
-                            if (!stms::net::DTLSServer::blockUntilReady(client.second->sock, client.second->pSsl, POLLIN)) {
+                            if (!stms::net::DTLSServer::blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN)) {
                                 STMS_WARN("SSL_read() timed out!");
                                 continue;
                             }
 
-                            uint8_t recvBuf[STMS_DTLS_MAX_RECV_LEN];
-                            int readLen = SSL_read(lambCli->pSsl, recvBuf, STMS_DTLS_MAX_RECV_LEN);
+                            uint8_t recvBuf[maxRecvLen];
+                            int readLen = SSL_read(lambCli->pSsl, recvBuf, maxRecvLen);
                             readLen = handleSslGetErr(lambCli->pSsl, readLen);
 
                             if (readLen > 0) {
@@ -376,7 +381,7 @@ namespace stms::net {
                         }
                         lambCli->isReading = false;
                         return nullptr;
-                    }, nullptr, 8);
+                    }, nullptr, threadPoolPriority);
                 }
             }
         }
@@ -390,10 +395,11 @@ namespace stms::net {
                 return isRunning;
             }
 
-            pPool->submitTask([=, capStr = std::string(clients[cliUuid]->addrStr), this](void *in) -> void * {
-                disconnectCallback(cliUuid, capStr);
+            pPool->submitTask([&, capUuid = std::string(cliUuid),
+                                      capStr = std::string(clients[cliUuid]->addrStr), this](void *in) -> void * {
+                disconnectCallback(capUuid, capStr);
                 return nullptr;
-            }, nullptr, 8);
+            }, nullptr, threadPoolPriority);
 
             STMS_INFO("Client {} at {} disconnected!", cliUuid, clients[cliUuid]->addrStr);
             clients.erase(cliUuid);
@@ -402,61 +408,77 @@ namespace stms::net {
         return isRunning;
     }
 
-    int DTLSServer::send(const std::string &clientUuid, const uint8_t *msg, int msgLen) {
-        clientsMtx.lock();
-        if (clients.find(clientUuid) == clients.end()) {
-            STMS_WARN("Failed to send! Client with UUID {} does not exist!", clientUuid);
+    std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *msg, int msgLen) {
+        std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
+
+        if (!isRunning) {
+            prom->set_value(-114);
+            return prom->get_future();
+        }
+
+        pPool->submitTask([&, capProm{prom}](void *) -> void * {
+            clientsMtx.lock();
+            if (clients.find(clientUuid) == clients.end()) {
+                STMS_WARN("Failed to send! Client with UUID {} does not exist!", clientUuid);
+                clientsMtx.unlock();
+                prom->set_value(0);
+                return nullptr;
+            }
+            std::shared_ptr<DTLSClientRepresentation> cli = clients[clientUuid];
             clientsMtx.unlock();
-            return 0;
-        }
-        std::shared_ptr<DTLSClientRepresentation> cli = clients[clientUuid];
-        clientsMtx.unlock();
 
-        int ret = -3;
+            int ret = -3;
 
-        int sendTimeouts = 0;
-        while (ret == -3 && sendTimeouts < maxTimeouts) {
-            sendTimeouts++;
-            if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
-                STMS_WARN("SSL_write() timed out!");
-                continue;
+            int sendTimeouts = 0;
+            while (ret == -3 && sendTimeouts < maxTimeouts) {
+                sendTimeouts++;
+                if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
+                    STMS_WARN("SSL_write() timed out!");
+                    continue;
+                }
+
+                ret = SSL_write(cli->pSsl, msg, msgLen);
+                ret = handleSslGetErr(cli->pSsl, ret);
+
+                if (ret > 0) {
+                    capProm->set_value(ret);
+                    return nullptr;
+                }
+
+                if (ret == -3) {
+                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+                } else if (ret == -1 || ret == -5 || ret == -6) {
+                    STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, cli->addrStr);
+                    cli->doShutdown = false;
+
+                    std::lock_guard<std::mutex> lg(clientsMtx);
+                    deadClients.push(clientUuid);
+                    capProm->set_value(ret);
+                    return nullptr;
+                } else if (ret == -999) {
+                    STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, cli->addrStr);
+
+                    std::lock_guard<std::mutex> lg(clientsMtx);
+                    deadClients.push(clientUuid);
+                    capProm->set_value(ret);
+                    return nullptr;
+                } else if (ret < 1) {
+                    STMS_WARN("SSL_write failed for the reason above! Retrying!");
+                }
+                STMS_INFO("Retrying SSL_write!");
             }
 
-            ret = SSL_write(cli->pSsl, msg, msgLen);
-            ret = handleSslGetErr(cli->pSsl, ret);
-
-            if (ret > 0) {
-                return ret;
-            }
-
-            if (ret == -3) {
-                STMS_WARN("send() failed with WANT_WRITE! Retrying!");
-            } else if (ret == -1 || ret == -5 || ret == -6) {
-                STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, cli->addrStr);
-                cli->doShutdown = false;
+            if (sendTimeouts >= maxTimeouts) {
+                STMS_WARN("SSL_write() timed out completely! Dropping connection!");
 
                 std::lock_guard<std::mutex> lg(clientsMtx);
                 deadClients.push(clientUuid);
-                return ret;
-            } else if (ret == -999) {
-                STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, cli->addrStr);
-
-                std::lock_guard<std::mutex> lg(clientsMtx);
-                deadClients.push(clientUuid);
-                return ret;
-            } else if (ret < 1) {
-                STMS_WARN("SSL_write failed for the reason above! Retrying!");
             }
-        }
+            capProm->set_value(ret);
+            return nullptr;
+        }, nullptr, threadPoolPriority);
 
-        if (sendTimeouts >= maxTimeouts) {
-            STMS_WARN("SSL_write() timed out completely! Dropping connection!");
-
-            std::lock_guard<std::mutex> lg(clientsMtx);
-            deadClients.push(clientUuid);
-        }
-
-        return ret;
+        return prom->get_future();
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {

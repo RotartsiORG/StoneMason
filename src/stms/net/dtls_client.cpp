@@ -23,6 +23,7 @@ namespace stms::net {
     }
 
     void DTLSClient::onStart() {
+        doShutdown = false;
         pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
         BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &pAddr->ai_addr);
         pSsl = SSL_new(pCtx);
@@ -75,6 +76,7 @@ namespace stms::net {
             isRunning = false;
             return;
         }
+        doShutdown = true;
 
         timeval timeout{};
         timeout.tv_sec = timeoutMs / 1000;
@@ -107,11 +109,73 @@ namespace stms::net {
             return false;
         }
 
+        if (timeoutTimer.getTime() >= timeoutMs) {
+            timeouts++;
+            timeoutTimer.reset();
+            DTLSv1_handle_timeout(pSsl);
+            STMS_INFO("Connection to server timed out! (timeout #{})", timeouts);
+        }
+
+        if (recvfrom(sock, nullptr, 0, MSG_PEEK, pAddr->ai_addr,
+                     &pAddr->ai_addrlen) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            return isRunning;  // No data could be read
+        }
+
+        if (!isReading) {
+            isReading = true;
+            pPool->submitTask([&](void *in) -> void * {
+
+                bool retryRead = true;
+                int readTimeouts = 0;
+                while (retryRead && timeouts < 1 && readTimeouts < maxTimeouts) {
+                    readTimeouts++;
+
+                    if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                        STMS_WARN("SSL_read() timed out!");
+                        continue;
+                    }
+
+                    uint8_t recvBuf[maxRecvLen];
+                    int readLen = SSL_read(pSsl, recvBuf, maxRecvLen);
+                    readLen = handleSslGetErr(pSsl, readLen);
+
+                    if (readLen > 0) {
+                        timeoutTimer.reset();
+                        recvCallback(recvBuf, readLen);
+                        retryRead = false;
+                    } else if (readLen == -2) {
+                        STMS_INFO("Retrying SSL_read(): WANT_READ");
+                    } else if (readLen == -1 || readLen == -5 || readLen == -6) {
+                        STMS_WARN("Connection to server closed forcefully!");
+                        doShutdown = false;
+
+                        stop();
+                        retryRead = false;
+                    } else if (readLen == -999) {
+                        STMS_WARN("Disconnected from server for: Unknown error");
+
+                        stop();
+                        retryRead = false;
+                    } else {
+                        STMS_WARN("Server SSL_read failed for the reason above! Retrying!");
+                        // Retry.
+                    }
+                }
+
+                if (readTimeouts >= maxTimeouts) {
+                    STMS_WARN("SSL_read() timed out completely! Dropping connection!");
+                    stop();
+                }
+                isReading = false;
+                return nullptr;
+            }, nullptr, threadPoolPriority);
+        }
+
         return isRunning;
     }
 
     void DTLSClient::onStop() {
-        if (pSsl != nullptr) {
+        if (pSsl != nullptr && doShutdown) {
             int shutdownRet = 0;
             int numTries = 0;
             while (shutdownRet == 0 && numTries < sslShutdownMaxRetries) {
@@ -140,8 +204,68 @@ namespace stms::net {
                 STMS_WARN("Skipping SSL_shutdown: Timed out!");
             }
         }
+        doShutdown = false;
 
         SSL_free(pSsl);
         pSsl = nullptr; // Don't double-free!
+    }
+
+    std::future<int> DTLSClient::send(uint8_t *msg, int msgLen) {
+        std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
+        if (!isRunning) {
+            prom->set_value(-114);
+            return prom->get_future();
+        }
+
+        pPool->submitTask([&, capProm{prom}](void *) -> void * {
+            int ret = -3;
+
+            int sendTimeouts = 0;
+            while (ret == -3 && sendTimeouts < maxTimeouts) {
+                sendTimeouts++;
+                if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
+                    STMS_WARN("SSL_write() timed out!");
+                    continue;
+                }
+
+                ret = SSL_write(pSsl, msg, msgLen);
+                ret = handleSslGetErr(pSsl, ret);
+
+                if (ret > 0) {
+                    capProm->set_value(ret);
+                    return nullptr;
+                }
+
+                if (ret == -3) {
+                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+                } else if (ret == -1 || ret == -5 || ret == -6) {
+                    STMS_WARN("Connection to server at {} closed forcefully!", addrStr);
+                    doShutdown = false;
+
+                    stop();
+                    capProm->set_value(ret);
+                    return nullptr;
+                } else if (ret == -999) {
+                    STMS_WARN("Disconnecting from server at {} for: Unknown error", addrStr);
+
+                    stop();
+                    capProm->set_value(ret);
+                    return nullptr;
+                } else if (ret < 1) {
+                    STMS_WARN("SSL_write failed for the reason above! Retrying!");
+                }
+                STMS_INFO("Retrying SSL_write!");
+            }
+
+            if (sendTimeouts >= maxTimeouts) {
+                STMS_WARN("SSL_write() timed out completely! Dropping connection!");
+                stop();
+            }
+
+            capProm->set_value(ret);
+            return nullptr;
+        }, nullptr, threadPoolPriority);
+
+        return prom->get_future();
     }
 }
