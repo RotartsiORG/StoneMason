@@ -48,7 +48,6 @@ namespace stms {
     private:
         std::chrono::steady_clock::time_point tickBefore;
         std::chrono::steady_clock::time_point latestTick;
-        bool ticked = false;
     public:
         TPSTimer() = default;
 

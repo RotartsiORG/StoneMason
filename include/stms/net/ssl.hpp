@@ -74,6 +74,13 @@ namespace stms::net {
             maxTimeouts = newMax;
         }
 
+        inline void enableAntiReplay() {
+            SSL_CTX_clear_options(pCtx, SSL_OP_NO_ANTI_REPLAY);
+        }
+
+        inline void disableAntiReplay() {
+            SSL_CTX_set_options(pCtx, SSL_OP_NO_ANTI_REPLAY);
+        }
     };
 }
 

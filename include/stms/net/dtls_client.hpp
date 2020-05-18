@@ -32,6 +32,7 @@ namespace stms::net {
         void onStop() override;
 
         std::function<void(uint8_t *, size_t)> recvCallback = [](uint8_t *, size_t) {};
+        // Connect/Disconnect callback?
     public:
         DTLSClient() = default;
 
@@ -47,7 +48,7 @@ namespace stms::net {
             recvCallback = newCb;
         }
 
-        std::future<int> send(uint8_t *, int);
+        std::future<int> send(const uint8_t *const, int);
 
         ~DTLSClient() override;
 
@@ -56,6 +57,8 @@ namespace stms::net {
         DTLSClient(const DTLSClient &rhs) = delete;
 
         bool tick();
+
+        size_t getMtu();
 
         DTLSClient &operator=(DTLSClient &&rhs);
 

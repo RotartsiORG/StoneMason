@@ -26,6 +26,15 @@ namespace stms::net {
         doShutdown = false;
         pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
         BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &pAddr->ai_addr);
+
+        timeval timeout{};
+        timeout.tv_sec = timeoutMs / 1000;
+        timeout.tv_usec = (timeoutMs % 1000) * 1000;
+        BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+        BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+
+        BIO_ctrl(pBio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, nullptr);
+
         pSsl = SSL_new(pCtx);
         SSL_set_bio(pSsl, pBio, pBio);
 
@@ -77,11 +86,6 @@ namespace stms::net {
             return;
         }
         doShutdown = true;
-
-        timeval timeout{};
-        timeout.tv_sec = timeoutMs / 1000;
-        timeout.tv_usec = (timeoutMs % 1000) * 1000;
-        BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
         char certName[certAndCipherLen];
         char cipherName[certAndCipherLen];
@@ -210,7 +214,7 @@ namespace stms::net {
         pSsl = nullptr; // Don't double-free!
     }
 
-    std::future<int> DTLSClient::send(uint8_t *msg, int msgLen) {
+    std::future<int> DTLSClient::send(const uint8_t *const msg, int msgLen) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!isRunning) {
             prom->set_value(-114);
@@ -267,5 +271,9 @@ namespace stms::net {
         }, nullptr, threadPoolPriority);
 
         return prom->get_future();
+    }
+
+    size_t DTLSClient::getMtu() {
+        return DTLS_get_data_mtu(pSsl);
     }
 }

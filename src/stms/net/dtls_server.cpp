@@ -210,6 +210,7 @@ namespace stms::net {
         timeval timeout{};
         timeout.tv_usec = (serv->timeoutMs % 1000) * 1000;
         timeout.tv_sec = serv->timeoutMs / 1000;
+        // TODO: Is this necessary?
         BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
         BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
 
@@ -408,7 +409,7 @@ namespace stms::net {
         return isRunning;
     }
 
-    std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *msg, int msgLen) {
+    std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
 
         if (!isRunning) {
@@ -479,6 +480,15 @@ namespace stms::net {
         }, nullptr, threadPoolPriority);
 
         return prom->get_future();
+    }
+
+    size_t DTLSServer::getMtu(const std::string &cli) {
+        if (clients.find(cli) == clients.end()) {
+            STMS_WARN("Tried to get PMTU of non-existant client!");
+            return 0;
+        }
+
+        return DTLS_get_data_mtu(clients[cli]->pSsl);
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {

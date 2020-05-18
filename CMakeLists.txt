@@ -11,10 +11,6 @@ project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DES
 find_package(OpenAL REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(Protobuf REQUIRED)
-
-protobuf_generate_cpp(COMP_PROTO_LIB COMP_PROTO_INCL proto/packet.proto)
-protobuf_generate_python(PROTO_PY proto/packet.proto)
 
 set(GLFW_VULKAN_STATIC OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -31,24 +27,22 @@ add_subdirectory(dep/spdlog)
 add_library(stms_shared SHARED src/stms/async.cpp include/stms/async.hpp
         include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp
         include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp
-        src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp
-        include/stms/proto/packet.pb.h src/stms/proto/packet.pb.cc)
+        src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp)
 
 add_library(stms_static STATIC src/stms/async.cpp include/stms/async.hpp
         include/stms/audio.hpp src/stms/audio.cpp include/stms/logging.hpp src/stms/logging.cpp include/stms/config.hpp
         include/stms/util.hpp src/stms/util.cpp src/stms/net/dtls_server.cpp include/stms/net/dtls_server.hpp include/stms/net/ssl.hpp
-        src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp
-        include/stms/proto/packet.pb.h src/stms/proto/packet.pb.cc)
+        src/stms/net/ssl.cpp src/stms/timers.cpp include/stms/timers.hpp src/stms/net/dtls_client.cpp include/stms/net/dtls_client.hpp)
 
-target_compile_options(stms_shared PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)  # -O3
-target_compile_options(stms_static PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17) # -O3
+target_compile_options(stms_shared PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
+target_compile_options(stms_static PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 
 # Do not include spdlog in shared lib, linknig will fail
-target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES} ${Protobuf_LIBRARIES})
-target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES} ${Protobuf_LIBRARIES})
+target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES})
+target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} ${OPENSSL_LIBRARIES})
 
 target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})

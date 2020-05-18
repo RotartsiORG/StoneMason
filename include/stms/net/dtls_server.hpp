@@ -165,7 +165,7 @@ namespace stms::net {
          *         Otherwise, if the operation completed successfully, a positive value containing the number
          *         of bytes sent would be returned.
          */
-        std::future<int> send(const std::string &clientUuid, const uint8_t *msg, int msgLen);
+        std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen);
 
         /**
          * @fn bool stms::net::DTLSServer::tick()
@@ -182,6 +182,8 @@ namespace stms::net {
         inline void setCacheMode(SSLCacheModeBits flags) {
             SSL_CTX_set_session_cache_mode(pCtx, flags);
         }
+
+        size_t getMtu(const std::string &cli);
     };
 }
 

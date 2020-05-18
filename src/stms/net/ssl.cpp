@@ -264,14 +264,13 @@ namespace stms::net {
             return;
         }
 
-        isRunning = true;
-
         int i = 0;
         for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {
             if (p->ai_family == AF_INET6) {
                 if (tryAddr(p, i)) {
                     if (wantV6) {
                         STMS_INFO("Using Candidate {} because it is IPv6", i);
+                        isRunning = true;
                         onStart();
                         return;
                     }
@@ -280,6 +279,7 @@ namespace stms::net {
                 if (tryAddr(p, i)) {
                     if (!wantV6) {
                         STMS_INFO("Using Candidate {} because it is IPv4", i);
+                        isRunning = true;
                         onStart();
                         return;
                     }
