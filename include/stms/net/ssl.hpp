@@ -4,8 +4,8 @@
 
 #pragma once
 
-#ifndef __STONEMASON_SSL_HPP
-#define __STONEMASON_SSL_HPP
+#ifndef __STONEMASON_NET_SSL_HPP
+#define __STONEMASON_NET_SSL_HPP
 
 #include "openssl/ssl.h"
 #include <string>
@@ -84,4 +84,4 @@ namespace stms::net {
     };
 }
 
-#endif //__STONEMASON_SSL_HPP
+#endif //__STONEMASON_NET_SSL_HPP

@@ -19,6 +19,10 @@
 namespace stms {
     constexpr char versionString[] = "0.0.1";
 
+    constexpr int versionMajor = 0;
+    constexpr int versionMinor = 0;
+    constexpr int versionMicro = 1;
+
     constexpr unsigned threadPoolWorkerDelayMs = 125;
 
     constexpr bool asyncLogging = false;

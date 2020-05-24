@@ -5,10 +5,14 @@
 #include "stms/util.hpp"
 #include <bitset>
 #include "spdlog/fmt/fmt.h"
+
 #include "openssl/rand.h"
+#include "stms/net/ssl.hpp"
+
+#include "stms/rend/gl/gl.hpp"
+
 #include "stms/logging.hpp"
 #include "stms/audio.hpp"
-#include "stms/net/ssl.hpp"
 
 namespace stms {
     bool STMSInitializer::hasRun = false;
@@ -105,6 +109,8 @@ namespace stms {
         stms::initLogging();
 
         net::initOpenSsl();
+
+        gl::initGl();
 
         stms::al::defaultAlContext();  // Initialize openal
     }

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15.3)
 
-SET(CMAKE_CXX_STANDARD 20)
+SET(CMAKE_CXX_STANDARD 17)
 
 project(stms_tests LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Unit tests for StoneMason")
 

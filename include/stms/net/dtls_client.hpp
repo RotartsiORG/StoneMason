@@ -2,8 +2,8 @@
 // Created by grant on 5/4/20.
 //
 
-#ifndef __STONEMASON_DTLS_CLIENT_HPP
-#define __STONEMASON_DTLS_CLIENT_HPP
+#ifndef __STONEMASON_NET_DTLS_CLIENT_HPP
+#define __STONEMASON_NET_DTLS_CLIENT_HPP
 
 #include <string>
 #include <stms/timers.hpp>
@@ -67,4 +67,4 @@ namespace stms::net {
 }
 
 
-#endif //__STONEMASON_DTLS_CLIENT_HPP
+#endif //__STONEMASON_NET_DTLS_CLIENT_HPP
