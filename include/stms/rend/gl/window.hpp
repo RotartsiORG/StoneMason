@@ -7,23 +7,24 @@
 #ifndef __STONEMASON_GL_WINDOW_HPP
 #define __STONEMASON_GL_WINDOW_HPP
 
+#define GLEW_STATIC
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
-namespace stms::gl {
-    class Window {
+namespace stms::rend {
+    class GLWindow {
     private:
         GLFWwindow *win;
     public:
-        Window() = default;
-        Window(int width, int height, const char *title="StoneMason window");
-        virtual ~Window();
+        GLWindow() = default;
+        GLWindow(int width, int height, const char *title="StoneMason window");
+        virtual ~GLWindow();
 
-        Window(const Window &rhs) = delete;
-        Window &operator=(const Window &rhs) = delete;
+        GLWindow(const GLWindow &rhs) = delete;
+        GLWindow &operator=(const GLWindow &rhs) = delete;
 
-        Window(Window &&rhs) noexcept;
-        Window &operator=(Window &&rhs) noexcept;
+        GLWindow(GLWindow &&rhs) noexcept;
+        GLWindow &operator=(GLWindow &&rhs) noexcept;
     };
 }
 

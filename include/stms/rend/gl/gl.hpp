@@ -8,7 +8,7 @@
 #define __STONEMASON_GL_GL_HPP
 
 
-namespace stms::gl {
+namespace stms::rend {
     extern bool glInfoDumped;
 
     void initGl();

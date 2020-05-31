@@ -110,7 +110,7 @@ namespace stms {
 
         net::initOpenSsl();
 
-        gl::initGl();
+        stms::rend::initGl();
 
         stms::al::defaultAlContext();  // Initialize openal
     }

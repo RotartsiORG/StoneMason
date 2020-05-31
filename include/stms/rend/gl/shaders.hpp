@@ -4,13 +4,13 @@
 
 #pragma once
 
-#ifndef STONEMASON_SHADERS_HPP
-#define STONEMASON_SHADERS_HPP
+#ifndef __STONEMASON_GL_SHADERS_HPP
+#define __STONEMASON_GL_SHADERS_HPP
 
 
-namespace stms::gl {
+namespace stms::rend {
 
 }
 
 
-#endif //STONEMASON_SHADERS_HPP
+#endif //__STONEMASON_SHADERS_HPP

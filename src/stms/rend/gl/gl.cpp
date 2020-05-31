@@ -6,10 +6,11 @@
 
 #include "stms/logging.hpp"
 
+#define GLEW_STATIC
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
-namespace stms::gl {
+namespace stms::rend {
     bool glInfoDumped = true;
 
     void initGl() {

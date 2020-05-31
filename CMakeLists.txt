@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15.3)
 SET(CMAKE_CXX_STANDARD 17)
 
 set(STMS_VERSION 0.0.1)
+set(STMS_COMPILE_FLAGS -Wshadow -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
 project(stms_shared LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
@@ -18,6 +19,7 @@ find_package(OpenGL REQUIRED)
 
 set(GLFW_VULKAN_STATIC OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory(dep/glfw)
 
@@ -37,8 +39,8 @@ message("-- STMS project directory is ${PROJECT_SOURCE_DIR}")
 add_library(stms_shared SHARED ${STMS_SOURCES} ${STMS_INCLUDE})
 add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 
-target_compile_options(stms_shared PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
-target_compile_options(stms_static PUBLIC -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
+target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
+target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
 target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
 target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})

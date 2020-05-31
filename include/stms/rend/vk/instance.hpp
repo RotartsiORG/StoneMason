@@ -11,8 +11,8 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace stms::vk {
-    class Instance {
+namespace stms::rend {
+    class VKInstance {
     private:
         ::vk::Instance inst = ::vk::Instance();
         ::vk::PhysicalDevice physDev = ::vk::PhysicalDevice();
@@ -31,14 +31,14 @@ namespace stms::vk {
         // allocateCommandBuffers()
         
     public:
-        Instance() = default;
-        virtual ~Instance();
+        VKInstance() = default;
+        virtual ~VKInstance();
 
-        Instance(const Instance &rhs) = delete;
-        Instance(Instance &&rhs);
+        VKInstance(const VKInstance &rhs) = delete;
+        VKInstance(VKInstance &&rhs);
 
-        Instance &operator=(const Instance &rhs) = delete;
-        Instance &operator=(Instance &&rhs);
+        VKInstance &operator=(const VKInstance &rhs) = delete;
+        VKInstance &operator=(VKInstance &&rhs);
 
         // createBuffer()
     };

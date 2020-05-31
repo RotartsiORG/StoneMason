@@ -7,8 +7,8 @@
 #include "stms/rend/gl/gl.hpp"
 #include "stms/logging.hpp"
 
-namespace stms::gl {
-    Window::Window(int width, int height, const char *title) {
+namespace stms::rend {
+    GLWindow::GLWindow(int width, int height, const char *title) {
         win = glfwCreateWindow(width, height, title, nullptr, nullptr);
         if (!win) {
             STMS_FATAL("GLFW window creation failed! This window is unusable!");
@@ -30,7 +30,7 @@ namespace stms::gl {
         }
     }
 
-    Window::~Window() {
+    GLWindow::~GLWindow() {
         glfwDestroyWindow(win);
     }
 }

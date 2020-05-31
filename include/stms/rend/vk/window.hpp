@@ -11,13 +11,13 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace stms::vk {
-    class Instance;
+namespace stms::rend {
+    class VKInstance;
 
-    class Window {
+    class VKWindow {
     private:
         GLFWwindow *win = nullptr;
-        Instance *parent = nullptr;
+        VKInstance *parent = nullptr;
 
         ::vk::SurfaceKHR surf = ::vk::SurfaceKHR();
 
@@ -30,14 +30,14 @@ namespace stms::vk {
        std::vector<::vk::Framebuffer> swapFrameBufs;
 
     public:
-        Window() = default;
-        virtual ~Window();
+        VKWindow() = default;
+        virtual ~VKWindow();
 
-        Window(Window &&rhs);
-        Window(const Window &rhs) = delete;
+        VKWindow(VKWindow &&rhs);
+        VKWindow(const VKWindow &rhs) = delete;
 
-        Window &operator=(Window &&rhs);
-        Window &operator=(const Window &rhs) = delete;
+        VKWindow &operator=(VKWindow &&rhs);
+        VKWindow &operator=(const VKWindow &rhs) = delete;
     };
 }
 

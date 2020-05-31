@@ -483,6 +483,7 @@ namespace stms::net {
     }
 
     size_t DTLSServer::getMtu(const std::string &cli) {
+        std::lock_guard<std::mutex> lg(clientsMtx);
         if (clients.find(cli) == clients.end()) {
             STMS_WARN("Tried to get PMTU of non-existant client!");
             return 0;
