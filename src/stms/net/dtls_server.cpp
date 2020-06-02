@@ -261,6 +261,7 @@ namespace stms::net {
     void DTLSServer::onStop() {
         std::lock_guard<std::mutex> lg(clientsMtx);
         for (auto &pair : clients) {
+            // Lambda captures validated
             pPool->submitTask([&, capUuid = std::string(pair.first),
                                       capStr = std::string(pair.second->addrStr), this](void *in) -> void * {
                 disconnectCallback(capUuid, capStr);
@@ -304,6 +305,7 @@ namespace stms::net {
             if (BIO_ADDR_family(cli->pBioAddr) != AF_INET6 && BIO_ADDR_family(cli->pBioAddr) != AF_INET) {
                 STMS_INFO("A client tried to connect with an unsupported family! Refusing to connect.");
             } else {
+                // Lambda captures validated
                 pPool->submitTask([&, capCli{cli}](void *in) -> void * {
                     handleClientConnection(capCli, this);
                     return nullptr;
@@ -333,6 +335,7 @@ namespace stms::net {
 
                 if (!client.second->isReading) {
                     client.second->isReading = true;
+                    // lambda captures validated
                     pPool->submitTask([&, lambCli = std::shared_ptr<DTLSClientRepresentation>(client.second),
                                               lambUUid = std::string(client.first)](void *in) -> void * {
 
@@ -396,6 +399,7 @@ namespace stms::net {
                 return isRunning;
             }
 
+            // lambda captures validated
             pPool->submitTask([&, capUuid = std::string(cliUuid),
                                       capStr = std::string(clients[cliUuid]->addrStr), this](void *in) -> void * {
                 disconnectCallback(capUuid, capStr);
@@ -417,15 +421,16 @@ namespace stms::net {
             return prom->get_future();
         }
 
-        pPool->submitTask([&, capProm{prom}](void *) -> void * {
+        // lambda captures validated
+        pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{msg}, capLen{msgLen}](void *) -> void * {
             clientsMtx.lock();
-            if (clients.find(clientUuid) == clients.end()) {
-                STMS_WARN("Failed to send! Client with UUID {} does not exist!", clientUuid);
+            if (clients.find(capUuid) == clients.end()) {
+                STMS_WARN("Failed to send! Client with UUID {} does not exist!", capUuid);
                 clientsMtx.unlock();
-                prom->set_value(0);
+                capProm->set_value(0);
                 return nullptr;
             }
-            std::shared_ptr<DTLSClientRepresentation> cli = clients[clientUuid];
+            std::shared_ptr<DTLSClientRepresentation> cli = clients[capUuid];
             clientsMtx.unlock();
 
             int ret = -3;
@@ -438,7 +443,7 @@ namespace stms::net {
                     continue;
                 }
 
-                ret = SSL_write(cli->pSsl, msg, msgLen);
+                ret = SSL_write(cli->pSsl, capMsg, capLen);
                 ret = handleSslGetErr(cli->pSsl, ret);
 
                 if (ret > 0) {
@@ -449,18 +454,18 @@ namespace stms::net {
                 if (ret == -3) {
                     STMS_WARN("send() failed with WANT_WRITE! Retrying!");
                 } else if (ret == -1 || ret == -5 || ret == -6) {
-                    STMS_WARN("Connection to client {} at {} closed forcefully!", clientUuid, cli->addrStr);
+                    STMS_WARN("Connection to client {} at {} closed forcefully!", capUuid, cli->addrStr);
                     cli->doShutdown = false;
 
                     std::lock_guard<std::mutex> lg(clientsMtx);
-                    deadClients.push(clientUuid);
+                    deadClients.push(capUuid);
                     capProm->set_value(ret);
                     return nullptr;
                 } else if (ret == -999) {
-                    STMS_WARN("Kicking client {} at {} for: Unknown error", clientUuid, cli->addrStr);
+                    STMS_WARN("Kicking client {} at {} for: Unknown error", capUuid, cli->addrStr);
 
                     std::lock_guard<std::mutex> lg(clientsMtx);
-                    deadClients.push(clientUuid);
+                    deadClients.push(capUuid);
                     capProm->set_value(ret);
                     return nullptr;
                 } else if (ret < 1) {
@@ -473,7 +478,7 @@ namespace stms::net {
                 STMS_WARN("SSL_write() timed out completely! Dropping connection!");
 
                 std::lock_guard<std::mutex> lg(clientsMtx);
-                deadClients.push(clientUuid);
+                deadClients.push(capUuid);
             }
             capProm->set_value(ret);
             return nullptr;

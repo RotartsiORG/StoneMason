@@ -7,9 +7,18 @@
 #ifndef __STONEMASON_GL_SHADERS_HPP
 #define __STONEMASON_GL_SHADERS_HPP
 
+#define GLEW_STATIC
+#include "GL/glew.h"
+#include "GLFW/glfw3.h"
 
 namespace stms::rend {
+    class GLShaderModule {
 
+    };
+
+    class GLShaderProgram {
+        
+    };
 }
 
 

@@ -127,6 +127,7 @@ namespace stms::net {
 
         if (!isReading) {
             isReading = true;
+            // lambda captures validated
             pPool->submitTask([&](void *in) -> void * {
 
                 bool retryRead = true;
@@ -221,7 +222,8 @@ namespace stms::net {
             return prom->get_future();
         }
 
-        pPool->submitTask([&, capProm{prom}](void *) -> void * {
+        // lambda captures validated
+        pPool->submitTask([&, capProm{prom}, capMsg{msg}, capLen{msgLen}](void *) -> void * {
             int ret = -3;
 
             int sendTimeouts = 0;
@@ -232,7 +234,7 @@ namespace stms::net {
                     continue;
                 }
 
-                ret = SSL_write(pSsl, msg, msgLen);
+                ret = SSL_write(pSsl, capMsg, capLen);
                 ret = handleSslGetErr(pSsl, ret);
 
                 if (ret > 0) {

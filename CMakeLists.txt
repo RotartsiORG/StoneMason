@@ -16,6 +16,7 @@ find_package(OpenAL REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(CURL REQUIRED)
 
 set(GLFW_VULKAN_STATIC OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -42,12 +43,12 @@ add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
 target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
 
 # Do not include spdlog in shared lib, linknig will fail
-target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
 
 target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})

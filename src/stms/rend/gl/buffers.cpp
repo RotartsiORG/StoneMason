@@ -124,4 +124,22 @@ namespace stms::rend {
         glDeleteBuffers(1, &id);
     }
 
+    template<GLenum bufType>
+    _stms_GLBuffer<bufType>::_stms_GLBuffer(_stms_GLBuffer<bufType> &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    template<GLenum bufType>
+    _stms_GLBuffer<bufType> &_stms_GLBuffer<bufType>::operator=(_stms_GLBuffer<bufType> &&rhs) noexcept {
+        if (&rhs == this) {
+            return *this;
+        }
+
+        glDeleteBuffers(1, &id);
+        id = rhs.id;
+        rhs.id = 0;
+
+        return *this;
+    }
+
 }

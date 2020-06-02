@@ -20,10 +20,6 @@ namespace stms {
         return ret;
     }
 
-    extern int (*sslRand)(uint8_t *, int);
-
-    extern int (*privateSslRand)(uint8_t *, int);
-
     struct UUID {
     public:
         uint32_t timeLow{};

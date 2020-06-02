@@ -4,6 +4,7 @@
 
 #include <thread>
 #include <bitset>
+#include <stms/curl.hpp>
 #include "gtest/gtest.h"
 
 #include "stms/audio.hpp"
@@ -68,5 +69,23 @@ namespace {
                                         << "UUID Collision for " << uuid.strCache;
             seen.emplace_back(uuid.strCache);
         }
+    }
+
+    TEST(CURL, ReadURL) {
+        stms::ThreadPool pool;
+        pool.start();
+
+        auto future = stms::readURL("https://www.example.com", &pool);
+        auto res = future.get();
+        STMS_INFO("dat = '{}', size = {}", res.data, res.data.size());
+        ASSERT_TRUE(res.success);
+        ASSERT_GT(res.data.size(), 0);
+
+        future = stms::readURL("ftp://speedtest.tele2.net/1KB.zip", &pool);
+        res = future.get();
+        STMS_INFO("dat = '{}', size = {}", res.data, res.data.size());
+
+        ASSERT_TRUE(res.success);
+        ASSERT_EQ(res.data.size(), 1024);
     }
 }

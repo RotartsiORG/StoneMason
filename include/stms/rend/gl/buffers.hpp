@@ -57,6 +57,12 @@ namespace stms::rend {
         _stms_GLBuffer();
         virtual ~_stms_GLBuffer();
 
+        _stms_GLBuffer(const _stms_GLBuffer<bufType> &rhs) = delete;
+        _stms_GLBuffer<bufType> &operator=(const _stms_GLBuffer<bufType> &rhs) = delete;
+
+        _stms_GLBuffer(_stms_GLBuffer<bufType> &&rhs) noexcept;
+        _stms_GLBuffer<bufType> &operator=(_stms_GLBuffer<bufType> &&rhs) noexcept;
+
         inline void bind() const {
             glBindBuffer(bufType, id);
         }
