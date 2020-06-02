@@ -17,9 +17,10 @@
 2. Audio capturing
 
 ### Rendering
-1. Vulkan rendering 
+1. Basic OpenGL render
+2. Vulkan rendering 
     - Follow https://vulkan-tutorial.com/, then implement things from https://learnopengl.com/
-2. DirectX 12? OpenGL? Metal? IDK.
+3. DirectX 12? Metal? IDK.
 
 ### General TODO
 - Add unit tests for timers (Stopwatch & TPSTimer)

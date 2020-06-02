@@ -7,9 +7,13 @@
 #ifndef __STONEMASON_GL_GL_HPP
 #define __STONEMASON_GL_GL_HPP
 
+#define GLEW_STATIC
+#include "GL/glew.h"
+#include "GLFW/glfw3.h"
 
 namespace stms::rend {
     extern bool glInfoDumped;
+    extern GLint majorGlVersion;
 
     void initGl();
 }

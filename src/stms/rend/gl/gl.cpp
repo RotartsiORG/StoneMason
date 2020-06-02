@@ -6,12 +6,9 @@
 
 #include "stms/logging.hpp"
 
-#define GLEW_STATIC
-#include "GL/glew.h"
-#include "GLFW/glfw3.h"
-
 namespace stms::rend {
     bool glInfoDumped = true;
+    GLint majorGlVersion = -1;
 
     void initGl() {
         if (!glfwInit()) {

@@ -4,27 +4,20 @@
 
 #include "stms/rend/gl/buffers.hpp"
 
+#include "stms/rend/gl/gl.hpp"
 #include "stms/logging.hpp"
 
 namespace stms::rend {
-    GLuint VertexArray::VertexArrayImpl::enabledIndices = 0;
-    GLint VertexArray::majorGlVersion = -1;
+    GLuint GLVertexArray::VertexArrayImpl::enabledIndices = 0;
 
-    void VertexArray::VertexArrayImpl::pushVbo(stms::rend::VertexBuffer *vbo) {
+    void GLVertexArray::VertexArrayImpl::pushVbo(stms::rend::GLVertexBuffer *vbo) {
         vboLyos.emplace_back(VertexBufferLayout{vbo});
     }
 
-    void VertexArray::VertexArrayImpl::pushFloats(GLint num, bool normalized, GLuint divisor) {
+    void GLVertexArray::VertexArrayImpl::pushFloats(GLint num, bool normalized, GLuint divisor) {
         if (vboLyos.empty()) {
             STMS_WARN("Tried to push floats to a vertex array without a bound VBO! Ignoring invocation!");
             return;
-        }
-
-        if (majorGlVersion == -1) {
-            glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion);
-        }
-        if (majorGlVersion < 3 && divisor != 0) {
-            STMS_WARN("Instanced rendering is not supported in OpenGL {}! Expect things to break (or even crash)!", majorGlVersion);
         }
 
         VertexBufferLayout &boundLyo = vboLyos[vboLyos.size() - 1];
@@ -34,12 +27,13 @@ namespace stms::rend {
         newAttrib.normalized = normalized ? GL_TRUE : GL_FALSE;
         newAttrib.ptr = reinterpret_cast<void *>(boundLyo.stride);
         newAttrib.size = num;
+        newAttrib.type = GL_FLOAT;
 
         boundLyo.stride += num * sizeof(GLfloat);
         boundLyo.attribs.emplace_back(newAttrib);
     }
 
-    void VertexArray::VertexArrayImpl::specifyLayout() {
+    void GLVertexArray::VertexArrayImpl::specifyLayout() {
         while (enabledIndices != 0) {  // Remove leftover layout specification from previous binds
             glDisableVertexAttribArray(--enabledIndices);
         }
@@ -49,10 +43,15 @@ namespace stms::rend {
 
             for (const auto &attrib : vboLyo.attribs) {
                 glEnableVertexAttribArray(enabledIndices);
-                glVertexAttribPointer(enabledIndices, attrib.size, GL_FLOAT, attrib.normalized, vboLyo.stride, attrib.ptr);
+                glVertexAttribPointer(enabledIndices, attrib.size, attrib.type, attrib.normalized, vboLyo.stride, attrib.ptr);
 
                 if (attrib.divisor != 0) {
-                    glVertexAttribDivisor(enabledIndices, attrib.divisor);
+                    STMS_WARN("OpenGL 2 doesn't support non-zero vertex attribute divisors!");
+                    STMS_WARN("Don't use instanced rendering if you wish to maintain backwards compatibility!");
+
+                    if (majorGlVersion > 2) {
+                        glVertexAttribDivisor(enabledIndices, attrib.divisor);
+                    }
                 }
 
                 enabledIndices++;
@@ -60,50 +59,69 @@ namespace stms::rend {
         }
     }
 
-    VertexArray::VertexArrayImplOGL3::VertexArrayImplOGL3() {
+    GLVertexArray::VertexArrayImplOGL3::VertexArrayImplOGL3() {
         glCreateVertexArrays(1, &id);
     }
 
-    VertexArray::VertexArrayImplOGL3::~VertexArrayImplOGL3() {
+    GLVertexArray::VertexArrayImplOGL3::~VertexArrayImplOGL3() {
         glDeleteVertexArrays(1, &id);
     }
 
-    void VertexArray::VertexArrayImplOGL3::finalize() {
+    void GLVertexArray::VertexArrayImplOGL3::build() {
         bind();
         specifyLayout();
     }
 
-    void VertexArray::VertexArrayImplOGL3::bind() {
+    void GLVertexArray::VertexArrayImplOGL3::bind() {
         glBindVertexArray(id);
     }
 
-    VertexArray::VertexArrayImpl::VertexBufferLayout::VertexBufferLayout(VertexBuffer *vbo) {
+    GLVertexArray::VertexArrayImpl::VertexBufferLayout::VertexBufferLayout(GLVertexBuffer *vbo) {
         this->vbo = vbo;
     }
 
-    void VertexArray::VertexArrayImplOGL2::finalize() { /* no-op */ }
+    void GLVertexArray::VertexArrayImplOGL2::build() { /* no-op */ }
 
-    void VertexArray::VertexArrayImplOGL2::bind() {
+    void GLVertexArray::VertexArrayImplOGL2::bind() {
         specifyLayout();
     }
 
-    VertexArray::VertexArray() {
-        if (majorGlVersion == -1) {
-            glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion);
-        }
-
-        if (majorGlVersion == 2) {
+    GLVertexArray::GLVertexArray() {
+        if (majorGlVersion < 3) {
             impl = new VertexArrayImplOGL2();
-            return;
-        } else if (majorGlVersion >= 3) {
+        } else {
             impl = new VertexArrayImplOGL3();
-            return;
         }
-
-        STMS_WARN("OpenGL {} is outdated and untested! Expect bugs or even crashes!", majorGlVersion);
     }
 
-    VertexArray::~VertexArray() {
+    GLVertexArray::~GLVertexArray() {
         delete impl;
     }
+
+    GLVertexArray::GLVertexArray(GLVertexArray &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    GLVertexArray &GLVertexArray::operator=(GLVertexArray &&rhs) noexcept {
+        if (&rhs == this) {
+            return *this;
+        }
+
+        delete impl;
+        impl = rhs.impl;
+        rhs.impl = nullptr;
+
+        return *this;
+    }
+
+    template<GLenum bufType>
+    _stms_GLBuffer<bufType>::_stms_GLBuffer() {
+        glCreateBuffers(1, &id);
+    }
+
+    template<GLenum bufType>
+    _stms_GLBuffer<bufType>::~_stms_GLBuffer() {
+        glDeleteBuffers(1, &id);
+    }
+
 }

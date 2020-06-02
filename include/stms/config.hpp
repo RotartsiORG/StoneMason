@@ -41,6 +41,10 @@ namespace stms {
         constexpr int maxRecvLen = 16384; // RFC 8449
         constexpr int secretCookieLen = 16;
     }
+
+    namespace rend {
+        constexpr bool enableExperimentalGlew = true;
+    }
 }
 
 
