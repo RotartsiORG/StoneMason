@@ -4,7 +4,6 @@
 
 #include "stms/util.hpp"
 #include <bitset>
-#include "spdlog/fmt/fmt.h"
 
 #include "openssl/rand.h"
 #include "stms/net/ssl.hpp"
@@ -59,13 +58,43 @@ namespace stms {
         std::cout << stmsInitializer.specialValue;
     }
 
-    std::string UUID::getStr() {
-        strCache = fmt::format("{:08x}-{:04x}-{:04x}-{:02x}{:02x}-", timeLow, timeMid, timeHiAndVersion,
-                               clockSeqHiAndReserved, clockSeqLow);
-        for (uint8_t i : node) {
-            strCache += fmt::format("{:02x}", static_cast<unsigned>(i));
+    template<typename T>
+    std::string toHex(T in, uint8_t places) {
+        std::string ret;
+
+        uint8_t i = 0;
+        uint8_t lastAdded = in % 16;
+
+        // Even if i > places, it will keep going until we get a 0 so that we retain 100% of the data
+        // Is this behaviour good?
+        while (lastAdded != 0 || i < places) {
+            ret += hexChars[lastAdded];
+            lastAdded = static_cast<int>(in / std::pow(16, ++i)) % 16;
         }
-        return strCache;
+
+        std::reverse(ret.begin(), ret.end());
+        return ret;
+    }
+
+    std::string UUID::getStr() {
+        std::string ret;
+        ret.reserve(36);
+
+        ret += toHex(timeLow, 8);
+        ret += '-';
+        ret += toHex(timeMid, 4);
+        ret += '-';
+        ret += toHex(timeHiAndVersion, 4);
+        ret += '-';
+        ret += toHex(clockSeqHiAndReserved, 2);
+        ret += toHex(clockSeqLow, 2);
+        ret += '-';
+
+        for (uint8_t i : node) {
+            ret += toHex(i, 2);
+        }
+
+        return ret;
     }
 
     UUID::UUID(const UUID &rhs) {
@@ -76,7 +105,7 @@ namespace stms {
         if (this == &rhs) {
             return *this;
         }
-        strCache = rhs.strCache;
+
         timeLow = rhs.timeLow;
         timeMid = rhs.timeMid;
         timeHiAndVersion = rhs.timeHiAndVersion;

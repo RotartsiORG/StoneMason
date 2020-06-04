@@ -4,6 +4,7 @@
 
 #include <thread>
 #include <bitset>
+#include <unordered_set>
 #include <stms/curl.hpp>
 #include "gtest/gtest.h"
 
@@ -45,13 +46,16 @@ namespace {
     }
 
     TEST(UUID, Collisions) {
+        for (int i = 0; i < 16; i++) {
+            STMS_INFO("Sample UUID: {}", stms::genUUID4().getStr());
+        }
+
         const int numIter = 16384;
-        std::vector<std::string> seen;
-        seen.resize(numIter);
+        std::unordered_set<std::string> seen;
 
         for (int i = 0; i < numIter; i++) {
             stms::UUID uuid = stms::genUUID4();
-            uuid.getStr();
+            std::string str = uuid.getStr();
 
             std::bitset<8> uuidClockSeqHiAndReserved(uuid.clockSeqHiAndReserved);
             ASSERT_EQ(uuidClockSeqHiAndReserved.test(6), 0);
@@ -63,11 +67,10 @@ namespace {
             ASSERT_EQ(uuidTimeHiAndVersion.test(13), 0);
             ASSERT_EQ(uuidTimeHiAndVersion.test(12), 0);
 
-            ASSERT_EQ(uuid.strCache.length(), 36);
+            ASSERT_EQ(str.length(), 36);
 
-            ASSERT_EQ(std::find(seen.begin(), seen.end(), uuid.strCache), seen.end())
-                                        << "UUID Collision for " << uuid.strCache;
-            seen.emplace_back(uuid.strCache);
+            ASSERT_EQ(seen.find(str), seen.end()) << "UUID Collision for " << str;
+            seen.emplace(str);
         }
     }
 

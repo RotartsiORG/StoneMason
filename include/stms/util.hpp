@@ -14,11 +14,16 @@
 
 namespace stms {
 
+    constexpr char hexChars[] = "0123456789abcdef";
+
     inline std::default_random_engine &stmsRand() {
         static std::random_device seedGen = std::random_device();
         static std::default_random_engine ret(seedGen());
         return ret;
     }
+
+    template <typename T>
+    std::string toHex(T in, uint8_t places = 0);
 
     struct UUID {
     public:
@@ -28,8 +33,6 @@ namespace stms {
         uint8_t clockSeqHiAndReserved{};
         uint8_t clockSeqLow{};
         uint8_t node[6]{};
-
-        std::string strCache;
 
         std::string getStr();
 
