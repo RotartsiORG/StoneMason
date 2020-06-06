@@ -17,6 +17,7 @@
 
 namespace stms {
     bool STMSInitializer::hasRun = false;
+    int(*sslRand)(unsigned char *, int) = RAND_bytes;
 
     int intRand(int min, int max) {
         std::uniform_int_distribution<> dist(min, max);
@@ -58,8 +59,19 @@ namespace stms {
         std::cout << stmsInitializer.specialValue;
     }
 
-    template<typename T>
-    std::string toHex(T in, uint8_t places) {
+    void trimWhitespace(std::string &str) {
+        static constexpr auto isSpaceFunc = [](char c) {
+            return !std::isspace<char>(c, std::locale::classic());
+        };
+
+        auto trailIt = std::find_if(str.rbegin(), str.rend(), isSpaceFunc);
+        str.erase(trailIt.base(), str.end());  // Erase trailing spaces
+
+        auto leadIt = std::find_if(str.begin(), str.end(), isSpaceFunc);
+        str.erase(str.begin(), leadIt); // Erase leading spaces
+    }
+
+    std::string toHex(unsigned long long in, uint8_t places) {
         std::string ret;
 
         uint8_t i = 0;
@@ -69,32 +81,32 @@ namespace stms {
         // Is this behaviour good?
         while (lastAdded != 0 || i < places) {
             ret += hexChars[lastAdded];
-            lastAdded = static_cast<int>(in / std::pow(16, ++i)) % 16;
+            lastAdded = (in / static_cast<unsigned long long>(std::pow(16, ++i))) % 16;
         }
 
         std::reverse(ret.begin(), ret.end());
         return ret;
     }
 
-    std::string UUID::getStr() {
-        std::string ret;
-        ret.reserve(36);
+    std::string UUID::buildStr() {
+        strCache.clear();
+        strCache.reserve(36);
 
-        ret += toHex(timeLow, 8);
-        ret += '-';
-        ret += toHex(timeMid, 4);
-        ret += '-';
-        ret += toHex(timeHiAndVersion, 4);
-        ret += '-';
-        ret += toHex(clockSeqHiAndReserved, 2);
-        ret += toHex(clockSeqLow, 2);
-        ret += '-';
+        strCache += toHex(timeLow, 8);
+        strCache += '-';
+        strCache += toHex(timeMid, 4);
+        strCache += '-';
+        strCache += toHex(timeHiAndVersion, 4);
+        strCache += '-';
+        strCache += toHex(clockSeqHiAndReserved, 2);
+        strCache += toHex(clockSeqLow, 2);
+        strCache += '-';
 
         for (uint8_t i : node) {
-            ret += toHex(i, 2);
+            strCache += toHex(i, 2);
         }
 
-        return ret;
+        return strCache;
     }
 
     UUID::UUID(const UUID &rhs) {
@@ -112,6 +124,8 @@ namespace stms {
         clockSeqLow = rhs.clockSeqLow;
         clockSeqHiAndReserved = rhs.clockSeqHiAndReserved;
         std::copy(std::begin(rhs.node), std::end(rhs.node), std::begin(node));
+
+        strCache = rhs.strCache;
 
         return *this;
     }

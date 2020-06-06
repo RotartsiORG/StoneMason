@@ -103,7 +103,7 @@ namespace stms::rend {
     }
 
     GLVertexArray &GLVertexArray::operator=(GLVertexArray &&rhs) noexcept {
-        if (&rhs == this) {
+        if (rhs.impl == impl) {
             return *this;
         }
 
@@ -131,13 +131,15 @@ namespace stms::rend {
 
     template<GLenum bufType>
     _stms_GLBuffer<bufType> &_stms_GLBuffer<bufType>::operator=(_stms_GLBuffer<bufType> &&rhs) noexcept {
-        if (&rhs == this) {
+        if (rhs.id == id) {
             return *this;
         }
 
         glDeleteBuffers(1, &id);
         id = rhs.id;
         rhs.id = 0;
+
+        usage = rhs.usage;
 
         return *this;
     }

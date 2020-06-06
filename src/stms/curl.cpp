@@ -71,7 +71,7 @@ namespace stms {
     void initCurl() {
         curl_global_init(CURL_GLOBAL_SSL | CURL_GLOBAL_WIN32);
         auto version = curl_version_info(CURLVERSION_NOW);
-        // TODO: Log this version
+        STMS_INFO("LibCURL {}: On host '{}' with libZ {} & SSL {}", version->version, version->host, version->libz_version, version->ssl_version);
     }
 }
 

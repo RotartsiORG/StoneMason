@@ -13,6 +13,9 @@
 #include "stms/logging.hpp"
 #include "stms/util.hpp"
 
+#include "stms/camera.hpp"
+#include "glm/glm.hpp"
+
 namespace {
     TEST(AL, Play) {
         stms::initAll();
@@ -47,7 +50,7 @@ namespace {
 
     TEST(UUID, Collisions) {
         for (int i = 0; i < 16; i++) {
-            STMS_INFO("Sample UUID: {}", stms::genUUID4().getStr());
+            STMS_INFO("Sample UUID: {}", stms::genUUID4().buildStr());
         }
 
         const int numIter = 16384;
@@ -55,7 +58,7 @@ namespace {
 
         for (int i = 0; i < numIter; i++) {
             stms::UUID uuid = stms::genUUID4();
-            std::string str = uuid.getStr();
+            std::string str = uuid.buildStr();
 
             std::bitset<8> uuidClockSeqHiAndReserved(uuid.clockSeqHiAndReserved);
             ASSERT_EQ(uuidClockSeqHiAndReserved.test(6), 0);
@@ -90,5 +93,18 @@ namespace {
 
         ASSERT_TRUE(res.success);
         ASSERT_EQ(res.data.size(), 1024);
+    }
+
+    TEST(Util, General) {
+        ASSERT_EQ(stms::toHex(43981), "abcd");
+        ASSERT_EQ(stms::toHex(65244, 6), "00fedc");
+
+        std::string s("\t\t   some  \t\t  thing\t\t   ");
+        stms::trimWhitespace(s);
+        ASSERT_EQ(s, "some  \t\t  thing");
+
+        s = "this shouldn't\tbe touched";
+        stms::trimWhitespace(s);
+        ASSERT_EQ(s, "this shouldn't\tbe touched");
     }
 }

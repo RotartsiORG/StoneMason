@@ -22,8 +22,11 @@ namespace stms {
         return ret;
     }
 
-    template <typename T>
-    std::string toHex(T in, uint8_t places = 0);
+    void trimWhitespace(std::string &str);
+
+    extern int(*sslRand)(unsigned char *, int);
+
+    std::string toHex(unsigned long long in, uint8_t places = 0);
 
     struct UUID {
     public:
@@ -34,7 +37,9 @@ namespace stms {
         uint8_t clockSeqLow{};
         uint8_t node[6]{};
 
-        std::string getStr();
+        std::string strCache;
+
+        std::string buildStr();
 
         UUID() = default;
 

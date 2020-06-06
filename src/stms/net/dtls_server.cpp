@@ -214,7 +214,7 @@ namespace stms::net {
         BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
         BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
 
-        std::string uuid = stms::genUUID4().getStr();
+        std::string uuid = stms::genUUID4().buildStr();
 
         char certName[certAndCipherLen];
         char cipherName[certAndCipherLen];
