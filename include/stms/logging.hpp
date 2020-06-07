@@ -15,44 +15,40 @@
 
 #ifdef STMS_ENABLE_LOGGING
 
-#include "spdlog/spdlog.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
-#include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/async.h"
+#   include "spdlog/spdlog.h"
+#   include "spdlog/sinks/stdout_color_sinks.h"
+#   include "spdlog/sinks/basic_file_sink.h"
+#   include "spdlog/async.h"
+#   include "spdlog/sinks/msvc_sink.h"
 
-#include "spdlog/sinks/msvc_sink.h"
+#   ifdef __APPLE__
+#       include "spdlog/sinks/syslog_sink.h"
+#   endif
 
-#ifdef __APPLE__
-#include "spdlog/sinks/syslog_sink.h"
+#   define STMS_TRACE SPDLOG_TRACE
+#   define STMS_DEBUG SPDLOG_DEBUG
+#   define STMS_INFO SPDLOG_INFO
+#   define STMS_WARN SPDLOG_WARN
+#   define STMS_CRITICAL SPDLOG_CRITICAL
+#   define STMS_FATAL SPDLOG_CRITICAL
+#else
+#   define STMS_TRACE(...)
+#   define STMS_DEBUG(...)
+#   define STMS_INFO(...)
+#   define STMS_WARN(...)
+#   define STMS_FATAL(...)
+#   define STMS_CRITICAL(...)
 #endif
 
 
-#define STMS_TRACE SPDLOG_TRACE
-
-#define STMS_DEBUG SPDLOG_DEBUG
-
-#define STMS_INFO SPDLOG_INFO
-
-#define STMS_WARN SPDLOG_WARN
-
-#define STMS_CRITICAL SPDLOG_CRITICAL
-
-#define STMS_FATAL SPDLOG_CRITICAL
-
+#ifdef STMS_ENABLE_ASSERTIONS
+#   ifdef STMS_FATAL_ASSERTIONS
+#       define STMS_ASSERT(expr, msg, exec) if (!(expr)) { STMS_FATAL(msg); throw std::runtime_error("Assert Error: " # msg); }
+#   else
+#       define STMS_ASSERT(expr, msg, exec) if (!(expr)) { STMS_FATAL(msg); exec; }
+#   endif
 #else
-
-#define STMS_TRACE(...)
-
-#define STMS_DEBUG(...)
-
-#define STMS_INFO(...)
-
-#define STMS_WARN(...)
-
-#define STMS_FATAL(...)
-
-#define STMS_CRITICAL(...)
-
+#   define STMS_ASSERT(...)
 #endif
 
 

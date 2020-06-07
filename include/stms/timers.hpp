@@ -59,7 +59,7 @@ namespace stms {
 
         void tick();
 
-        void wait(int fps = 60);
+        void wait(int targetFps = 60);
 
         unsigned getLatestMspt();
 

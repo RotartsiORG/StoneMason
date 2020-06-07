@@ -64,23 +64,30 @@ namespace stms::al {
         ALContext &operator=(ALContext &&rhs) noexcept;
     };
 
+    enum ALSoundFormat {
+        eStereo16 = AL_FORMAT_STEREO16,
+        eMono16 = AL_FORMAT_MONO16,
+
+        eStereo8 = AL_FORMAT_STEREO8,
+        eMono8 = AL_FORMAT_MONO8
+    };
+
     class ALBuffer {
     private:
-        short *data{};
-        int len{};
-        int channels{};
-        int sampleRate{};
-
         ALuint id{};
 
         friend class ALSource;
 
     public:
-        ALBuffer() = default;
-
-        explicit ALBuffer(const char *filename);
+        ALBuffer();
 
         virtual ~ALBuffer();
+
+        void loadFromFile(const char *filename) const;
+
+        inline void write(const void *dat, ALsizei size, ALsizei freq, ALSoundFormat fmt) const {
+            alBufferData(id, fmt, dat, size, freq);
+        }
 
         ALBuffer &operator=(ALBuffer &rhs) = delete;
 

@@ -7,6 +7,9 @@
 #include "stms/logging.hpp"
 #include "stms/util.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+
 namespace stms::rend {
     GLShaderModule::GLShaderModule(stms::rend::GLShaderStage type) {
         id = glCreateShader(type);
@@ -117,5 +120,34 @@ namespace stms::rend {
         rhs.id = 0;
 
         return *this;
+    }
+
+    GLTexture::GLTexture() {
+        glGenTextures(1, &id);
+    }
+
+    void GLTexture::loadFromFile(const char *filename) const {
+
+        int width;
+        int height;
+        int channels;
+        unsigned char *data = stbi_load("container.jpg", &width, &height, &channels, 0);
+        STMS_INFO("Got {} channels. using GL_RGB", channels);
+
+        bind();
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+        stbi_image_free(data);
+    }
+
+    GLTexture::~GLTexture() {
+        glDeleteTextures(1, &id);
+    }
+
+    void GLTexture::setUpscale(GLScaleMode mode) const {
+        STMS_ASSERT(mode == eNearest || mode == eLinear, "Upscale mode may only be eNearest or eLinear!", return);
+
+        bind();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mode);
     }
 }

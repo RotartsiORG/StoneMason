@@ -37,7 +37,7 @@ namespace stms::net {
         int sock = 0;
         unsigned timeoutMs = 1000;
         int maxTimeouts = 9;
-        bool isRunning = false;
+        bool running = false;
         stms::ThreadPool *pPool{};
         char *password{};
 
@@ -65,6 +65,10 @@ namespace stms::net {
         void start();
 
         void stop();
+
+        [[nodiscard]] inline bool isRunning() const {
+            return running;
+        }
 
         inline void setTimeout(unsigned timeout) {
             timeoutMs = timeout;

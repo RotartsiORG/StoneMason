@@ -10,7 +10,8 @@
 #include <queue>
 #include <cinttypes>
 #include <future>
-#include "config.hpp"
+#include "stms/config.hpp"
+#include "stms/logging.hpp"
 
 namespace stms {
     class ThreadPool;
@@ -53,8 +54,22 @@ namespace stms {
 
         friend void workerFunc(ThreadPool *parent, size_t index);
 
-        void
-        destroy(); // This function is needed since the destructor does unwanted dumb shit when we call it from operator=
+        inline void destroy() {
+            if (this->running) {
+                stop(true);
+            }
+#ifdef STMS_ENABLE_ASSERTIONS
+            std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
+#   ifndef STMS_FATAL_ASSERTIONS
+            STMS_ASSERT(this->tasks.empty(), "ThreadPool destroyed whilst there were unfinished tasks! They will never be executed!", return);
+#   else
+            if (!this->tasks.empty()) {
+                STMS_FATAL("ThreadPool destroyed whilst there were unfinished tasks! They will never be executed!");
+                std::terminate();
+            }
+#   endif
+#endif
+        }
 
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
@@ -77,15 +92,17 @@ namespace stms {
         // If `threads` is 0, then the ret value of `std::thread::hardware_concurrency()` is used.
         void start(unsigned threads = 0);
 
-        // This function will block until all ongoing tasks are complete.
+        // This function will block until all ongoing tasks are complete if block is set to true, otherwise
+        // all worker threads will be detached to complete by themselves.
         // No new tasks waiting in queue would be accepted.
-        void stop();
+        void stop(bool block = true);
 
         std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, unsigned priority);
 
         void pushThread();
 
-        void popThread();
+        // If block is true, then we block until the thread finishes executing, otherwise, it is detached.
+        void popThread(bool block = true);
 
         inline size_t getNumThreads() {
             std::lock_guard<std::recursive_mutex> lg(this->workerMtx);

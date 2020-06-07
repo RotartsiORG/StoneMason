@@ -44,10 +44,7 @@ namespace stms {
 
 
     void ThreadPool::start(unsigned threads) {
-        if (this->running) {
-            STMS_INFO("`ThreadPool::start()` was called when thread pool is already running! Ignoring invocation!");
-            return;
-        }
+        STMS_ASSERT(!running, "ThreadPool::start() called when already started!", return);
         if (threads == 0) {
             threads = (unsigned) (std::thread::hardware_concurrency() * 1); // Choose a good multiplier
             if (threads == 0) { // If that's STILL 0, default to 8 threads.
@@ -64,11 +61,8 @@ namespace stms {
         }
     }
 
-    void ThreadPool::stop() {
-        if (!this->running) {
-            STMS_INFO("`ThreadPool::stop()` was called when thread pool is already stopped! Ignoring invocation!");
-            return;
-        }
+    void ThreadPool::stop(bool block) {
+        STMS_ASSERT(running, "ThreadPool::stop() called when already stopped!", return);
         this->running = false;
 
         bool workersEmpty;
@@ -88,7 +82,7 @@ namespace stms {
                 workersEmpty = this->workers.empty();
             }
 
-            if (front.joinable()) {
+            if (front.joinable() && block) {
                 front.join();
             } else {
                 front.detach();  // Simply forget thread if not joinable.
@@ -124,9 +118,9 @@ namespace stms {
         }
     }
 
-    void ThreadPool::popThread() {
-        if (!this->running) {
-            STMS_INFO("`ThreadPool::popThread()` was called while the thread pool was stopped! Ignoring invocation");
+    void ThreadPool::popThread(bool block) {
+        if (!running) {
+            STMS_WARN("ThreadPool::popThread() called when stopped! Ignoring invocation!");
             return;
         }
 
@@ -142,7 +136,7 @@ namespace stms {
             }
         }
 
-        if (back.joinable()) {
+        if (back.joinable() && block) {
             back.join();
         } else {
             back.detach();
@@ -184,18 +178,6 @@ namespace stms {
         while (getNumTasks() != 0) {
             std::this_thread::yield();
             std::this_thread::sleep_for(std::chrono::milliseconds(workerDelay));
-        }
-    }
-
-    void ThreadPool::destroy() {
-        if (this->running) {
-            stop();
-        }
-        std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
-        if (!tasks.empty()) {
-            STMS_WARN(
-                    "Warning! A thread pool was destroyed with {} tasks still incomplete! They will NEVER be executed!",
-                    tasks.size());
         }
     }
 

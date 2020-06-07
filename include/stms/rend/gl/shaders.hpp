@@ -126,6 +126,75 @@ namespace stms::rend {
             return GLUniform{glGetUniformLocation(id, name)};
         };
     };
+
+    class GLFrameBuffer {
+
+    };
+
+    enum GLScaleMode {
+        eNearest = GL_NEAREST,
+        eLinear = GL_LINEAR,
+
+        // Downscaling only
+        eNearMipNear = GL_NEAREST_MIPMAP_NEAREST,
+        eLinMipNear = GL_LINEAR_MIPMAP_NEAREST,
+        eNearMipLin = GL_NEAREST_MIPMAP_LINEAR,
+        eLineMipLin = GL_LINEAR_MIPMAP_LINEAR
+    };
+
+    enum GLWrapMode {
+        eRepeat = GL_REPEAT,
+        eMirrorRepeate = GL_MIRRORED_REPEAT,
+        eBorder = GL_CLAMP_TO_BORDER,
+        eClamp = GL_CLAMP_TO_EDGE
+    };
+
+    class GLTexture {
+    private:
+        GLuint id{};
+
+    public:
+        GLTexture();
+        virtual ~GLTexture();
+
+        void loadFromFile(const char *filename) const;
+
+        static inline void activateSlot(unsigned slot = 0) {
+            glActiveTexture(GL_TEXTURE0 + slot);
+        }
+
+        inline void setBorderCol(glm::vec4 color) const {
+            // This counts on vec4's 4 floats being right next to each other in memory
+            bind();
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &color.r);
+        }
+
+        inline void setDownscale(GLScaleMode mode) const {
+            bind();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mode);
+        }
+
+        inline void setUpscale(GLScaleMode mode) const;
+
+        inline void setWrapX(GLWrapMode mode) const {
+            bind();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode);
+        }
+
+        inline void setWrapY(GLWrapMode mode) const {
+            bind();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode);
+        }
+
+        inline void genMipMaps() const {
+            bind();
+            glGenerateMipmap(GL_TEXTURE_2D);
+        }
+
+        inline void bind() const {
+            glBindTexture(GL_TEXTURE_2D, id);
+        }
+    };
 }
 
 

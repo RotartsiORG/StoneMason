@@ -20,6 +20,9 @@ int main() {
 
     cli.start();
     while (cli.tick());
-    cli.stop();  // Stop is automatically called in destructor.
+    if (cli.isRunning()) {
+        cli.stop();  // Stop is automatically called in destructor.
+    }
     stms::net::flushSSLErrors();
+    pool.waitIdle();
 }

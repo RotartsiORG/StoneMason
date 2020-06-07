@@ -5,6 +5,7 @@
 #include "stms/timers.hpp"
 
 #include <thread>
+#include "stms/logging.hpp"
 
 namespace stms {
 
@@ -25,9 +26,8 @@ namespace stms {
                     std::chrono::steady_clock::now() - startTime).count();
         } else if ((!getBit(state, 0)) && getBit(state, 1) && getBit(state, 2)) {
             return std::chrono::duration_cast<std::chrono::milliseconds>(stopTime - startTime).count();
-        } else {
-            return 0;
         }
+        STMS_ASSERT(false, "Stopwatch::getTime() called when there is no time to get!", return 0);
     }
 
     void Stopwatch::reset() {
@@ -49,10 +49,10 @@ namespace stms {
         return 1000 / getLatestMspt();
     }
 
-    void TPSTimer::wait(int fps) {
+    void TPSTimer::wait(int targetFps) {
         auto now = std::chrono::steady_clock::now();
         auto dur = now - latestTick;
-        auto targetDur = std::chrono::milliseconds(1000 / fps);
+        auto targetDur = std::chrono::milliseconds(1000 / targetFps);
         if (targetDur > dur) {
             std::this_thread::sleep_for(targetDur - dur);
         }

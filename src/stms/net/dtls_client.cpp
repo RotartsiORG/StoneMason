@@ -18,8 +18,16 @@ namespace stms::net {
     }
 
     DTLSClient::~DTLSClient() {
-        stop();
-        // No need to free BIO since it is bound to the SSL object and freed when the SSL object is freed.
+#ifdef STMS_ENABLE_ASSERTIONS
+#   ifndef STMS_FATAL_ASSERTIONS
+        STMS_ASSERT(!running, "DTLSClient destroyed whilst it was still running!", return);
+#   else
+        if (running) {
+            STMS_FATAL("DTLSClient destroyed whilst it was still running!");
+            std::terminate();
+        }
+#   endif
+#endif
     }
 
     void DTLSClient::onStart() {
@@ -52,7 +60,7 @@ namespace stms::net {
             } else if (handshakeRet == 0) {
                 STMS_INFO("DTLS client handshake failed! Cannot connect!");
                 handleSslGetErr(pSsl, handshakeRet);
-                isRunning = false;
+                running = false;
                 return;
             } else if (handshakeRet < 0) {
                 STMS_WARN("DTLS client handshake error!");
@@ -60,7 +68,7 @@ namespace stms::net {
                 if (handshakeRet == -5 || handshakeRet == -1 || handshakeRet == -999 ||
                         handshakeRet == -6) {
                     STMS_WARN("SSL_connect() error was fatal! Dropping connection!");
-                    isRunning = false;
+                    running = false;
                     return;
                 } else if (handshakeRet == -2) { // Read
                     STMS_INFO("WANT_READ returned from SSL_connect! Blocking until read-ready...");
@@ -82,7 +90,7 @@ namespace stms::net {
 
         if (handshakeTimeouts >= maxTimeouts) {
             STMS_WARN("SSL_connect timed out completely ({}/{})! Dropping connection!", handshakeTimeouts, maxTimeouts);
-            isRunning = false;
+            running = false;
             return;
         }
         doShutdown = true;
@@ -101,12 +109,11 @@ namespace stms::net {
         STMS_INFO("Connected using compression {} and expansion {}",
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
+        timeoutTimer.start();
     }
 
     bool DTLSClient::tick() {
-        if (!isRunning) {
-            return false;
-        }
+        STMS_ASSERT(running, "DTLSClient tick() called when stopped!", return false);
 
         if (SSL_get_shutdown(pSsl) & SSL_RECEIVED_SHUTDOWN || timeouts >= maxConnectionTimeouts) {
             stop();
@@ -122,7 +129,7 @@ namespace stms::net {
 
         if (recvfrom(sock, nullptr, 0, MSG_PEEK, pAddr->ai_addr,
                      &pAddr->ai_addrlen) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            return isRunning;  // No data could be read
+            return running;  // No data could be read
         }
 
         if (!isReading) {
@@ -176,7 +183,7 @@ namespace stms::net {
             }, nullptr, threadPoolPriority);
         }
 
-        return isRunning;
+        return running;
     }
 
     void DTLSClient::onStop() {
@@ -217,10 +224,7 @@ namespace stms::net {
 
     std::future<int> DTLSClient::send(const uint8_t *const msg, int msgLen) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
-        if (!isRunning) {
-            prom->set_value(-114);
-            return prom->get_future();
-        }
+        STMS_ASSERT(running, "DTLSClient send() called when stopped!", prom->set_value(-114); return prom->get_future());
 
         // lambda captures validated
         pPool->submitTask([&, capProm{prom}, capMsg{msg}, capLen{msgLen}](void *) -> void * {

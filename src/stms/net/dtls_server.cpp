@@ -251,7 +251,17 @@ namespace stms::net {
     }
 
     DTLSServer::~DTLSServer() {
-        stop();
+        // We cannot throw from a destructor (bc that is a terrible idea) so we settle for this instead.
+#ifdef STMS_ENABLE_ASSERTIONS
+#   ifndef STMS_FATAL_ASSERTIONS
+        STMS_ASSERT(!running, "DTLSServer destroyed whilst it was still running!", return);
+#   else
+        if (running) {
+            STMS_FATAL("DTLSServer destroyed whilst it was still running!");
+            std::terminate();
+        }
+#   endif
+#endif
     }
 
 //    DTLSServer::DTLSServer(DTLSServer &&rhs) noexcept {
@@ -272,10 +282,7 @@ namespace stms::net {
     }
 
     bool DTLSServer::tick() {
-
-        if (!isRunning) {
-            return false;
-        }
+        STMS_ASSERT(running, "DTLS Server tick() called when stopped!", return false);
 
         std::shared_ptr<DTLSClientRepresentation> cli = std::make_shared<DTLSClientRepresentation>();
         cli->doShutdown = false;
@@ -396,7 +403,7 @@ namespace stms::net {
 
             if (clients.find(cliUuid) == clients.end()) {
                 STMS_INFO("Dead clients contained a duplicate! Ignoring duplicate...");
-                return isRunning;
+                return running;
             }
 
             // lambda captures validated
@@ -410,26 +417,26 @@ namespace stms::net {
             clients.erase(cliUuid);
         }
 
-        return isRunning;
+        return running;
     }
 
     std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
 
-        if (!isRunning) {
-            prom->set_value(-114);
-            return prom->get_future();
-        }
+        STMS_ASSERT(running, "DTLSServer send() called when stopped!", prom->set_value(-114); return prom->get_future());
 
         // lambda captures validated
         pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{msg}, capLen{msgLen}](void *) -> void * {
-            clientsMtx.lock();
-            if (clients.find(capUuid) == clients.end()) {
-                STMS_WARN("Failed to send! Client with UUID {} does not exist!", capUuid);
-                clientsMtx.unlock();
-                capProm->set_value(0);
-                return nullptr;
+
+#ifdef STMS_ENABLE_ASSERTIONS
+            {
+                std::lock_guard<std::mutex> lg(clientsMtx);
+                STMS_ASSERT(clients.find(capUuid) != clients.end(),
+                            "DTLSServer send() called with non-existent client " + capUuid, prom->set_value(0); return nullptr;);
             }
+#endif
+
+            clientsMtx.lock();
             std::shared_ptr<DTLSClientRepresentation> cli = clients[capUuid];
             clientsMtx.unlock();
 
@@ -489,10 +496,7 @@ namespace stms::net {
 
     size_t DTLSServer::getMtu(const std::string &cli) {
         std::lock_guard<std::mutex> lg(clientsMtx);
-        if (clients.find(cli) == clients.end()) {
-            STMS_WARN("Tried to get PMTU of non-existant client!");
-            return 0;
-        }
+        STMS_ASSERT(clients.find(cli) != clients.end(), "Tried to get PMTU of non-existent client " + cli, return 0)
 
         return DTLS_get_data_mtu(clients[cli]->pSsl);
     }

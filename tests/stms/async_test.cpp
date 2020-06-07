@@ -81,7 +81,7 @@ namespace {
             }
 
             ASSERT_TRUE(pool->isRunning());
-            pool->stop();
+            pool->stop(true);
             ASSERT_FALSE(pool->isRunning());
 
             // Skip order checking; it's not THAT important (i hope)

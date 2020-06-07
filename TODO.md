@@ -17,6 +17,7 @@
 ### Audio
 1. Device Enumeration support (both playback and capture devices)
 2. Audio capturing
+3. Procedural sound generation (pure tones of any Hz /w square, sine, sawtooth waves).
 
 ### Rendering
 1. Basic OpenGL render
@@ -30,3 +31,5 @@
 - Add unit tests for timers (Stopwatch & TPSTimer)
 - Add support for posting to urls /w libCurl.
 - passwords /w libCurl
+- Operator overload tests for UUID & other types
+- Classes for AudioResource, TexResource etc to represent files instead of having GLTexture & shader, & al audio directly load file?

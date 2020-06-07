@@ -175,7 +175,7 @@ namespace stms::net {
             strcpy(this->password, password.c_str());
         } else {
             this->password = new char;
-            *this->password = 0;
+            *(this->password) = 0;
         }
 
         pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
@@ -227,12 +227,9 @@ namespace stms::net {
     }
 
     void SSLBase::stop() {
-        if (!isRunning) {
-            STMS_WARN("DTLS server/client stop() called when server/client already stopped! Ignoring invocation!");
-            return;
-        }
+        STMS_ASSERT(running, "SSL stop() called when server/client already stopped!", return)
 
-        isRunning = false;
+        running = false;
         onStop();
         if (sock == 0) {
             STMS_INFO("DTLS server/client stopped. Resources freed. (Skipped socket as fd was 0)");
@@ -250,19 +247,8 @@ namespace stms::net {
     }
 
     void SSLBase::start() {
-        if (isRunning) {
-            STMS_WARN("SSL start() called when server or client already started! Ignoring invocation!");
-            return;
-        }
-
-        if (!pPool->isRunning()) {
-            STMS_CRITICAL("DTLSServer started with a stopped thread pool! "
-                          "This will result in nothing being proccessed!");
-            STMS_CRITICAL("Please explicitly start it before calling start()"
-                          " and leave it running until the server/client stops!");
-            STMS_CRITICAL("Refusing to start DTLS Server/Client!");
-            return;
-        }
+        STMS_ASSERT(!running, "SSL start() called when server or client already started!", return);
+        STMS_ASSERT(pPool->isRunning(), "Tried to call SSL start() with stopped thread pool!", pPool->start());
 
         int i = 0;
         for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {
@@ -270,7 +256,7 @@ namespace stms::net {
                 if (tryAddr(p, i)) {
                     if (wantV6) {
                         STMS_INFO("Using Candidate {} because it is IPv6", i);
-                        isRunning = true;
+                        running = true;
                         onStart();
                         return;
                     }
@@ -279,7 +265,7 @@ namespace stms::net {
                 if (tryAddr(p, i)) {
                     if (!wantV6) {
                         STMS_INFO("Using Candidate {} because it is IPv4", i);
-                        isRunning = true;
+                        running = true;
                         onStart();
                         return;
                     }
@@ -291,7 +277,7 @@ namespace stms::net {
         }
 
         STMS_WARN("No IP addresses resolved from supplied address and port can be used to host the DTLS Server!");
-        isRunning = false;
+        running = false;
     }
 
     bool SSLBase::tryAddr(addrinfo *addr, int num) {

@@ -19,8 +19,9 @@
 namespace {
     TEST(AL, Play) {
         stms::initAll();
-        stms::al::ALBuffer testBuf("./res/test.ogg");
+        stms::al::ALBuffer testBuf;
         stms::al::ALSource testSrc;
+        testBuf.loadFromFile("./res/test.ogg");
         testSrc.enqueueBuf(&testBuf);
         testSrc.play();
 

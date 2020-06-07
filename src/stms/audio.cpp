@@ -16,15 +16,8 @@ namespace stms::al {
         return error;
     }
 
-    ALBuffer::ALBuffer(const char *filename) {
-        len = stb_vorbis_decode_filename(filename, &channels, &sampleRate, &data);
+    ALBuffer::ALBuffer() {
         alGenBuffers(1, &id);
-
-        if (channels > 1) {
-            alBufferData(id, AL_FORMAT_STEREO16, data, len * 2 * sizeof(short), sampleRate);
-        } else {
-            alBufferData(id, AL_FORMAT_MONO16, data, len * sizeof(short), sampleRate);
-        }
     }
 
     ALBuffer::~ALBuffer() {
@@ -37,12 +30,6 @@ namespace stms::al {
         }
 
         alDeleteBuffers(1, &id);
-
-        this->len = rhs.len;
-        this->channels = rhs.channels;
-        this->data = rhs.data;
-        this->sampleRate = rhs.sampleRate;
-
         this->id = rhs.id;
         rhs.id = 0;
 
@@ -51,6 +38,24 @@ namespace stms::al {
 
     ALBuffer::ALBuffer(ALBuffer &&rhs) noexcept {
         *this = std::move(rhs);
+    }
+
+    void ALBuffer::loadFromFile(const char *filename) const {
+        short *data;
+        int channels;
+        int sampleRate;
+
+        int len = stb_vorbis_decode_filename(filename, &channels, &sampleRate, &data);
+
+        if (channels > 1) {
+            len *= 2 * sizeof(short);
+            alBufferData(id, AL_FORMAT_STEREO16, data, len, sampleRate);
+        } else {
+            len *= sizeof(short);
+            alBufferData(id, AL_FORMAT_MONO16, data, len, sampleRate);
+        }
+
+        free(data); // !VERY IMPORTANT!
     }
 
 
