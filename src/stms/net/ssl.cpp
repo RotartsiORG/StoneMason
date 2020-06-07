@@ -34,7 +34,7 @@ namespace stms::net {
         if (ret != 0) {
             char errStr[256]; // Min length specified by man pages for ERR_error_string_n()
             ERR_error_string_n(ret, errStr, 256);
-            STMS_WARN("[** OPENSSL ERROR **]: {}", errStr);
+            STMS_PUSH_ERROR("[** OPENSSL ERROR **]: {}", errStr);
         }
         return ret;
     }
@@ -45,7 +45,7 @@ namespace stms::net {
                 return ret;
             }
             case SSL_ERROR_ZERO_RETURN: {
-                STMS_WARN("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
+                STMS_PUSH_ERROR("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
                 flushSSLErrors();
                 return -6;
             }
@@ -58,12 +58,12 @@ namespace stms::net {
                 return -2;
             }
             case SSL_ERROR_SYSCALL: {
-                STMS_WARN("System Error from OpenSSL call: {}", strerror(errno));
+                STMS_PUSH_ERROR("System Error from OpenSSL call: {}", strerror(errno));
                 flushSSLErrors();
                 return -5;
             }
             case SSL_ERROR_SSL: {
-                STMS_WARN("Fatal OpenSSL error occurred!");
+                STMS_PUSH_ERROR("Fatal OpenSSL error occurred!");
                 flushSSLErrors();
                 return -1;
             }
@@ -92,7 +92,7 @@ namespace stms::net {
                 return -11;
             }
             default: {
-                STMS_WARN("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
+                STMS_PUSH_ERROR("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
                 return -999;
             }
         }
@@ -101,40 +101,25 @@ namespace stms::net {
     void initOpenSsl() {
         // OpenSSL initialization
         if (OpenSSL_version_num() != OPENSSL_VERSION_NUMBER) {
-            STMS_CRITICAL("[* FATAL ERROR *] OpenSSL version mismatch! "
-                          "Linked and compiled/included OpenSSL versions are not the same!");
-            STMS_CRITICAL("Compiled/Included OpenSSL {} while linked OpenSSL {}",
-                          OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
-            if (OpenSSL_version_num() >> 20 != OPENSSL_VERSION_NUMBER >> 20) {
-                STMS_CRITICAL("OpenSSL major and minor version numbers do not match. Aborting.");
-                // TODO: implement
-                STMS_CRITICAL("Set `STMS_IGNORE_SSL_MISMATCH` to `true` in `config.hpp` to ignore this error.");
-                STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
-                throw std::runtime_error("OpenSSL version mismatch!");
-            }
+            STMS_PUSH_ERROR("[* FATAL ERROR *] OpenSSL version mismatch! Compiled with "
+                            "{} but linked {}. Aborting!", OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
+            STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
+            throw std::runtime_error("OpenSSL version mismatch!");
         }
 
         if (OPENSSL_VERSION_NUMBER < 0x1010102fL) {
-            STMS_CRITICAL("{} is outdated and insecure! At least OpenSSL 1.1.1a is required!",
-                          OpenSSL_version(OPENSSL_VERSION));
-            // TODO: implement
-            STMS_CRITICAL("Set `STMS_IGNORE_OLD_SSL` to `true` in `config.hpp` to ignore this error.");
-            STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
+            STMS_PUSH_ERROR("[* FATAL ERROR *] {} is outdated and insecure!"
+                            "At least OpenSSL 1.1.1a is required! Aborting.", OpenSSL_version(OPENSSL_VERSION));
+            STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
             throw std::runtime_error("Outdated OpenSSL!");
         }
 
         int pollStatus = RAND_poll();
         if (pollStatus != 1 || RAND_status() != 1) {
-            STMS_CRITICAL("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data!");
+            STMS_PUSH_ERROR("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data! Aborting.");
             STMS_CRITICAL("OpenSSL may generate insecure cryptographic keys, and UUID collisions may occur");
-            if (!STMS_IGNORE_BAD_RNG) {
-                STMS_CRITICAL("Aborting! Set `STMS_IGNORE_BAD_RNG` to ignore this fatal error.");
-                STMS_CRITICAL("Only do this if you plan on NEVER using OpenSSL functionality.");
-                throw std::runtime_error("Bad OpenSSL RNG!");
-            } else {
-                STMS_CRITICAL("Using insecure RNG! Only do this if you plan on NEVER using OpenSSL functionality.");
-                STMS_CRITICAL("Otherwise, set `STMS_IGNORE_BAD_RNG` to `false` in `config.hpp`");
-            }
+            STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
+            throw std::runtime_error("Bad OpenSSL RNG!");
         }
 
         SSL_COMP_add_compression_method(0, COMP_zlib());
@@ -227,7 +212,10 @@ namespace stms::net {
     }
 
     void SSLBase::stop() {
-        STMS_ASSERT(running, "SSL stop() called when server/client already stopped!", return)
+        if (!running) {
+            STMS_PUSH_WARNING("SSLBase::stop() called when server/client was already stopped! Ignoring...");
+            return;
+        }
 
         running = false;
         onStop();
@@ -247,8 +235,15 @@ namespace stms::net {
     }
 
     void SSLBase::start() {
-        STMS_ASSERT(!running, "SSL start() called when server or client already started!", return);
-        STMS_ASSERT(pPool->isRunning(), "Tried to call SSL start() with stopped thread pool!", pPool->start());
+        if (running) {
+            STMS_PUSH_WARNING("SSLBase::start() called when server/client was already started! Ignoring...");
+            return;
+        }
+
+        if (!pPool->isRunning()) {
+            STMS_PUSH_ERROR("SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
+            pPool->start();
+        }
 
         int i = 0;
         for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {

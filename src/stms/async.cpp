@@ -44,7 +44,11 @@ namespace stms {
 
 
     void ThreadPool::start(unsigned threads) {
-        STMS_ASSERT(!running, "ThreadPool::start() called when already started!", return);
+        if (running) {
+            STMS_PUSH_WARNING("ThreadPool::start() called when already started! Ignoring...");
+            return;
+        }
+
         if (threads == 0) {
             threads = (unsigned) (std::thread::hardware_concurrency() * 1); // Choose a good multiplier
             if (threads == 0) { // If that's STILL 0, default to 8 threads.
@@ -62,7 +66,11 @@ namespace stms {
     }
 
     void ThreadPool::stop(bool block) {
-        STMS_ASSERT(running, "ThreadPool::stop() called when already stopped!", return);
+        if (!running) {
+            STMS_PUSH_WARNING("ThreadPool::stop() called when already stopped! Ignoring...");
+            return;
+        }
+
         this->running = false;
 
         bool workersEmpty;

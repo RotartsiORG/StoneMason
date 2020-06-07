@@ -25,7 +25,7 @@ namespace stms::rend {
         if(!success) {
             char infoLog[512];
             glGetShaderInfoLog(id, 512, nullptr, infoLog);
-            STMS_WARN("Shader Compile failed: '{}'", infoLog);
+            STMS_PUSH_ERROR("Shader Compile failed: '{}'", infoLog);
         }
 
         return success;
@@ -66,7 +66,7 @@ namespace stms::rend {
         if(!success) {
             char infoLog[512];
             glGetProgramInfoLog(id, 512, nullptr, infoLog);
-            STMS_WARN("Failed to link shader program: {}", infoLog);
+            STMS_PUSH_ERROR("Failed to link shader program: {}", infoLog);
         }
     }
 
@@ -128,10 +128,15 @@ namespace stms::rend {
 
     void GLTexture::loadFromFile(const char *filename) const {
 
-        int width;
-        int height;
-        int channels;
-        unsigned char *data = stbi_load("container.jpg", &width, &height, &channels, 0);
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        unsigned char *data = stbi_load(filename, &width, &height, &channels, 0);
+        if (data == nullptr || width == 0 || height == 0 || channels == 0) {
+            STMS_PUSH_ERROR("Failed to load GLTexture from {}!", filename);
+            return;
+        }
+
         STMS_INFO("Got {} channels. using GL_RGB", channels);
 
         bind();
@@ -145,7 +150,10 @@ namespace stms::rend {
     }
 
     void GLTexture::setUpscale(GLScaleMode mode) const {
-        STMS_ASSERT(mode == eNearest || mode == eLinear, "Upscale mode may only be eNearest or eLinear!", return);
+        if (!(mode == eNearest || mode == eLinear)) {
+            STMS_PUSH_ERROR("GLTexture::setUpscale() called with invalid mode {}! Only eNearest and eLinear are valid! Ignoring...", mode);
+            return;
+        }
 
         bind();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mode);

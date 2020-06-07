@@ -12,8 +12,7 @@ namespace stms::rend {
 
     void initGl() {
         if (!glfwInit()) {
-            STMS_FATAL("GLFW initialization failed! OpenGL is unusable! Aborting!");
-            std::terminate();
+            STMS_PUSH_ERROR("GLFW initialization failed! OpenGL is unusable! Expect a crash!");
         }
     }
 }

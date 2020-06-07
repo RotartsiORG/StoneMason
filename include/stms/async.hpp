@@ -56,19 +56,13 @@ namespace stms {
 
         inline void destroy() {
             if (this->running) {
+                STMS_PUSH_WARNING("ThreadPool destroyed while running! Stopping it now (with block=true)");
                 stop(true);
             }
-#ifdef STMS_ENABLE_ASSERTIONS
-            std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
-#   ifndef STMS_FATAL_ASSERTIONS
-            STMS_ASSERT(this->tasks.empty(), "ThreadPool destroyed whilst there were unfinished tasks! They will never be executed!", return);
-#   else
-            if (!this->tasks.empty()) {
-                STMS_FATAL("ThreadPool destroyed whilst there were unfinished tasks! They will never be executed!");
-                std::terminate();
+
+            if (!tasks.empty()) {
+                STMS_PUSH_WARNING("ThreadPool destroyed with unfinished tasks! {} tasks will never be executed!", tasks.size());
             }
-#   endif
-#endif
         }
 
     public:

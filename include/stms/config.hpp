@@ -10,15 +10,7 @@
 
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
-
-// Unless you plan on NEVER using cryptography or can stand UUID collisions, DO NOT set this to true.
-#define STMS_IGNORE_BAD_RNG false
-
-#undef STMS_NO_OPENSSL // unused
-
-#define STMS_ENABLE_ASSERTIONS
-
-#undef STMS_FATAL_ASSERTIONS
+#undef STMS_NO_OPENSSL // TODO: Implement
 
 namespace stms {
     constexpr char versionString[] = "0.0.1";

@@ -252,16 +252,10 @@ namespace stms::net {
 
     DTLSServer::~DTLSServer() {
         // We cannot throw from a destructor (bc that is a terrible idea) so we settle for this instead.
-#ifdef STMS_ENABLE_ASSERTIONS
-#   ifndef STMS_FATAL_ASSERTIONS
-        STMS_ASSERT(!running, "DTLSServer destroyed whilst it was still running!", return);
-#   else
         if (running) {
-            STMS_FATAL("DTLSServer destroyed whilst it was still running!");
-            std::terminate();
+            STMS_PUSH_ERROR("DTLSServer destroyed whilst it was still running! Stopping it now...");
+            stop();
         }
-#   endif
-#endif
     }
 
 //    DTLSServer::DTLSServer(DTLSServer &&rhs) noexcept {
@@ -282,7 +276,10 @@ namespace stms::net {
     }
 
     bool DTLSServer::tick() {
-        STMS_ASSERT(running, "DTLS Server tick() called when stopped!", return false);
+        if (!running) {
+            STMS_PUSH_WARNING("DTLSServer::tick() called when stopped! Ignoring invocation!");
+            return false;
+        }
 
         std::shared_ptr<DTLSClientRepresentation> cli = std::make_shared<DTLSClientRepresentation>();
         cli->doShutdown = false;
@@ -306,11 +303,13 @@ namespace stms::net {
 
         int listenStatus = DTLSv1_listen(cli->pSsl, cli->pBioAddr);
 
+        // If it returns 0 it means no clients have tried to connect.
         if (listenStatus < 0) {
-            STMS_WARN("Fatal error from DTLSv1_listen!");
+            STMS_PUSH_ERROR("Fatal error from DTLSv1_listen!");
+            flushSSLErrors();
         } else if (listenStatus >= 1) {
             if (BIO_ADDR_family(cli->pBioAddr) != AF_INET6 && BIO_ADDR_family(cli->pBioAddr) != AF_INET) {
-                STMS_INFO("A client tried to connect with an unsupported family! Refusing to connect.");
+                STMS_PUSH_WARNING("A client tried to connect with an unsupported family {}! Refusing to connect!", BIO_ADDR_family(cli->pBioAddr));
             } else {
                 // Lambda captures validated
                 pPool->submitTask([&, capCli{cli}](void *in) -> void * {
@@ -422,21 +421,24 @@ namespace stms::net {
 
     std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
-
-        STMS_ASSERT(running, "DTLSServer send() called when stopped!", prom->set_value(-114); return prom->get_future());
+        if (!running) {
+            STMS_PUSH_ERROR("DTLSServer::send() called when stopped! Dropping {} bytes!", msgLen);
+            prom->set_value(-114);
+            return prom->get_future();
+        }
 
         // lambda captures validated
         pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{msg}, capLen{msgLen}](void *) -> void * {
 
-#ifdef STMS_ENABLE_ASSERTIONS
-            {
-                std::lock_guard<std::mutex> lg(clientsMtx);
-                STMS_ASSERT(clients.find(capUuid) != clients.end(),
-                            "DTLSServer send() called with non-existent client " + capUuid, prom->set_value(0); return nullptr;);
-            }
-#endif
-
             clientsMtx.lock();
+
+            if (clients.find(capUuid) == clients.end()) {
+                clientsMtx.unlock();
+                STMS_PUSH_ERROR("DTLSServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid, msgLen);
+                prom->set_value(0);
+                return nullptr;
+            }
+
             std::shared_ptr<DTLSClientRepresentation> cli = clients[capUuid];
             clientsMtx.unlock();
 
@@ -496,7 +498,10 @@ namespace stms::net {
 
     size_t DTLSServer::getMtu(const std::string &cli) {
         std::lock_guard<std::mutex> lg(clientsMtx);
-        STMS_ASSERT(clients.find(cli) != clients.end(), "Tried to get PMTU of non-existent client " + cli, return 0)
+        if (clients.find(cli) == clients.end()) {
+            STMS_PUSH_ERROR("DTLSServer::getMtu called with invalid client uuid '{}'!", cli);
+            return 0;
+        }
 
         return DTLS_get_data_mtu(clients[cli]->pSsl);
     }

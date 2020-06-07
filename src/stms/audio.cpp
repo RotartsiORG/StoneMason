@@ -46,6 +46,10 @@ namespace stms::al {
         int sampleRate;
 
         int len = stb_vorbis_decode_filename(filename, &channels, &sampleRate, &data);
+        if (len == 0 || channels == 0 || sampleRate == 0 || data == nullptr) {
+            STMS_PUSH_ERROR("Failed to load ALBuffer audio from {}!", filename);
+            return;
+        }
 
         if (channels > 1) {
             len *= 2 * sizeof(short);

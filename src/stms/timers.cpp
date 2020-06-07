@@ -27,7 +27,8 @@ namespace stms {
         } else if ((!getBit(state, 0)) && getBit(state, 1) && getBit(state, 2)) {
             return std::chrono::duration_cast<std::chrono::milliseconds>(stopTime - startTime).count();
         }
-        STMS_ASSERT(false, "Stopwatch::getTime() called when there is no time to get!", return 0);
+        STMS_PUSH_ERROR("Stopwatch::getTime() called when there is no time to get!");
+        return 0;
     }
 
     void Stopwatch::reset() {

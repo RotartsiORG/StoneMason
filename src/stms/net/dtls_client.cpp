@@ -18,16 +18,10 @@ namespace stms::net {
     }
 
     DTLSClient::~DTLSClient() {
-#ifdef STMS_ENABLE_ASSERTIONS
-#   ifndef STMS_FATAL_ASSERTIONS
-        STMS_ASSERT(!running, "DTLSClient destroyed whilst it was still running!", return);
-#   else
         if (running) {
-            STMS_FATAL("DTLSClient destroyed whilst it was still running!");
-            std::terminate();
+            STMS_PUSH_WARNING("DTLSClient destroyed whilst it was still running! Stopping it now...");
+            stop();
         }
-#   endif
-#endif
     }
 
     void DTLSClient::onStart() {
@@ -113,7 +107,10 @@ namespace stms::net {
     }
 
     bool DTLSClient::tick() {
-        STMS_ASSERT(running, "DTLSClient tick() called when stopped!", return false);
+        if (!running) {
+            STMS_PUSH_WARNING("DTLSClient::tick() called when stopped! Ignoring invocation!");
+            return false;
+        }
 
         if (SSL_get_shutdown(pSsl) & SSL_RECEIVED_SHUTDOWN || timeouts >= maxConnectionTimeouts) {
             stop();
@@ -224,7 +221,11 @@ namespace stms::net {
 
     std::future<int> DTLSClient::send(const uint8_t *const msg, int msgLen) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
-        STMS_ASSERT(running, "DTLSClient send() called when stopped!", prom->set_value(-114); return prom->get_future());
+        if (!running) {
+            STMS_PUSH_ERROR("DTLSClient::send called when not connected! {} bytes dropped!", msgLen);
+            prom->set_value(-114);
+            return prom->get_future();
+        }
 
         // lambda captures validated
         pPool->submitTask([&, capProm{prom}, capMsg{msg}, capLen{msgLen}](void *) -> void * {

@@ -34,7 +34,7 @@ namespace stms {
         int status = RAND_bytes(reinterpret_cast<unsigned char *>(&uuid),
                                 16); // UUIDs have 128 bits (16 bytes). This ignores the cacheString attrib
         if (status != 1) {
-            STMS_INFO("Failed to randomly generate UUID using OpenSSL! Using less secure C++ stdlib random instead");
+            STMS_PUSH_WARNING("Failed to randomly generate UUID using OpenSSL! Using less secure C++ stdlib random instead");
             uuid.timeLow = intRand(0, UINT32_MAX);
             uuid.timeMid = intRand(0, UINT16_MAX);
             uuid.timeHiAndVersion = intRand(0, UINT16_MAX);
@@ -142,11 +142,12 @@ namespace stms {
 
     STMSInitializer::STMSInitializer() noexcept: specialValue(0) {
         if (hasRun) {
-            STMS_INFO("The constructor for `stms::STMSInitializer` has been called twice! This is not intended!");
-            STMS_INFO("This is likely because a second STMSInitializer was created by non-STMS code.");
-            STMS_INFO("This invocation will be ignored.");
+            STMS_PUSH_WARNING("STMSInitializer was called more than once! Ignoring invocation!")
             return;
         }
+
+        hasRun = true;
+
         stms::initLogging();
 
         net::initOpenSsl();

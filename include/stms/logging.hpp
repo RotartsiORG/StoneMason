@@ -40,19 +40,26 @@
 #   define STMS_CRITICAL(...)
 #endif
 
+#include "spdlog/fmt/fmt.h" // TODO: Find a way to get rid of this dependency. Use C++20's fmtlib?
 
-#ifdef STMS_ENABLE_ASSERTIONS
-#   ifdef STMS_FATAL_ASSERTIONS
-#       define STMS_ASSERT(expr, msg, exec) if (!(expr)) { STMS_FATAL(msg); throw std::runtime_error("Assert Error: " # msg); }
-#   else
-#       define STMS_ASSERT(expr, msg, exec) if (!(expr)) { STMS_FATAL(msg); exec; }
-#   endif
-#else
-#   define STMS_ASSERT(...)
-#endif
-
+#define STMS_PUSH_ERROR(...) STMS_FATAL(__VA_ARGS__); ::stms::errorQueue.emplace_back(Error{__FILE__, __LINE__, ::stms::eError, fmt::format(__VA_ARGS__)});
+#define STMS_PUSH_WARNING(...) STMS_WARN(__VA_ARGS__); ::stms::errorQueue.emplace_back(Error{__FILE__, __LINE__, ::stms::eWarning, fmt::format(__VA_ARGS__)});
 
 namespace stms {
+    enum ErrorType {
+        eWarning, eError
+    };
+
+
+    struct Error {
+        std::string file;
+        unsigned line;
+        ErrorType type;
+        std::string msg;
+    };
+
+    extern std::vector<Error> errorQueue; // TODO: Use vector or actual std::queue? dequeue?
+
     std::string getCurrentDatetime();
 
     void initLogging();

@@ -7,6 +7,8 @@
 
 namespace stms {
 
+    std::vector<Error> errorQueue;
+
     std::string getCurrentDatetime() {
         std::ostringstream oss;
         time_t rawTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -29,15 +31,7 @@ namespace stms {
 
 #ifdef STMS_ENABLE_LOGGING
 
-    static bool hasRun = false;
-
     void initLogging() {
-        if (hasRun) {
-            STMS_INFO("The constructor for `stms::LogInitializer` has been called twice! This is not intended!");
-            STMS_INFO("This is likely because a second LogInitializer was created by non-STMS code.");
-            STMS_INFO("This invocation will be ignored.");
-            return;
-        }
         try {
             spdlog::set_error_handler(onSPDLogError);
 
@@ -114,7 +108,6 @@ namespace stms {
             std::cerr << "Log initialization failed: " << ex.what() << std::endl;
             STMS_WARN("Log initialization failed: {}", ex.what());
         }
-        hasRun = true;
     }
 
 #else

@@ -54,7 +54,7 @@ namespace stms {
             curl_easy_cleanup(handle);
 
             if (err != CURLE_OK) {
-                STMS_WARN("Failed to read url {}", url);
+                STMS_PUSH_ERROR("Failed to read url {}", url);
                 res.success = false;
                 prom->set_value(res);
                 return nullptr;

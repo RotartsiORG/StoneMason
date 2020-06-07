@@ -16,7 +16,7 @@ namespace stms::rend {
 
     void GLVertexArray::VertexArrayImpl::pushFloats(GLint num, bool normalized, GLuint divisor) {
         if (vboLyos.empty()) {
-            STMS_WARN("Tried to push floats to a vertex array without a bound VBO! Ignoring invocation!");
+            STMS_PUSH_ERROR("Tried to push floats to a vertex array without a bound VBO! Ignoring invocation!");
             return;
         }
 
@@ -46,11 +46,13 @@ namespace stms::rend {
                 glVertexAttribPointer(enabledIndices, attrib.size, attrib.type, attrib.normalized, vboLyo.stride, attrib.ptr);
 
                 if (attrib.divisor != 0) {
-                    STMS_WARN("OpenGL 2 doesn't support non-zero vertex attribute divisors!");
-                    STMS_WARN("Don't use instanced rendering if you wish to maintain backwards compatibility!");
+                    STMS_PUSH_WARNING("OpenGL 2 doesn't support vertex attribute divisors or "
+                                      "instanced rendering! Don't use these if you want to support OpenGL 2!");
 
                     if (majorGlVersion > 2) {
                         glVertexAttribDivisor(enabledIndices, attrib.divisor);
+                    } else {
+                        STMS_PUSH_ERROR("OGL 2 doesn't support vertex attribute divisors! Expect crashes and/or bugs!");
                     }
                 }
 
