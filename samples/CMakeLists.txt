@@ -13,3 +13,10 @@ add_executable(stms_dtls_serv DTLS/server.cpp)
 target_compile_options(stms_dtls_serv PUBLIC ${STMS_COMPILE_FLAGS})
 target_include_directories(stms_dtls_serv PUBLIC ../include)
 target_link_libraries(stms_dtls_serv stms_static)
+
+
+project(stms_ogl_demo LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples for StoneMason")
+add_executable(stms_ogl_demo ogl_demo.cpp)
+target_compile_options(stms_ogl_demo PUBLIC ${STMS_COMPILE_FLAGS})
+target_include_directories(stms_ogl_demo PUBLIC ../include)
+target_link_libraries(stms_ogl_demo stms_static)

@@ -5,7 +5,7 @@
 #include "stms/rend/gl/shaders.hpp"
 
 #include "stms/logging.hpp"
-#include "stms/util.hpp"
+#include "stms/stms.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -98,7 +98,7 @@ namespace stms::rend {
                 // - 1 to ignore the semicolon, + 1 to ignore the space
                 std::string attrName(nameStart + 1, line.end() - 1);
 
-                STMS_TRACE("detected name '{}'", attrName);
+                STMS_TRACE("detected name '{}', loc {}", attrName, attribLoc);
                 bindAttribLoc(attribLoc++, attrName.c_str());
             }
 
@@ -157,5 +157,55 @@ namespace stms::rend {
 
         bind();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mode);
+    }
+
+    GLTexture::GLTexture(const char *filename) {
+        glGenTextures(1, &id);
+        loadFromFile(filename);
+    }
+
+    GLTexture::GLTexture(int width, int height) {
+        glGenTextures(1, &id);
+        bind();
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    }
+
+    GLTexture::GLTexture(GLTexture &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    GLTexture &GLTexture::operator=(GLTexture &&rhs) noexcept {
+        if (rhs.id == id) {
+            return *this;
+        }
+
+        glDeleteTextures(1, &id);
+        id = rhs.id;
+        rhs.id = 0;
+
+        return *this;
+    }
+
+
+    GLFrameBuffer::GLFrameBuffer(int width, int height) : tex(width, height) {
+        glGenFramebuffers(1, &id);
+        bind();
+
+        // Force use of only 1 color attachment for now.
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.id, 0);
+
+        glGenRenderbuffers(1, &rbo);
+        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            STMS_PUSH_ERROR("{}x{} framebuffer cannot be completed!", width, height);
+        }
+    }
+
+    GLFrameBuffer::~GLFrameBuffer() {
+        glDeleteFramebuffers(1, &id);
+        glDeleteRenderbuffers(1, &rbo);
     }
 }

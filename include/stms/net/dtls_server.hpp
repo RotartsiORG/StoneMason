@@ -21,7 +21,7 @@
 #include "openssl/bio.h"
 #include "openssl/err.h"
 #include "stms/net/ssl.hpp"
-#include "stms/util.hpp"
+#include "stms/stms.hpp"
 
 namespace stms::net {
     struct DTLSClientRepresentation {
@@ -66,7 +66,7 @@ namespace stms::net {
         eNoInternalStore = SSL_SESS_CACHE_NO_INTERNAL_STORE
     };
 
-    class DTLSServer : public SSLBase {
+    class DTLSServer : public _stms_SSLBase {
     private:
         std::unordered_map<std::string, std::shared_ptr<DTLSClientRepresentation>> clients;
         std::queue<std::string> deadClients;

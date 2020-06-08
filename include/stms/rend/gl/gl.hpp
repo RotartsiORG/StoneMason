@@ -16,6 +16,8 @@ namespace stms::rend {
     extern GLint majorGlVersion;
 
     void initGl();
+
+
 }
 
 

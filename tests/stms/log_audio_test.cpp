@@ -11,7 +11,7 @@
 #include "stms/audio.hpp"
 #include "stms/config.hpp"
 #include "stms/logging.hpp"
-#include "stms/util.hpp"
+#include "stms/stms.hpp"
 
 #include "stms/camera.hpp"
 #include "glm/glm.hpp"

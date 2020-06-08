@@ -83,6 +83,8 @@ namespace stms::al {
 
         virtual ~ALBuffer();
 
+        explicit ALBuffer(const char *filename);
+
         void loadFromFile(const char *filename) const;
 
         inline void write(const void *dat, ALsizei size, ALsizei freq, ALSoundFormat fmt) const {

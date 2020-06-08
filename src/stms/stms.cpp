@@ -2,7 +2,7 @@
 // Created by grant on 4/21/20.
 //
 
-#include "stms/util.hpp"
+#include "stms/stms.hpp"
 #include <bitset>
 
 #include "openssl/rand.h"
@@ -16,7 +16,7 @@
 #include "stms/curl.hpp"
 
 namespace stms {
-    bool STMSInitializer::hasRun = false;
+    bool _stms_STMSInitializer::hasRun = false;
     int(*sslRand)(unsigned char *, int) = RAND_bytes;
 
     int intRand(int min, int max) {
@@ -53,7 +53,7 @@ namespace stms {
         return uuid;
     }
 
-    STMSInitializer stmsInitializer = STMSInitializer();
+    _stms_STMSInitializer stmsInitializer = _stms_STMSInitializer();
 
     void initAll() {
         std::cout << stmsInitializer.specialValue;
@@ -140,9 +140,9 @@ namespace stms {
         return !(*this == rhs);
     }
 
-    STMSInitializer::STMSInitializer() noexcept: specialValue(0) {
+    _stms_STMSInitializer::_stms_STMSInitializer() noexcept: specialValue(0) {
         if (hasRun) {
-            STMS_PUSH_WARNING("STMSInitializer was called more than once! Ignoring invocation!")
+            STMS_PUSH_WARNING("_stms_STMSInitializer was called more than once! Ignoring invocation!")
             return;
         }
 

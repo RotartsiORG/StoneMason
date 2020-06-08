@@ -58,21 +58,21 @@ namespace stms {
 
     float floatRand(float min, float max);
 
-    class STMSInitializer {
+    class _stms_STMSInitializer {
 
     public:
         static bool hasRun;
 
         uint8_t specialValue;
 
-        STMSInitializer() noexcept;
+        _stms_STMSInitializer() noexcept;
 
-        STMSInitializer(STMSInitializer &rhs) = delete;
+        _stms_STMSInitializer(_stms_STMSInitializer &rhs) = delete;
 
-        STMSInitializer &operator=(STMSInitializer &rhs) = delete;
+        _stms_STMSInitializer &operator=(_stms_STMSInitializer &rhs) = delete;
     };
 
-    extern STMSInitializer stmsInitializer;
+    extern _stms_STMSInitializer stmsInitializer;
 
     void initAll();
 

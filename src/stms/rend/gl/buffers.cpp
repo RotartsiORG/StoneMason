@@ -146,4 +146,15 @@ namespace stms::rend {
         return *this;
     }
 
+    template<GLenum bufType>
+    _stms_GLBuffer<bufType>::_stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode) : usage(mode) {
+        glCreateBuffers(1, &id);
+        write(data, size);
+    }
+
+    GLVertexBuffer::GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode) : _stms_GLBuffer(data, size,
+                                                                                                          mode) {}
+
+    GLIndexBuffer::GLIndexBuffer(const void *dat, GLsizeiptr size, GLBufferMode mode) : _stms_GLBuffer(dat, size,
+                                                                                                       mode) {}
 }

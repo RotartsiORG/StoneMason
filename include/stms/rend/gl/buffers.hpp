@@ -57,6 +57,8 @@ namespace stms::rend {
         _stms_GLBuffer();
         virtual ~_stms_GLBuffer();
 
+        _stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
+
         _stms_GLBuffer(const _stms_GLBuffer<bufType> &rhs) = delete;
         _stms_GLBuffer<bufType> &operator=(const _stms_GLBuffer<bufType> &rhs) = delete;
 
@@ -80,7 +82,7 @@ namespace stms::rend {
             glFlushMappedBufferRange(bufType, offset, len);
         }
 
-        void write(void *data, GLsizeiptr size) {
+        void write(const void *data, GLsizeiptr size) {
             bind();
             glBufferData(bufType, size, data, usage);
         };
@@ -102,8 +104,12 @@ namespace stms::rend {
 
     class GLVertexBuffer : public _stms_GLBuffer<GL_ARRAY_BUFFER> {
     private:
-        GLsizei numVerts;
+        GLsizei numVerts = 0;
     public:
+        GLVertexBuffer() = default;
+
+        GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
+
         inline void setNumVerts(GLsizei num) { numVerts = num; }
 
         inline void draw(GLDrawMode mode = eTriangles, GLint first = 0) {
@@ -119,9 +125,13 @@ namespace stms::rend {
 
     class GLIndexBuffer : public _stms_GLBuffer<GL_ELEMENT_ARRAY_BUFFER> {
     private:
-        GLsizei numElements;
+        GLsizei numElements = 0;
         GLenum type = GL_UNSIGNED_INT;
     public:
+        GLIndexBuffer() = default;
+
+        GLIndexBuffer(const void *dat, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
+
         inline void setNumIndices(GLsizei num) { numElements = num; }
 
         inline void setIndexType(GLIndexType newType) {
@@ -223,7 +233,7 @@ namespace stms::rend {
         GLVertexArray(GLVertexArray &&rhs) noexcept;
         GLVertexArray &operator=(GLVertexArray &&rhs) noexcept;
 
-        inline void finalize() {
+        inline void build() {
             impl->build();
         }
 

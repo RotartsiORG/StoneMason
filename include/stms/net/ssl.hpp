@@ -26,7 +26,7 @@ namespace stms::net {
 
     std::string getAddrStr(const sockaddr *const addr);
 
-    class SSLBase {
+    class _stms_SSLBase {
     protected:
         bool isServ{};
         bool wantV6{};
@@ -41,12 +41,12 @@ namespace stms::net {
         stms::ThreadPool *pPool{};
         char *password{};
 
-        explicit SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr = "any",
-                         const std::string &port = "3000", bool preferV6 = true,
-                         const std::string &certPem = "server-cert.pem",
-                         const std::string &keyPem = "server-key.pem",
-                         const std::string &caCert = "", const std::string &caPath = "",
-                         const std::string &password = ""
+        explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr = "any",
+                               const std::string &port = "3000", bool preferV6 = true,
+                               const std::string &certPem = "server-cert.pem",
+                               const std::string &keyPem = "server-key.pem",
+                               const std::string &caCert = "", const std::string &caPath = "",
+                               const std::string &password = ""
         );
 
         virtual void onStart();
@@ -54,9 +54,9 @@ namespace stms::net {
 
         bool tryAddr(addrinfo *addr, int num);
 
-        SSLBase() = default;
+        _stms_SSLBase() = default;
 
-        virtual ~SSLBase();
+        virtual ~_stms_SSLBase();
 
         // Returns true if ready
         static bool blockUntilReady(int fd, SSL *ssl, short event);

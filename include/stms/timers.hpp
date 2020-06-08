@@ -8,7 +8,7 @@
 #define __STONEMASON_TIMERS_HPP
 
 #include <chrono>
-#include "util.hpp"
+#include "stms.hpp"
 
 namespace stms {
     class Stopwatch {

@@ -127,10 +127,6 @@ namespace stms::rend {
         };
     };
 
-    class GLFrameBuffer {
-
-    };
-
     enum GLScaleMode {
         eNearest = GL_NEAREST,
         eLinear = GL_LINEAR,
@@ -153,9 +149,20 @@ namespace stms::rend {
     private:
         GLuint id{};
 
+        friend class GLFrameBuffer;
+
     public:
         GLTexture();
         virtual ~GLTexture();
+
+        explicit GLTexture(const char *filename);
+        GLTexture(int width, int height);
+
+        GLTexture(const GLTexture &rhs) = delete;
+        GLTexture &operator=(const GLTexture &rhs) = delete;
+
+        GLTexture(GLTexture &&rhs) noexcept;
+        GLTexture &operator=(GLTexture &&rhs) noexcept;
 
         void loadFromFile(const char *filename) const;
 
@@ -193,6 +200,33 @@ namespace stms::rend {
 
         inline void bind() const {
             glBindTexture(GL_TEXTURE_2D, id);
+        }
+    };
+
+    class GLFrameBuffer {
+    private:
+        GLuint id{};
+        GLuint rbo{};
+
+    public:
+        GLTexture tex;
+
+        GLFrameBuffer() = default;
+        GLFrameBuffer(int width, int height);
+        virtual ~GLFrameBuffer();
+
+        GLFrameBuffer(const GLFrameBuffer &rhs) = delete;
+        GLFrameBuffer &operator=(const GLFrameBuffer &rhs) = delete;
+
+//        GLFrameBuffer(GLFrameBuffer &&rhs) noexcept;
+//        GLFrameBuffer &operator=(GLFrameBuffer &&rhs) noexcept;
+
+        inline void bind() const {
+            glBindFramebuffer(GL_FRAMEBUFFER, id);
+        }
+
+        static inline void bindDefault() {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
     };
 }

@@ -150,10 +150,10 @@ namespace stms::net {
     }
 
 
-    SSLBase::SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr, const std::string &port,
-                     bool preferV6,
-                     const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                     const std::string &caPath, const std::string &password) : isServ(isServ), wantV6(preferV6),
+    _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr, const std::string &port,
+                                 bool preferV6,
+                                 const std::string &certPem, const std::string &keyPem, const std::string &caCert,
+                                 const std::string &caPath, const std::string &password) : isServ(isServ), wantV6(preferV6),
                                                                                pPool(pool) {
         if (!password.empty()) {
             this->password = new char[password.length()];
@@ -211,9 +211,9 @@ namespace stms::net {
         }
     }
 
-    void SSLBase::stop() {
+    void _stms_SSLBase::stop() {
         if (!running) {
-            STMS_PUSH_WARNING("SSLBase::stop() called when server/client was already stopped! Ignoring...");
+            STMS_PUSH_WARNING("_stms_SSLBase::stop() called when server/client was already stopped! Ignoring...");
             return;
         }
 
@@ -234,14 +234,14 @@ namespace stms::net {
         STMS_INFO("DTLS server/client stopped. Resources freed.");
     }
 
-    void SSLBase::start() {
+    void _stms_SSLBase::start() {
         if (running) {
-            STMS_PUSH_WARNING("SSLBase::start() called when server/client was already started! Ignoring...");
+            STMS_PUSH_WARNING("_stms_SSLBase::start() called when server/client was already started! Ignoring...");
             return;
         }
 
         if (!pPool->isRunning()) {
-            STMS_PUSH_ERROR("SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
+            STMS_PUSH_ERROR("_stms_SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
             pPool->start();
         }
 
@@ -275,7 +275,7 @@ namespace stms::net {
         running = false;
     }
 
-    bool SSLBase::tryAddr(addrinfo *addr, int num) {
+    bool _stms_SSLBase::tryAddr(addrinfo *addr, int num) {
         int on = 1;
 
         addrStr = getAddrStr(addr->ai_addr);
@@ -336,17 +336,17 @@ namespace stms::net {
         return true;
     }
 
-    SSLBase::~SSLBase() {
+    _stms_SSLBase::~_stms_SSLBase() {
         delete[] password;
         SSL_CTX_free(pCtx);
         freeaddrinfo(pAddrCandidates);
     }
 
-    void SSLBase::onStart() {
+    void _stms_SSLBase::onStart() {
         // no-op
     }
 
-    bool SSLBase::blockUntilReady(int fd, SSL *ssl, short event) {
+    bool _stms_SSLBase::blockUntilReady(int fd, SSL *ssl, short event) {
         pollfd cliPollFd{};
         cliPollFd.events = event;
         cliPollFd.fd = fd;
@@ -373,7 +373,7 @@ namespace stms::net {
         return true;
     }
 
-    void SSLBase::onStop() {
+    void _stms_SSLBase::onStop() {
         // no-op
     }
 }

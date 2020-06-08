@@ -18,7 +18,7 @@
 #include "openssl/opensslv.h"
 
 namespace stms::net {
-    class DTLSClient : public SSLBase {
+    class DTLSClient : public _stms_SSLBase {
     private:
         BIO *pBio{};
         SSL *pSsl{};

@@ -10,10 +10,10 @@ namespace stms::net {
 
     DTLSClient::DTLSClient(stms::ThreadPool *pool, const std::string &addr, const std::string &port, bool preferV6,
                            const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                           const std::string &caPath, const std::string &password) : SSLBase(false, pool, addr,
-                                                                                             port, preferV6, certPem,
-                                                                                             keyPem, caCert, caPath,
-                                                                                             password) {
+                           const std::string &caPath, const std::string &password) : _stms_SSLBase(false, pool, addr,
+                                                                                                   port, preferV6, certPem,
+                                                                                                   keyPem, caCert, caPath,
+                                                                                                   password) {
 
     }
 
@@ -66,13 +66,13 @@ namespace stms::net {
                     return;
                 } else if (handshakeRet == -2) { // Read
                     STMS_INFO("WANT_READ returned from SSL_connect! Blocking until read-ready...");
-                    if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                    if (!stms::net::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
                         STMS_WARN("SSL_connect() WANT_READ timed out!");
                         continue;
                     }
                 } else if (handshakeRet == -3) { // Write
                     STMS_INFO("WANT_WRITE returned from SSL_connect! Blocking until write-ready...");
-                    if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
+                    if (!stms::net::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
                         STMS_WARN("SSL_connect() WANT_WRITE timed out!");
                         continue;
                     }
@@ -139,7 +139,7 @@ namespace stms::net {
                 while (retryRead && timeouts < 1 && readTimeouts < maxTimeouts) {
                     readTimeouts++;
 
-                    if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                    if (!stms::net::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
                         STMS_WARN("SSL_read() timed out!");
                         continue;
                     }
@@ -196,7 +196,7 @@ namespace stms::net {
                     STMS_WARN("Error in SSL_shutdown (see above)!");
 
                     if (shutdownRet == -2) {
-                        if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                        if (!stms::net::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
                             STMS_WARN("Reading timed out for SSL_shutdown!");
                         }
                     } else {
@@ -234,7 +234,7 @@ namespace stms::net {
             int sendTimeouts = 0;
             while (ret == -3 && sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
-                if (!stms::net::SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
+                if (!stms::net::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
                     STMS_WARN("SSL_write() timed out!");
                     continue;
                 }

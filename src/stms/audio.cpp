@@ -62,6 +62,11 @@ namespace stms::al {
         free(data); // !VERY IMPORTANT!
     }
 
+    ALBuffer::ALBuffer(const char *filename) {
+        alGenBuffers(1, &id);
+        loadFromFile(filename);
+    }
+
 
     ALSource::ALSource() {
         alGenSources(1, &id);

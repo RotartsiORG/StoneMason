@@ -3,7 +3,7 @@
 //
 
 #include "stms/net/dtls_server.hpp"
-#include "stms/util.hpp"
+#include "stms/stms.hpp"
 #include "stms/logging.hpp"
 
 #include <unistd.h>
@@ -242,10 +242,10 @@ namespace stms::net {
 
     DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr, const std::string &port, bool preferV6,
                            const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                           const std::string &caPath, const std::string &password) : SSLBase(true, pool, addr, port,
-                                                                                             preferV6,
-                                                                                             certPem, keyPem, caCert,
-                                                                                             caPath, password) {
+                           const std::string &caPath, const std::string &password) : _stms_SSLBase(true, pool, addr, port,
+                                                                                                   preferV6,
+                                                                                                   certPem, keyPem, caCert,
+                                                                                                   caPath, password) {
         SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
         SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
     }
