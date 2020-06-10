@@ -14,6 +14,8 @@
 #include "sys/socket.h"
 
 namespace stms::net {
+    extern uint8_t secretCookie[secretCookieLen];
+
     void initOpenSsl();
 
     int handleSslGetErr(SSL *, int);
@@ -39,14 +41,14 @@ namespace stms::net {
         int maxTimeouts = 9;
         bool running = false;
         stms::ThreadPool *pPool{};
-        char *password{};
+        std::string password{};
 
         explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr = "any",
                                const std::string &port = "3000", bool preferV6 = true,
                                const std::string &certPem = "server-cert.pem",
                                const std::string &keyPem = "server-key.pem",
                                const std::string &caCert = "", const std::string &caPath = "",
-                               const std::string &password = ""
+                               std::string password = ""
         );
 
         virtual void onStart();

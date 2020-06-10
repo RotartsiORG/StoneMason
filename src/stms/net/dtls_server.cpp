@@ -18,77 +18,33 @@
 #include "openssl/rand.h"
 
 namespace stms::net {
-    static bool secretCookieInit = false;
-    static uint8_t secretCookie[secretCookieLen];
 
-    struct HashAddr {
-        unsigned short port;
-        uint8_t addr[INET6_ADDRSTRLEN];
-    };
+    static bool hashSSL(SSL *ssl, unsigned *len, unsigned char *result) {
+        sockaddr_storage peer{};
 
-    static bool hashSSL(SSL *ssl, unsigned *len, uint8_t result[]) {
-        if (!secretCookieInit) {
-            if (RAND_bytes(secretCookie, sizeof(uint8_t) * secretCookieLen) != 1) {
-                STMS_WARN(
-                        "OpenSSL RNG is faulty! Using C++ RNG instead! This may leave you vulnerable to DDoS attacks!");
-                for (unsigned char &i : secretCookie) {
-                    i = stms::intRand(0, UINT8_MAX);
-                }
-            }
-            secretCookieInit = true;
-        }
-
-        union {
-            struct sockaddr_storage ss;
-            struct sockaddr_in6 s6;
-            struct sockaddr_in s4;
-        } peer{};
-
-        BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
-
-        size_t addrLen = sizeof(unsigned short);
-        HashAddr addr{};
-        if (peer.ss.ss_family == AF_INET6) {
-            addrLen += sizeof(sockaddr_in6);
-            addr.port = peer.s6.sin6_port;
-            memcpy(&addr.addr, &peer.s6.sin6_addr, sizeof(sockaddr_in6));
-        } else if (peer.ss.ss_family == AF_INET) {
-            addrLen += sizeof(sockaddr_in);
-            addr.port = peer.s4.sin_port;
-            memcpy(&addr.addr, &peer.s4.sin_addr, sizeof(sockaddr_in));
-        } else {
-            STMS_WARN("Cannot generate cookie for client with invalid family!");
-            return false;
-        }
+        auto addrSize = BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
         *len = DTLS1_COOKIE_LENGTH - 1;
-        // TODO: Should i really be using SHA1?
-        HMAC(EVP_sha1(), secretCookie, secretCookieLen, (uint8_t *) &addr, addrLen, result, len);
+        HMAC(EVP_sha1(), secretCookie, secretCookieLen, (unsigned char *) &peer, addrSize, result, len);
         return true;
     }
 
     static int genCookie(SSL *ssl, unsigned char *cookie, unsigned int *cookieLen) {
-        uint8_t result[DTLS1_COOKIE_LENGTH - 1];
-        if (!hashSSL(ssl, cookieLen, result)) {
+        if (!hashSSL(ssl, cookieLen, cookie)) {
             return 0;
         }
-        memcpy(cookie, result, *cookieLen);
 
         return 1;
     }
 
     static int verifyCookie(SSL *ssl, const unsigned char *cookie, unsigned int cookieLen) {
-        if (!secretCookieInit) {
-            STMS_WARN("Cookie received before a cookie was generated! Are you under a DDoS attack?");
-            return 0;
-        }
         unsigned expectedLen;
         uint8_t result[DTLS1_COOKIE_LENGTH - 1];
         if (!hashSSL(ssl, &expectedLen, result)) {
             return 0;
         }
 
-        if (cookieLen == expectedLen && memcmp(result, cookie, expectedLen) == 0) {
+        if (cookieLen == expectedLen && std::memcmp(result, cookie, expectedLen) == 0) {
             return 1;
         }
 
@@ -101,7 +57,7 @@ namespace stms::net {
         int on = 1;
 
         if (BIO_ADDR_family(cli->pBioAddr) == AF_INET6) {
-            auto *v6Addr = new sockaddr_in6{};
+            auto *v6Addr = new sockaddr_in6();
             v6Addr->sin6_family = AF_INET6;
             v6Addr->sin6_port = BIO_ADDR_rawport(cli->pBioAddr);
 
@@ -110,7 +66,7 @@ namespace stms::net {
             BIO_ADDR_rawaddress(cli->pBioAddr, &v6Addr->sin6_addr, &inAddrLen);
             cli->pSockAddr = reinterpret_cast<sockaddr *>(v6Addr);
         } else {
-            auto *v4Addr = new sockaddr_in{};
+            auto *v4Addr = new sockaddr_in();
             v4Addr->sin_family = AF_INET;
             v4Addr->sin_port = BIO_ADDR_rawport(cli->pBioAddr);
 
@@ -369,13 +325,13 @@ namespace stms::net {
                                 STMS_WARN("Connection to client {} closed forcefully!", lambUUid);
                                 lambCli->doShutdown = false;
 
-                                std::lock_guard<std::mutex> lg(clientsMtx);
+                                std::lock_guard<std::mutex> lgSub(clientsMtx);
                                 deadClients.push(lambUUid);
                                 retryRead = false;
                             } else if (readLen == -999) {
                                 STMS_WARN("Client {} kicked for: Unknown error", lambUUid);
 
-                                std::lock_guard<std::mutex> lg(clientsMtx);
+                                std::lock_guard<std::mutex> lgSub(clientsMtx);
                                 deadClients.push(lambUUid);
                                 retryRead = false;
                             } else {
@@ -386,7 +342,7 @@ namespace stms::net {
 
                         if (readTimeouts >= maxTimeouts) {
                             STMS_WARN("SSL_read() timed out completely! Dropping connection!");
-                            std::lock_guard<std::mutex> lg(clientsMtx);
+                            std::lock_guard<std::mutex> lgSub(clientsMtx);
                             deadClients.push(lambUUid);
                         }
                         lambCli->isReading = false;
@@ -553,7 +509,13 @@ namespace stms::net {
             }
         }
 
-        delete pSockAddr;  // No need to check this, as `delete nullptr` has no effect
+        if (pSockAddr != nullptr) {
+            if (pSockAddr->sa_family == AF_INET) {
+                delete reinterpret_cast<sockaddr_in *>(pSockAddr);
+            } else {
+                delete reinterpret_cast<sockaddr_in6 *>(pSockAddr);
+            }
+        }
     }
 
     DTLSClientRepresentation &DTLSClientRepresentation::operator=(DTLSClientRepresentation &&rhs) noexcept {

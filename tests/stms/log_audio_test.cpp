@@ -96,16 +96,8 @@ namespace {
         ASSERT_EQ(res.data.size(), 1024);
     }
 
-    TEST(Util, General) {
+    TEST(Util, Hex) {
         ASSERT_EQ(stms::toHex(43981), "abcd");
         ASSERT_EQ(stms::toHex(65244, 6), "00fedc");
-
-        std::string s("\t\t   some  \t\t  thing\t\t   ");
-        stms::trimWhitespace(s);
-        ASSERT_EQ(s, "some  \t\t  thing");
-
-        s = "this shouldn't\tbe touched";
-        stms::trimWhitespace(s);
-        ASSERT_EQ(s, "this shouldn't\tbe touched");
     }
 }

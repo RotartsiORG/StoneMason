@@ -40,9 +40,10 @@ namespace stms {
             uuid.timeHiAndVersion = intRand(0, UINT16_MAX);
             uuid.clockSeqHiAndReserved = intRand(0, UINT8_MAX);
             uuid.clockSeqLow = intRand(0, UINT8_MAX);
-            for (uint8_t &i : uuid.node) {
-                i = intRand(0, UINT8_MAX);
-            }
+
+            std::generate(std::begin(uuid.node), std::end(uuid.node), []() {
+                return intRand(0, UINT8_MAX);
+            });
         }
 
         uuid.timeHiAndVersion &= (65535u ^ ((1u << 15u) | (1u << 13u) | (1u << 12u)));
@@ -57,18 +58,6 @@ namespace stms {
 
     void initAll() {
         std::cout << stmsInitializer.specialValue;
-    }
-
-    void trimWhitespace(std::string &str) {
-        static constexpr auto isSpaceFunc = [](char c) {
-            return !std::isspace<char>(c, std::locale::classic());
-        };
-
-        auto trailIt = std::find_if(str.rbegin(), str.rend(), isSpaceFunc);
-        str.erase(trailIt.base(), str.end());  // Erase trailing spaces
-
-        auto leadIt = std::find_if(str.begin(), str.end(), isSpaceFunc);
-        str.erase(str.begin(), leadIt); // Erase leading spaces
     }
 
     std::string toHex(unsigned long long in, uint8_t places) {
@@ -133,7 +122,7 @@ namespace stms {
     bool UUID::operator==(const UUID &rhs) const {
         return (timeLow == rhs.timeLow) && (timeMid == rhs.timeMid) && (timeHiAndVersion == rhs.timeHiAndVersion) &&
                (clockSeqLow == rhs.clockSeqLow) && (clockSeqHiAndReserved == rhs.clockSeqHiAndReserved) &&
-               (memcmp(node, rhs.node, sizeof(uint8_t) * 6) == 0);
+               (std::memcmp(node, rhs.node, sizeof(uint8_t) * 6) == 0);
     }
 
     bool UUID::operator!=(const UUID &rhs) const {

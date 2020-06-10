@@ -2,18 +2,24 @@
 // Created by grant on 4/30/20.
 //
 
+#include "stms/net/ssl.hpp"
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
 
-#include "stms/net/ssl.hpp"
+#include <utility>
+
+#include "stms/stms.hpp"
 #include "stms/logging.hpp"
 #include "openssl/rand.h"
 #include "openssl/err.h"
 
 namespace stms::net {
+    uint8_t secretCookie[secretCookieLen];
+
     std::string getAddrStr(const sockaddr *const addr) {
         if (addr->sa_family == AF_INET) {
             auto *v4Addr = reinterpret_cast<const sockaddr_in *>(addr);
@@ -124,16 +130,35 @@ namespace stms::net {
 
         SSL_COMP_add_compression_method(0, COMP_zlib());
         STMS_INFO("Initialized {}!", OpenSSL_version(OPENSSL_VERSION));
+
+        if (RAND_bytes(secretCookie, sizeof(uint8_t) * secretCookieLen) != 1) {
+            STMS_WARN(
+                    "OpenSSL RNG is faulty! Using C++ RNG instead! This may leave you vulnerable to DDoS attacks!");
+            std::generate(std::begin(secretCookie), std::end(secretCookie), []() {
+                return stms::intRand(0, UINT8_MAX);
+            });
+        }
     }
 
 
     static int getPassword(char *dest, int size, int flag, void *pass) {
-        char *strPass = reinterpret_cast<char *>(pass);
-        int passLen = strlen(strPass);
+        auto *passStr = reinterpret_cast<std::string *>(pass);
+        if (passStr->empty()) {
+            dest[0] = '\0';
+            return 0;
+        }
 
-        strncpy(dest, strPass, size);
-        dest[passLen - 1] = '\0';
-        return passLen;
+        if (static_cast<std::string::size_type>(size) < (passStr->size() + 1)) { // Null-terminate
+            STMS_PUSH_ERROR("Provided SSL password too long! Got len={} when max len is {}", passStr->size(), size - 1);
+            dest[0] = '\0';
+            return 0;
+        }
+
+        std::copy(passStr->begin(), passStr->end(), dest);
+        dest[passStr->size()] = '\0';
+        // THIS WILL PRINT THE CERTIFICATE PASSWORD!!! (it should be fine, as it is only local).
+        STMS_TRACE("pass in = {}, pass out = {}", *passStr, dest);
+        return passStr->size();
     }
 
     static int verifyCert(int ok, X509_STORE_CTX *ctx) {
@@ -153,19 +178,12 @@ namespace stms::net {
     _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr, const std::string &port,
                                  bool preferV6,
                                  const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                                 const std::string &caPath, const std::string &password) : isServ(isServ), wantV6(preferV6),
-                                                                               pPool(pool) {
-        if (!password.empty()) {
-            this->password = new char[password.length()];
-            strcpy(this->password, password.c_str());
-        } else {
-            this->password = new char;
-            *(this->password) = 0;
-        }
+                                 const std::string &caPath, std::string password) :
+                                 isServ(isServ), wantV6(preferV6), pPool(pool), password(std::move(password)) {
 
         pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
 
-        SSL_CTX_set_default_passwd_cb_userdata(pCtx, this->password);
+        SSL_CTX_set_default_passwd_cb_userdata(pCtx, &this->password);
         SSL_CTX_set_default_passwd_cb(pCtx, getPassword);
 
         flushSSLErrors();
@@ -337,7 +355,6 @@ namespace stms::net {
     }
 
     _stms_SSLBase::~_stms_SSLBase() {
-        delete[] password;
         SSL_CTX_free(pCtx);
         freeaddrinfo(pAddrCandidates);
     }

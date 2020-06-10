@@ -24,4 +24,4 @@ openssl req -nodes -new -newkey rsa:2048 -keyout cli-priv-key.pem -out cli.csr
 # Sign Client Certificate
 openssl ca -config ../../ca.conf -days 365 -in cli.csr -out cli-pub-cert.pem
 
-cd ../..
+cd ../.. || exit

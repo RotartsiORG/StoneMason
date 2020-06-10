@@ -11,15 +11,9 @@ namespace stms {
 
     std::string getCurrentDatetime() {
         std::ostringstream oss;
-        time_t rawTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        tm timeInfo{};
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
-        localtime_s(&timeinfo, &rawtime);
-#else
-        localtime_r(&rawTime, &timeInfo);
-#endif
 
-        oss << std::put_time(&timeInfo, stms::timeFormat);
+        std::time_t rawTime = std::time(nullptr);
+        oss << std::put_time(std::localtime(&rawTime), stms::timeFormat);
         return oss.str();
     }
 

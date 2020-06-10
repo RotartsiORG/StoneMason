@@ -22,8 +22,6 @@ namespace stms {
         return ret;
     }
 
-    void trimWhitespace(std::string &str);
-
     extern int(*sslRand)(unsigned char *, int);
 
     std::string toHex(unsigned long long in, uint8_t places = 0);

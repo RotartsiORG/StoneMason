@@ -19,13 +19,13 @@ namespace stms {
     constexpr int versionMinor = 0;
     constexpr int versionMicro = 1;
 
-    constexpr unsigned threadPoolWorkerDelayMs = 125;
+    constexpr unsigned threadPoolWorkerDelayMs = 16; // 62 Hz
 
     constexpr bool asyncLogging = false;
     constexpr bool logToLatest = true;
     constexpr bool logToUniqueFile = false;
     constexpr char logFormat[] = "%^[%H:%M:%S.%e] [%=8l] [%P|%t] [%!|%s:%#]: %v%$";
-    constexpr char timeFormat[] = "%Y.%m.%d %H:%M:%S";
+    constexpr char timeFormat[] = "%Y.%m.%d %H:%M:%S %Z";
     constexpr char logDir[] = "./stms_logs/"; // must have trailing slash
 
     namespace net {
@@ -39,6 +39,7 @@ namespace stms {
     }
 
     namespace rend {
+        // Allow experimental driver features, useful for backwards compatibility.
         constexpr bool enableExperimentalGlew = true;
     }
 }

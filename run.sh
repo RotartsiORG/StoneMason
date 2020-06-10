@@ -1,3 +1,5 @@
+#!/bin/bash
+
 CMK_EXE="/snap/bin/cmake"
 
 export CC=/usr/bin/clang
@@ -9,6 +11,6 @@ $CMK_EXE -Wdev -Wdeprecated -DSTMS_GENERATE_DOCS=ON -DSTMS_BUILD_TESTS=ON -DSTMS
 cd build || exit
 $CMK_EXE --build . -j 8
 
-cd ..
+cd .. || exit
 
 ./build/tests/stms_tests
