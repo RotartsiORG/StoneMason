@@ -68,21 +68,21 @@ namespace {
                 futures.emplace_back(pool->submitTask(doWork, &workArgs.at(i), numTasks - i));
             }
 
-            ASSERT_FALSE(pool->isRunning());
+            EXPECT_FALSE(pool->isRunning());
             pool->start(numThreads);
-            ASSERT_TRUE(pool->isRunning());
+            EXPECT_TRUE(pool->isRunning());
         }
 
         void stopPool() {
             pool->waitIdle();
 
             for (int i = 0; i < numTasks; i++) {
-                ASSERT_EQ(*reinterpret_cast<WorkArgs *>(futures.at(i).get()), workArgs.at(i));
+                EXPECT_EQ(*reinterpret_cast<WorkArgs *>(futures.at(i).get()), workArgs.at(i));
             }
 
-            ASSERT_TRUE(pool->isRunning());
+            EXPECT_TRUE(pool->isRunning());
             pool->stop(true);
-            ASSERT_FALSE(pool->isRunning());
+            EXPECT_FALSE(pool->isRunning());
 
             // Skip order checking; it's not THAT important (i hope)
             std::lock_guard<std::mutex> lg(orderMtx);
@@ -114,12 +114,12 @@ namespace {
         for (int i = 0; i < (numTasks / 2); i++) {
             pool->pushThread();
         }
-        ASSERT_EQ(pool->getNumThreads(), (numTasks / 2) + 1);
+        EXPECT_EQ(pool->getNumThreads(), (numTasks / 2) + 1);
 
         for (int i = 0; i < (numTasks / 2); i++) {
             pool->popThread();
         }
-        ASSERT_EQ(pool->getNumThreads(), 1);
+        EXPECT_EQ(pool->getNumThreads(), 1);
         stopPool();
     }
 }

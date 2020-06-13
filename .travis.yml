@@ -1,0 +1,38 @@
+language: cpp
+dist: bionic
+compiler:
+  - clang
+os:
+  - linux
+addons:
+  artifacts:
+    paths:
+      - ./build/libstms_shared.so
+      - ./build/libstms_static.a
+      - ./build/tests/stms_tests
+      - ./build/samples/stms_dtls_cli
+      - ./build/samples/stms_dtls_serv
+      - ./build/samples/stms_ogl_demo
+      - ./build/docs
+install:
+  - wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+  - sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-bionic.list http://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-bionic.list
+  - sudo apt update
+  - sudo apt install vulkan-sdk
+  - sudo apt-get install libglew-dev libglew2.0 glew-utils libopenal-dev cmake libssl-dev libcurl4-openssl-dev libgl-dev doxygen graphviz libxinerama-dev libglfw3-dev libxcursor-dev libxi-dev openssl
+  - sudo apt-get install dos2unix git wget
+  - sudo snap install cmake --classic
+  - export VULKAN_SDK="/usr"
+  - wget https://github.com/nigels-com/glew/releases/download/glew-2.1.0/glew-2.1.0.zip
+  - unzip glew-2.1.0.zip
+  - cd glew-2.1.0/
+  - make all
+  - sudo make install
+  - cd ..
+script:
+  - mkdir build
+  - /snap/bin/cmake -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -DGLEW_VERBOSE=ON -DSTMS_GENERATE_DOCS=ON -DCMAKE_BUILD_TYPE=Release -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
+  - cd build || exit
+  - /snap/bin/cmake --build . -j 8
+  - cd .. || exit
+  - ./build/tests/stms_tests

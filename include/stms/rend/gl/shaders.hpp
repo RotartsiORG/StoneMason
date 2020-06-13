@@ -218,8 +218,8 @@ namespace stms::rend {
         GLFrameBuffer(const GLFrameBuffer &rhs) = delete;
         GLFrameBuffer &operator=(const GLFrameBuffer &rhs) = delete;
 
-//        GLFrameBuffer(GLFrameBuffer &&rhs) noexcept;
-//        GLFrameBuffer &operator=(GLFrameBuffer &&rhs) noexcept;
+        GLFrameBuffer(GLFrameBuffer &&rhs) noexcept;
+        GLFrameBuffer &operator=(GLFrameBuffer &&rhs) noexcept;
 
         inline void bind() const {
             glBindFramebuffer(GL_FRAMEBUFFER, id);

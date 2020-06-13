@@ -113,9 +113,9 @@ namespace stms::net {
             throw std::runtime_error("OpenSSL version mismatch!");
         }
 
-        if (OPENSSL_VERSION_NUMBER < 0x1010102fL) {
+        if (OPENSSL_VERSION_NUMBER < 0x10101000L) {
             STMS_PUSH_ERROR("[* FATAL ERROR *] {} is outdated and insecure!"
-                            "At least OpenSSL 1.1.1a is required! Aborting.", OpenSSL_version(OPENSSL_VERSION));
+                            "At least OpenSSL 1.1.1 is required! Aborting.", OpenSSL_version(OPENSSL_VERSION));
             STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
             throw std::runtime_error("Outdated OpenSSL!");
         }

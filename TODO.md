@@ -10,6 +10,7 @@
 ### Networking
 1. ~~Learn OpenSSL (https://github.com/openssl/openssl)~~
 2. Make DTLSServer/Client code protocol agnostic (work with DTLS/UDP or TLS/TCP )
+    - Add ability to kick any client based on uuid
 3. Raw server with no OpenSSL encryption with same interface.
 4. Make TCP-Over-UDP???? 
     - Implement delivery verification, anti-replay, anti-reordering, automatic fragmenting, heartbeats etc
@@ -23,7 +24,7 @@
 1. Basic OpenGL render
 2. Font rendering, custom gui lib (or is ImGUI good enough?)
 3. Vulkan rendering 
-    - Use VMA?
+    - Use VMA.
     - Follow https://vulkan-tutorial.com/, then implement things from https://learnopengl.com/
 3. DirectX 12? Metal? IDK.
 

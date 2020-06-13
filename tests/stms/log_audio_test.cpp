@@ -30,12 +30,8 @@ namespace {
             std::this_thread::sleep_for(std::chrono::milliseconds(125));
         }
 
-        while (stms::al::handleAlError()) {
-            FAIL() << "stms::handleAlError() failed!";
-        }
-        while (stms::al::defaultAlDevice().handleError()) {
-            FAIL() << "stms::defaultAlDevice.handleError() failed!";
-        }
+        stms::al::handleAlError();
+        stms::al::defaultAlDevice().handleError();
     }
 
     TEST(Log, Log) {
@@ -62,18 +58,18 @@ namespace {
             std::string str = uuid.buildStr();
 
             std::bitset<8> uuidClockSeqHiAndReserved(uuid.clockSeqHiAndReserved);
-            ASSERT_EQ(uuidClockSeqHiAndReserved.test(6), 0);
-            ASSERT_EQ(uuidClockSeqHiAndReserved.test(7), 1);
+            EXPECT_EQ(uuidClockSeqHiAndReserved.test(6), 0);
+            EXPECT_EQ(uuidClockSeqHiAndReserved.test(7), 1);
 
             std::bitset<16> uuidTimeHiAndVersion(uuid.timeHiAndVersion);
-            ASSERT_EQ(uuidTimeHiAndVersion.test(15), 0);
-            ASSERT_EQ(uuidTimeHiAndVersion.test(14), 1);
-            ASSERT_EQ(uuidTimeHiAndVersion.test(13), 0);
-            ASSERT_EQ(uuidTimeHiAndVersion.test(12), 0);
+            EXPECT_EQ(uuidTimeHiAndVersion.test(15), 0);
+            EXPECT_EQ(uuidTimeHiAndVersion.test(14), 1);
+            EXPECT_EQ(uuidTimeHiAndVersion.test(13), 0);
+            EXPECT_EQ(uuidTimeHiAndVersion.test(12), 0);
 
-            ASSERT_EQ(str.length(), 36);
+            EXPECT_EQ(str.length(), 36);
 
-            ASSERT_EQ(seen.find(str), seen.end()) << "UUID Collision for " << str;
+            EXPECT_EQ(seen.find(str), seen.end()) << "UUID Collision for " << str;
             seen.emplace(str);
         }
     }
@@ -85,19 +81,13 @@ namespace {
         auto future = stms::readURL("https://www.example.com", &pool);
         auto res = future.get();
         STMS_INFO("dat = '{}', size = {}", res.data, res.data.size());
-        ASSERT_TRUE(res.success);
-        ASSERT_GT(res.data.size(), 0);
-
-        future = stms::readURL("ftp://speedtest.tele2.net/1KB.zip", &pool);
-        res = future.get();
-        STMS_INFO("dat = '{}', size = {}", res.data, res.data.size());
-
-        ASSERT_TRUE(res.success);
-        ASSERT_EQ(res.data.size(), 1024);
+        EXPECT_TRUE(res.success);
+        EXPECT_GT(res.data.size(), 0);
+        pool.stop();
     }
 
     TEST(Util, Hex) {
-        ASSERT_EQ(stms::toHex(43981), "abcd");
-        ASSERT_EQ(stms::toHex(65244, 6), "00fedc");
+        EXPECT_EQ(stms::toHex(43981), "abcd");
+        EXPECT_EQ(stms::toHex(65244, 6), "00fedc");
     }
 }

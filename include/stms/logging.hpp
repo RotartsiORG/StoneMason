@@ -42,8 +42,8 @@
 
 #include "spdlog/fmt/fmt.h" // TODO: Find a way to get rid of this dependency. Use C++20's fmtlib?
 
-#define STMS_PUSH_ERROR(...) STMS_FATAL(__VA_ARGS__); ::stms::errorQueue.emplace_back(Error{__FILE__, __LINE__, ::stms::eError, fmt::format(__VA_ARGS__)});
-#define STMS_PUSH_WARNING(...) STMS_WARN(__VA_ARGS__); ::stms::errorQueue.emplace_back(Error{__FILE__, __LINE__, ::stms::eWarning, fmt::format(__VA_ARGS__)});
+#define STMS_PUSH_ERROR(...) STMS_FATAL(__VA_ARGS__); ::stms::errorQueue.emplace_back(::stms::Error{__FILE__, __LINE__, ::stms::eError, fmt::format(__VA_ARGS__)});
+#define STMS_PUSH_WARNING(...) STMS_WARN(__VA_ARGS__); ::stms::errorQueue.emplace_back(::stms::Error{__FILE__, __LINE__, ::stms::eWarning, fmt::format(__VA_ARGS__)});
 
 namespace stms {
     enum ErrorType {

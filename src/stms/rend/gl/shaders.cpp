@@ -208,4 +208,29 @@ namespace stms::rend {
         glDeleteFramebuffers(1, &id);
         glDeleteRenderbuffers(1, &rbo);
     }
+
+    GLFrameBuffer::GLFrameBuffer(GLFrameBuffer &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    GLFrameBuffer &GLFrameBuffer::operator=(GLFrameBuffer &&rhs) noexcept {
+        // Using || bc these attr should ALWAYS be distinct for any GLFrameBuffer, otherwise someone did something
+        // incredibly stupid.
+        if (tex.id == rhs.tex.id || rbo == rhs.rbo || id == rhs.id) {
+            return *this;
+        }
+
+        glDeleteFramebuffers(1, &id);
+        glDeleteRenderbuffers(1, &rbo);
+
+        id = rhs.id;
+        rbo = rhs.rbo;
+
+        rhs.id = 0;
+        rhs.rbo = 0;
+
+        tex = std::move(rhs.tex);
+
+        return *this;
+    }
 }

@@ -11,7 +11,7 @@ namespace stms::al {
     ALenum handleAlError() {
         ALenum error = alGetError();
         if (error != AL_NO_ERROR) {
-            STMS_WARN("[** OpenAL ERROR **]: {}", error);
+            STMS_PUSH_ERROR("[** OpenAL ERROR **]: {}", error);
         }
         return error;
     }
@@ -131,7 +131,7 @@ namespace stms::al {
     bool ALDevice::handleError() {
         ALCenum error = alcGetError(id);
         if (error != ALC_NO_ERROR) {
-            STMS_WARN("[** ALC ERROR **] {}", error);
+            STMS_PUSH_ERROR("[** ALC ERROR **] {}", error);
             return true;
         } else {
             return false;
