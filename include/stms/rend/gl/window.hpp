@@ -7,7 +7,7 @@
 #ifndef __STONEMASON_GL_WINDOW_HPP
 #define __STONEMASON_GL_WINDOW_HPP
 
-#define GLEW_STATIC
+#define GLEW_STATIC 1
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 

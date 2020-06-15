@@ -116,49 +116,6 @@ namespace stms::rend {
         return *this;
     }
 
-    template<GLenum bufType>
-    _stms_GLBuffer<bufType>::_stms_GLBuffer() {
-        glCreateBuffers(1, &id);
-    }
-
-    template<GLenum bufType>
-    _stms_GLBuffer<bufType>::~_stms_GLBuffer() {
-        glDeleteBuffers(1, &id);
-    }
-
-    template<GLenum bufType>
-    _stms_GLBuffer<bufType>::_stms_GLBuffer(_stms_GLBuffer<bufType> &&rhs) noexcept {
-        *this = std::move(rhs);
-    }
-
-    template<GLenum bufType>
-    _stms_GLBuffer<bufType> &_stms_GLBuffer<bufType>::operator=(_stms_GLBuffer<bufType> &&rhs) noexcept {
-        if (rhs.id == id) {
-            return *this;
-        }
-
-        glDeleteBuffers(1, &id);
-        id = rhs.id;
-        rhs.id = 0;
-        rhs.numElements = 0;
-
-        usage = rhs.usage;
-        numElements = rhs.numElements;
-
-        return *this;
-    }
-
-    template<GLenum bufType>
-    _stms_GLBuffer<bufType>::_stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode) : usage(mode) {
-        glCreateBuffers(1, &id);
-        write(data, size);
-    }
-
-    template<GLenum bufType>
-    _stms_GLBuffer<bufType>::_stms_GLBuffer(GLBufferMode mode) : usage(mode) {
-        glCreateBuffers(1, &id);
-    }
-
     GLVertexBuffer::GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode) : _stms_GLBuffer(data, size,
                                                                                                           mode) {}
 

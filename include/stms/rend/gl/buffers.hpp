@@ -5,7 +5,7 @@
 #ifndef __STONEMASON_GL_BUFFERS_HPP
 #define __STONEMASON_GL_BUFFERS_HPP
 
-#define GLEW_STATIC
+#define GLEW_STATIC 1
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
@@ -56,17 +56,46 @@ namespace stms::rend {
         GLsizei numElements = 0;
 
     public:
-        _stms_GLBuffer();
-        virtual ~_stms_GLBuffer();
+        _stms_GLBuffer() {
+            glCreateBuffers(1, &id);
+        }
 
-        _stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
-        explicit _stms_GLBuffer(GLBufferMode mode);
+        virtual ~_stms_GLBuffer() {
+            glDeleteBuffers(1, &id);
+        }
+
+        _stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic)  : usage(mode) {
+            glCreateBuffers(1, &id);
+            write(data, size);
+        }
+
+        explicit _stms_GLBuffer(GLBufferMode mode)  : usage(mode) {
+            glCreateBuffers(1, &id);
+        };
 
         _stms_GLBuffer(const _stms_GLBuffer<bufType> &rhs) = delete;
         _stms_GLBuffer<bufType> &operator=(const _stms_GLBuffer<bufType> &rhs) = delete;
 
-        _stms_GLBuffer(_stms_GLBuffer<bufType> &&rhs) noexcept;
-        _stms_GLBuffer<bufType> &operator=(_stms_GLBuffer<bufType> &&rhs) noexcept;
+        _stms_GLBuffer(_stms_GLBuffer<bufType> &&rhs) noexcept {
+            *this = std::move(rhs);
+        }
+
+        _stms_GLBuffer<bufType> &operator=(_stms_GLBuffer<bufType> &&rhs) noexcept {
+            if (rhs.id == id) {
+                return *this;
+            }
+
+            glDeleteBuffers(1, &id);
+            id = rhs.id;
+            rhs.id = 0;
+            rhs.numElements = 0;
+
+            usage = rhs.usage;
+            numElements = rhs.numElements;
+
+            return *this;
+        }
+
 
         inline void bind() const {
             glBindBuffer(bufType, id);
