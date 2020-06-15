@@ -11,6 +11,14 @@ project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DES
 
 set(GLEW_USE_STATIC_LIBS ON CACHE BOOL "" FORCE)
 
+if (APPLE)
+    # This is a bug in CMake that causes it to prefer the system version over
+    # the one in the specified ROOT folder.
+    set(OPENSSL_ROOT_DIR /usr/local/Cellar/openssl@1.1/1.1.1g)
+    set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib CACHE FILEPATH "" FORCE)
+    set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
+endif()
+
 find_package(GLEW REQUIRED)
 find_package(OpenAL REQUIRED)
 find_package(Vulkan REQUIRED)

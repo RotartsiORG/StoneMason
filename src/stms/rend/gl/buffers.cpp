@@ -140,8 +140,10 @@ namespace stms::rend {
         glDeleteBuffers(1, &id);
         id = rhs.id;
         rhs.id = 0;
+        rhs.numElements = 0;
 
         usage = rhs.usage;
+        numElements = rhs.numElements;
 
         return *this;
     }
@@ -152,9 +154,37 @@ namespace stms::rend {
         write(data, size);
     }
 
+    template<GLenum bufType>
+    _stms_GLBuffer<bufType>::_stms_GLBuffer(GLBufferMode mode) : usage(mode) {
+        glCreateBuffers(1, &id);
+    }
+
     GLVertexBuffer::GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode) : _stms_GLBuffer(data, size,
                                                                                                           mode) {}
 
+    GLVertexBuffer::GLVertexBuffer(GLBufferMode mode) : _stms_GLBuffer(mode) {}
+
+    GLVertexBuffer::GLVertexBuffer() : _stms_GLBuffer() {}
+
     GLIndexBuffer::GLIndexBuffer(const void *dat, GLsizeiptr size, GLBufferMode mode) : _stms_GLBuffer(dat, size,
                                                                                                        mode) {}
+
+    GLIndexBuffer::GLIndexBuffer(GLIndexBuffer &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    GLIndexBuffer &GLIndexBuffer::operator=(GLIndexBuffer &&rhs) noexcept {
+        if (rhs.type == type) {
+            return *this;
+        }
+
+        type = rhs.type;
+        _stms_GLBuffer<GL_ELEMENT_ARRAY_BUFFER>::operator=(std::move(rhs));
+
+        return *this;
+    }
+
+    GLIndexBuffer::GLIndexBuffer(GLBufferMode mode) : _stms_GLBuffer(mode) {}
+
+    GLIndexBuffer::GLIndexBuffer() : _stms_GLBuffer() {}
 }

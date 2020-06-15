@@ -78,9 +78,12 @@ int main() {
             20, 21, 22, 23, 20, 22
         });
 
-        stms::rend::GLVertexBuffer vbo(reinterpret_cast<void *>(vboDat.data()), vboDat.size() * sizeof(float));
-        stms::rend::GLIndexBuffer ibo(reinterpret_cast<void *>(iboDat.data()), iboDat.size() * sizeof(float));
-        ibo.setNumIndices(iboDat.size());
+        stms::rend::GLVertexBuffer vbo(stms::rend::eDrawStatic);
+        vbo.fromVector(vboDat);
+
+        stms::rend::GLIndexBuffer ibo(stms::rend::eDrawStatic);
+        ibo.fromVector(iboDat);
+
 
         stms::rend::GLVertexArray vao;
         vao.pushVbo(&vbo);

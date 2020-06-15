@@ -4,7 +4,45 @@ compiler:
   - clang
 os:
   - linux
+  - osx
 addons:
+  homebrew:
+    update: true # Workaround as the homebrew addon is currently broken: https://travis-ci.community/t/macos-build-fails-because-of-homebrew-bundle-unknown-command/7296/29
+    packages:
+      - glew
+      - glfw
+      - cmake
+      - git
+      - wget
+      - openal-soft
+      - openssl@1.1
+      - curl-openssl
+      - curl
+      - doxygen
+      - graphviz
+      - dos2unix
+  apt:
+    packages:
+      - libglew-dev
+      - libglew2.0
+      - glew-utils
+      - libopenal-dev
+      - libssl-dev
+      - libcurl4-openssl-dev
+      - libgl-dev
+      - doxygen
+      - graphviz
+      - libxinerama-dev
+      - libglfw3-dev
+      - libxcursor-dev
+      - libxi-dev
+      - openssl
+      - dos2unix
+      - git
+      - wget
+  snaps:
+    - name: cmake
+      confinement: classic
   artifacts:
     paths:
       - ./build/libstms_shared.so
@@ -15,24 +53,33 @@ addons:
       - ./build/samples/stms_ogl_demo
       - ./build/docs
 install:
-  - wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
-  - sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-bionic.list http://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-bionic.list
-  - sudo apt update
-  - sudo apt install vulkan-sdk
-  - sudo apt-get install libglew-dev libglew2.0 glew-utils libopenal-dev cmake libssl-dev libcurl4-openssl-dev libgl-dev doxygen graphviz libxinerama-dev libglfw3-dev libxcursor-dev libxi-dev openssl
-  - sudo apt-get install dos2unix git wget
-  - sudo snap install cmake --classic
-  - export VULKAN_SDK="/usr"
+  - STMS_WD=$(pwd)
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -); fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-bionic.list http://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-bionic.list); fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (sudo apt update); fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (sudo apt install vulkan-sdk); fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export VULKAN_SDK="/usr"; fi
   - wget https://github.com/nigels-com/glew/releases/download/glew-2.1.0/glew-2.1.0.zip
   - unzip glew-2.1.0.zip
   - cd glew-2.1.0/
   - make all
   - sudo make install
-  - cd ..
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then wget https://sdk.lunarg.com/sdk/download/1.2.141.2/mac/vulkansdk-macos-1.2.141.2.dmg?Human=true; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then mv vulkansdk-macos-1.2.141.2.dmg\?Human\=true vulkansdk.dmg; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo hdiutil attach vulkansdk.dmg; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cd /Volumes/vulkansdk-macos-1.2.141.2; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then source setup-env.sh; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo python install_vulkan.py; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then ls /usr/local/Cellar/openssl@1.1/1.1.1g; fi
+  - cd $STMS_WD
 script:
   - mkdir build
-  - /snap/bin/cmake -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -DGLEW_VERBOSE=ON -DSTMS_GENERATE_DOCS=ON -DCMAKE_BUILD_TYPE=Release -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -DGLEW_VERBOSE=ON -DSTMS_GENERATE_DOCS=ON -DCMAKE_BUILD_TYPE=Release -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export PATH="/usr/local/Cellar/openssl@1.1/1.1.1g/bin:$PATH"; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export OPENSSL_ROOT_DIR="/usr/local/Cellar/openssl@1.1/1.1.1g"; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake -Wdev -Wdeprecated -DGLEW_VERBOSE=ON -DSTMS_GENERATE_DOCS=ON -DCMAKE_BUILD_TYPE=Release -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.; fi
   - cd build || exit
-  - /snap/bin/cmake --build . -j 8
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake --build . -j 8; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake --build . -j 8; fi
   - cd .. || exit
   - ./build/tests/stms_tests

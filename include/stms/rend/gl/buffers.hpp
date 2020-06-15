@@ -10,6 +10,7 @@
 #include "GLFW/glfw3.h"
 
 #include <vector>
+#include <array>
 
 namespace stms::rend {
     enum GLBufferMode {
@@ -52,12 +53,14 @@ namespace stms::rend {
     protected:
         GLBufferMode usage = eDrawStatic;
         GLuint id = 0;
+        GLsizei numElements = 0;
 
     public:
         _stms_GLBuffer();
         virtual ~_stms_GLBuffer();
 
         _stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
+        explicit _stms_GLBuffer(GLBufferMode mode);
 
         _stms_GLBuffer(const _stms_GLBuffer<bufType> &rhs) = delete;
         _stms_GLBuffer<bufType> &operator=(const _stms_GLBuffer<bufType> &rhs) = delete;
@@ -86,6 +89,21 @@ namespace stms::rend {
             bind();
             glBufferData(bufType, size, data, usage);
         };
+
+        template <typename T>
+        void fromVector(const std::vector<T> &vec) {
+            write(vec.data(), vec.size() * sizeof(T));
+            numElements = vec.size();
+        }
+
+        template <typename T, size_t S>
+        void fromArray(const std::array<T, S> &arr) {
+            write(arr.data(), S * sizeof(T));
+            numElements = S;
+        }
+
+        inline void setElements(GLsizei num) { numElements = num; }
+
         void writeRange(GLintptr offset, void *data, GLsizeiptr size) {
             bind();
             glBufferSubData(bufType, offset, size, data);
@@ -103,36 +121,34 @@ namespace stms::rend {
     };
 
     class GLVertexBuffer : public _stms_GLBuffer<GL_ARRAY_BUFFER> {
-    private:
-        GLsizei numVerts = 0;
     public:
-        GLVertexBuffer() = default;
+        GLVertexBuffer();
 
         GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
-
-        inline void setNumVerts(GLsizei num) { numVerts = num; }
+        explicit GLVertexBuffer(GLBufferMode mode);
 
         inline void draw(GLDrawMode mode = eTriangles, GLint first = 0) {
             bind();
-            glDrawArrays(mode, first, numVerts);
+            glDrawArrays(mode, first, numElements);
         };
 
         void drawInstanced(GLsizei num = 1, GLDrawMode mode = eTriangles, GLint first = 0) {
             bind();
-            glDrawArraysInstanced(mode, first, numVerts, num);
+            glDrawArraysInstanced(mode, first, numElements, num);
         };
     };
 
     class GLIndexBuffer : public _stms_GLBuffer<GL_ELEMENT_ARRAY_BUFFER> {
     private:
-        GLsizei numElements = 0;
         GLenum type = GL_UNSIGNED_INT;
     public:
-        GLIndexBuffer() = default;
+        GLIndexBuffer();
+
+        GLIndexBuffer(GLIndexBuffer &&rhs) noexcept;
+        GLIndexBuffer &operator=(GLIndexBuffer &&rhs) noexcept;
 
         GLIndexBuffer(const void *dat, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
-
-        inline void setNumIndices(GLsizei num) { numElements = num; }
+        explicit GLIndexBuffer(GLBufferMode mode);
 
         inline void setIndexType(GLIndexType newType) {
             type = newType;
