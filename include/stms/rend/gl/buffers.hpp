@@ -85,7 +85,7 @@ namespace stms::rend {
             glFlushMappedBufferRange(bufType, offset, len);
         }
 
-        void write(const void *data, GLsizeiptr size) {
+        inline void write(const void *data, GLsizeiptr size) {
             bind();
             glBufferData(bufType, size, data, usage);
         };
@@ -104,17 +104,17 @@ namespace stms::rend {
 
         inline void setElements(GLsizei num) { numElements = num; }
 
-        void writeRange(GLintptr offset, void *data, GLsizeiptr size) {
+        inline void writeRange(GLintptr offset, void *data, GLsizeiptr size) {
             bind();
             glBufferSubData(bufType, offset, size, data);
         };
 
-        [[nodiscard]] void *map(GLBufferAccessMode access) const {
+        [[nodiscard]] inline void *map(GLBufferAccessMode access) const {
             bind();
             return glMapBuffer(bufType, access);
         };
 
-        [[nodiscard]] void *mapRange(GLintptr offset, GLsizeiptr len, GLBufferAccessMode access) const {
+        [[nodiscard]] inline void *mapRange(GLintptr offset, GLsizeiptr len, GLBufferAccessMode access) const {
             bind();
             return glMapBufferRange(bufType, offset, len, access);
         };
@@ -123,6 +123,7 @@ namespace stms::rend {
     class GLVertexBuffer : public _stms_GLBuffer<GL_ARRAY_BUFFER> {
     public:
         GLVertexBuffer();
+        ~GLVertexBuffer() override = default;
 
         GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
         explicit GLVertexBuffer(GLBufferMode mode);
@@ -143,6 +144,7 @@ namespace stms::rend {
         GLenum type = GL_UNSIGNED_INT;
     public:
         GLIndexBuffer();
+        ~GLIndexBuffer() override = default;
 
         GLIndexBuffer(GLIndexBuffer &&rhs) noexcept;
         GLIndexBuffer &operator=(GLIndexBuffer &&rhs) noexcept;

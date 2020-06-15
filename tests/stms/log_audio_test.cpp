@@ -16,6 +16,9 @@
 #include "stms/camera.hpp"
 #include "glm/glm.hpp"
 
+// Timeout after 10 seconds. The actual audio that we're playing is only 5 sec long.
+constexpr unsigned alPlayBlockTimeout = 10;
+
 namespace {
     TEST(AL, Play) {
         stms::initAll();
@@ -25,9 +28,14 @@ namespace {
         testSrc.enqueueBuf(&testBuf);
         testSrc.play();
 
+        unsigned numSecs = 0;
         while (testSrc.isPlaying()) {
             std::this_thread::yield();
-            std::this_thread::sleep_for(std::chrono::milliseconds(125));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            if (numSecs++ > alPlayBlockTimeout) {
+                STMS_CRITICAL("AL Play timed out! This should only happen in Travis CI mac builds.");
+                break;
+            }
         }
 
         stms::al::handleAlError();

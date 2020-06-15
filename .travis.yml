@@ -70,7 +70,6 @@ install:
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cd /Volumes/vulkansdk-macos-1.2.141.2; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then source setup-env.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo python install_vulkan.py; fi
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then ls /usr/local/Cellar/openssl@1.1/1.1.1g; fi
   - cd $STMS_WD
 script:
   - mkdir build
