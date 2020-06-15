@@ -23,12 +23,21 @@ namespace stms {
 
         glm::mat4 mat4;
 
-        glm::vec3 forward = {0, 0, 1};
+        glm::vec3 forward = {0, 0, -1};
         glm::vec3 up = {0, 1, 0};
         glm::vec3 right = {1, 0, 0};
 
         inline void setEuler(const glm::vec3 &euler) {
             rot = glm::quat(euler); // x=pitch, y=yaw, z=roll
+        }
+
+        /**
+         * Rotate to look in a certain direction represented by a *normalized* vec3
+         * @param normDirection NORMALIZED direction vector (use `glm::normalize`)
+         * @param lookUp Up vector
+         */
+        inline void lookDir(const glm::vec3 &normDirection, const glm::vec3 &lookUp = {0, 1, 0}) {
+            rot = glm::quatLookAt(normDirection, lookUp);
         }
 
         glm::mat4 buildMatM();
@@ -51,7 +60,7 @@ namespace stms {
 
         glm::mat4 matM = glm::mat4(1.0f);
 
-        glm::vec3 forward = {0, 0, 1};
+        glm::vec3 forward = {0, 0, -1};
         glm::vec3 up = {0, 1, 0};
         glm::vec3 right = {1, 0, 0};
 
@@ -68,19 +77,13 @@ namespace stms {
             rot = glm::quat(euler);
         }
 
-        inline void lookAt(const glm::vec3 &target, const glm::vec3 &lookUp = {0, 1, 0}) {
-            lookDir(target - pos, lookUp);
-        };
-
-        inline void lookDir(const glm::vec3 &direction, const glm::vec3 &lookUp = {0, 1, 0}) {
-            rot = glm::quatLookAt(glm::normalize(direction), lookUp);
-        }
-
         /**
-         * Assume that `direction` is already normalized and skip the normalization process. Small optimization.
+         * Rotate the camera to look in a certain direction represented by a *normalized* vec3
+         * @param normDirection NORMALIZED direction vector. Use `glm::normalize`
+         * @param lookUp Up vector
          */
-        inline void lookDirNorm(const glm::vec3 &direction, const glm::vec3 &lookUp = {0, 1, 0}) {
-            rot = glm::quatLookAt(direction, lookUp);
+        inline void lookDir(const glm::vec3 &normDirection, const glm::vec3 &lookUp = {0, 1, 0}) {
+            rot = glm::quatLookAt(normDirection, lookUp);
         }
 
         glm::mat4 buildPersp(const float &aspect, const float &near = 0.1f, const float &far = 100.0f);

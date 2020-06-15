@@ -11,6 +11,7 @@
 namespace stms::rend {
 
     void(*pollEvents)() = &glfwPollEvents;
+    void(*quitGlfw)() = &glfwTerminate;
 
     GLWindow::GLWindow(int width, int height, const char *title) {
         win = glfwCreateWindow(width, height, title, nullptr, nullptr);

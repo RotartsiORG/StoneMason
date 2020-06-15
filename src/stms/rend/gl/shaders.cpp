@@ -86,8 +86,6 @@ namespace stms::rend {
         int lineNum = 0;
         GLuint attribLoc = 0;
         for (std::string line; std::getline(input, line); ) {
-            STMS_TRACE("Line {}: {}", lineNum, line);
-
             // If the line starts with attribute, we bind the location and increment the index
             if (line.rfind("attribute", 0) == 0) {
                 // + 10 to begin to ignore the `attribute` qualifier.
@@ -98,7 +96,7 @@ namespace stms::rend {
                 // - 1 to ignore the semicolon, + 1 to ignore the space
                 std::string attrName(nameStart + 1, line.end() - 1);
 
-                STMS_TRACE("detected name '{}', loc {}", attrName, attribLoc);
+                STMS_TRACE("Detected attrib '{}', loc {} on line {}: '{}'", attrName, attribLoc, lineNum, line);
                 bindAttribLoc(attribLoc++, attrName.c_str());
             }
 

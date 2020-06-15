@@ -15,7 +15,7 @@ namespace stms {
     void TransformInfo::buildVecs() {
         right = quatTrans(glm::vec4(1, 0, 0, 1), rot);
         up = quatTrans(glm::vec4(0, 1, 0, 1), rot);
-        forward = quatTrans(glm::vec4(0, 0, 1, 1), rot);
+        forward = quatTrans(glm::vec4(0, 0, -1, 1), rot);
     }
 
     glm::mat4 Camera::buildPersp(const float &aspect, const float &near, const float &far) {
@@ -46,7 +46,7 @@ namespace stms {
     void Camera::buildVecs() {
         right = quatTrans(glm::vec4(1, 0, 0, 1), rot);
         up = quatTrans(glm::vec4(0, 1, 0, 1), rot);
-        forward = quatTrans(glm::vec4(0, 0, 1, 1), rot);
+        forward = quatTrans(glm::vec4(0, 0, -1, 1), rot);
     }
 
 

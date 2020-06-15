@@ -181,7 +181,7 @@ namespace stms::rend {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mode);
         }
 
-        inline void setUpscale(GLScaleMode mode) const;
+        void setUpscale(GLScaleMode mode) const;
 
         inline void setWrapX(GLWrapMode mode) const {
             bind();

@@ -11,7 +11,10 @@
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
+#include <unordered_map>
+
 namespace stms::rend {
+
     class GLWindow {
     private:
         GLFWwindow *win = nullptr;
@@ -37,11 +40,16 @@ namespace stms::rend {
         GLWindow(const GLWindow &rhs) = delete;
         GLWindow &operator=(const GLWindow &rhs) = delete;
 
+        inline GLFWwindow *getRawPtr() {
+            return win;
+        }
+
         GLWindow(GLWindow &&rhs) noexcept;
         GLWindow &operator=(GLWindow &&rhs) noexcept;
     };
 
     extern void(*pollEvents)();
+    extern void(*quitGlfw)();
 }
 
 
