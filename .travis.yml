@@ -33,6 +33,7 @@ addons:
       - dos2unix
   apt:
     packages:
+      - libharfbuzz-dev
       - libglew-dev
       - libglew2.0
       - glew-utils
