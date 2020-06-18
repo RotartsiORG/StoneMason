@@ -144,7 +144,5 @@ namespace stms {
         stms::rend::initGl();
 
         stms::initCurl();
-
-        stms::al::defaultAlContext();  // Initialize openal by requesting the default context
     }
 }

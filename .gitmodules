@@ -28,3 +28,6 @@
 [submodule "dep/imgui"]
 	path = dep/imgui
 	url = https://github.com/ocornut/imgui
+[submodule "dep/freetype2"]
+	path = dep/freetype2
+	url = git://git.sv.nongnu.org/freetype/freetype2.git

@@ -5,6 +5,16 @@ compiler:
 os:
   - linux
   - osx
+cache:
+  apt: true
+  ccache: true
+  directories:
+    - $HOME/Library/Caches/Homebrew
+    - /usr/local/Homebrew
+before_cache: # https://stackoverflow.com/questions/39930171/cache-brew-builds-with-travis-ci
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew cleanup; fi
+  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then find /usr/local/Homebrew \! -regex ".+\.git.+" -delete; fi
+
 addons:
   homebrew:
     update: true # Workaround as the homebrew addon is currently broken: https://travis-ci.community/t/macos-build-fails-because-of-homebrew-bundle-unknown-command/7296/29
@@ -45,13 +55,7 @@ addons:
       confinement: classic
   artifacts:
     paths:
-      - ./build/libstms_shared.so
-      - ./build/libstms_static.a
-      - ./build/tests/stms_tests
-      - ./build/samples/stms_dtls_cli
-      - ./build/samples/stms_dtls_serv
-      - ./build/samples/stms_ogl_demo
-      - ./build/docs
+      - ./build
 install:
   - STMS_WD=$(pwd)
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -); fi

@@ -93,11 +93,6 @@ namespace stms::al {
         return *this;
     }
 
-    ALContext::ALContext(ALDevice *dev, ALCint *attribs) noexcept {
-        id = alcCreateContext(dev->id, attribs);
-        bind(); // Bind by default.
-    }
-
     ALContext::~ALContext() {
         alcDestroyContext(id);
     }
@@ -153,5 +148,11 @@ namespace stms::al {
         rhs.id = nullptr;
 
         return *this;
+    }
+
+    ALContext ALDevice::newContext(ALCint *attribs) {
+        auto ret = ALContext();
+        ret.id = alcCreateContext(id, attribs);
+        return ret;
     }
 }

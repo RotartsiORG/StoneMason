@@ -3,8 +3,11 @@ cmake_minimum_required(VERSION 3.13.5)
 SET(CMAKE_CXX_STANDARD 17)
 
 set(STMS_VERSION 0.0.1)
-set(STMS_COMPILE_FLAGS -Wshadow -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
+set(STMS_COMPILE_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
+
+add_compile_options(-fPIC)
+add_link_options(-fPIC)
 
 project(stms_shared LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
 project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
@@ -32,6 +35,8 @@ set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory(dep/glfw)
 
+add_subdirectory(dep/freetype2)
+
 #add_subdirectory(dep/bullet3)
 
 set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
@@ -51,18 +56,21 @@ add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
 target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm)
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm)
 
-# Do not include spdlog in shared lib, linknig will fail
-target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
-target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
+target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
 
 target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
 
-target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s)
-target_link_libraries(stms_static PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s)
+# Do not include spdlog in shared lib, linking will fail
+target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+
+target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
+target_link_libraries(stms_static PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
 
 option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
 option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" ON)

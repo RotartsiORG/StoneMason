@@ -14,6 +14,30 @@
 #include "alc.h"
 
 namespace stms::al {
+    class ALContext {
+    private:
+        ALCcontext *id{};
+
+        friend class ALDevice;
+
+        ALContext() = default;
+
+    public:
+        virtual ~ALContext();
+
+        inline void bind() {
+            alcMakeContextCurrent(id);
+        }
+
+        ALContext(ALContext &rhs) = delete;
+
+        ALContext &operator=(ALContext &rhs) = delete;
+
+        ALContext(ALContext &&rhs) noexcept;
+
+        ALContext &operator=(ALContext &&rhs) noexcept;
+    };
+
     class ALDevice {
     private:
         ALCdevice *id{};
@@ -21,7 +45,9 @@ namespace stms::al {
         friend class ALContext;
 
     public:
-        explicit ALDevice(const ALCchar *devname = nullptr) noexcept;
+        ALDevice() = delete;
+
+        explicit ALDevice(const ALCchar *devname) noexcept;
 
         virtual ~ALDevice();
 
@@ -39,29 +65,8 @@ namespace stms::al {
         ALDevice(ALDevice &&rhs) noexcept;
 
         ALDevice &operator=(ALDevice &&rhs) noexcept;
-    };
 
-    class ALContext {
-    private:
-        ALCcontext *id{};
-    public:
-        ALContext() = default;
-
-        explicit ALContext(ALDevice *dev, ALCint *attribs = nullptr) noexcept;
-
-        virtual ~ALContext();
-
-        inline void bind() {
-            alcMakeContextCurrent(id);
-        }
-
-        ALContext(ALContext &rhs) = delete;
-
-        ALContext &operator=(ALContext &rhs) = delete;
-
-        ALContext(ALContext &&rhs) noexcept;
-
-        ALContext &operator=(ALContext &&rhs) noexcept;
+        ALContext newContext(ALCint *attribs);
     };
 
     enum ALSoundFormat {
@@ -200,18 +205,18 @@ namespace stms::al {
     }
 
     inline ALDevice &defaultAlDevice() {
-        static ALDevice alDevice = ALDevice();
+        static ALDevice alDevice = ALDevice(nullptr);
         return alDevice;
     }
 
     inline ALContext &defaultAlContext() {
-        static ALContext alContext = ALContext(&defaultAlDevice());
+        static ALContext alContext = defaultAlDevice().newContext(nullptr);
         return alContext;
     }
 
     inline void refreshAlDefaults() {
-        defaultAlDevice() = ALDevice();
-        defaultAlContext() = ALContext(&defaultAlDevice());
+        defaultAlDevice() = ALDevice(nullptr);
+        defaultAlContext() = defaultAlDevice().newContext(nullptr);
     }
 }
 
