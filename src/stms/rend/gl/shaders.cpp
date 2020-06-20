@@ -113,6 +113,7 @@ namespace stms::rend {
             return *this;
         }
 
+        STMS_TRACE("Del shader {} operator=", id);
         glDeleteProgram(id);
         id = rhs.id;
         rhs.id = 0;

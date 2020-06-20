@@ -14,6 +14,8 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
+#include "stms/logging.hpp"
+
 namespace stms::rend {
     enum GLShaderStage {
         eVert = GL_VERTEX_SHADER,
@@ -30,8 +32,6 @@ namespace stms::rend {
         friend class GLShaderProgram;
 
     public:
-        GLShaderModule() = default;
-
         bool setAndCompileSrc(const char *src) const;
 
         inline void destroy() {
@@ -49,6 +49,9 @@ namespace stms::rend {
         GLShaderModule &operator=(GLShaderModule &&rhs) noexcept;
     };
 
+    /**
+     * NOTE: UNIFORM QUERIES MUST BE MADE WITH THE PARENT SHADER BOUND!!! http://docs.gl/gl2/glUniform
+     */
     struct GLUniform {
         GLint id;
 
@@ -135,14 +138,14 @@ namespace stms::rend {
         eNearMipNear = GL_NEAREST_MIPMAP_NEAREST,
         eLinMipNear = GL_LINEAR_MIPMAP_NEAREST,
         eNearMipLin = GL_NEAREST_MIPMAP_LINEAR,
-        eLineMipLin = GL_LINEAR_MIPMAP_LINEAR
+        eLinMipLin = GL_LINEAR_MIPMAP_LINEAR
     };
 
     enum GLWrapMode {
         eRepeat = GL_REPEAT,
-        eMirrorRepeate = GL_MIRRORED_REPEAT,
-        eBorder = GL_CLAMP_TO_BORDER,
-        eClamp = GL_CLAMP_TO_EDGE
+        eMirrorRepeat = GL_MIRRORED_REPEAT,
+        eClampToBorder = GL_CLAMP_TO_BORDER,
+        eClampToEdge = GL_CLAMP_TO_EDGE
     };
 
     class GLTexture {
@@ -150,6 +153,7 @@ namespace stms::rend {
         GLuint id{};
 
         friend class GLFrameBuffer;
+        friend class GLFTFace;
 
     public:
         GLTexture();

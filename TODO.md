@@ -22,6 +22,7 @@
 
 ### Rendering
 1. Basic OpenGL render
+    - Multi colored text in 1 draw call (freetype module)
 2. Font rendering, custom gui lib (or is ImGUI good enough?)
 3. Vulkan rendering 
     - Use VMA.

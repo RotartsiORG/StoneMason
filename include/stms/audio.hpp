@@ -14,30 +14,6 @@
 #include "alc.h"
 
 namespace stms::al {
-    class ALContext {
-    private:
-        ALCcontext *id{};
-
-        friend class ALDevice;
-
-        ALContext() = default;
-
-    public:
-        virtual ~ALContext();
-
-        inline void bind() {
-            alcMakeContextCurrent(id);
-        }
-
-        ALContext(ALContext &rhs) = delete;
-
-        ALContext &operator=(ALContext &rhs) = delete;
-
-        ALContext(ALContext &&rhs) noexcept;
-
-        ALContext &operator=(ALContext &&rhs) noexcept;
-    };
-
     class ALDevice {
     private:
         ALCdevice *id{};
@@ -65,8 +41,30 @@ namespace stms::al {
         ALDevice(ALDevice &&rhs) noexcept;
 
         ALDevice &operator=(ALDevice &&rhs) noexcept;
+    };
 
-        ALContext newContext(ALCint *attribs);
+    class ALContext {
+    private:
+        ALCcontext *id{};
+
+    public:
+        ALContext() = delete;
+
+        ALContext(ALDevice *dev, ALCint *attribs);
+
+        virtual ~ALContext();
+
+        inline void bind() {
+            alcMakeContextCurrent(id);
+        }
+
+        ALContext(ALContext &rhs) = delete;
+
+        ALContext &operator=(ALContext &rhs) = delete;
+
+        ALContext(ALContext &&rhs) noexcept;
+
+        ALContext &operator=(ALContext &&rhs) noexcept;
     };
 
     enum ALSoundFormat {
@@ -210,13 +208,13 @@ namespace stms::al {
     }
 
     inline ALContext &defaultAlContext() {
-        static ALContext alContext = defaultAlDevice().newContext(nullptr);
+        static ALContext alContext = ALContext(&defaultAlDevice(), nullptr);
         return alContext;
     }
 
     inline void refreshAlDefaults() {
         defaultAlDevice() = ALDevice(nullptr);
-        defaultAlContext() = defaultAlDevice().newContext(nullptr);
+        defaultAlContext() = ALContext(&defaultAlDevice(), nullptr);
     }
 }
 

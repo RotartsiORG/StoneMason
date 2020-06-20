@@ -7,9 +7,11 @@
 #include "stms/rend/gl/buffers.hpp"
 #include "stms/rend/gl/shaders.hpp"
 #include "stms/camera.hpp"
+#include "stms/rend/gl/glft.hpp"
 
 #include <fstream>
 #include <stms/logging.hpp>
+#include <stms/rend/gl/gl.hpp>
 
 void clamp(float *val, float min, float max) {
     if (*val > max) {
@@ -33,6 +35,9 @@ int main() {
         glm::vec3 camEuler = {0, 0, 0};
 
         glEnable(GL_DEPTH_TEST);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
         stms::Camera cam;
@@ -131,9 +136,21 @@ int main() {
         double prevX, prevY;
         glfwGetCursorPos(win.getRawPtr(), &prevX, &prevY); // Make you start looking in the right dir.
 
+        auto gnu_unifont = stms::rend::GLFTFace(&stms::rend::defaultFtLib(), "./res/gnu-unifont-13.0.02.ttf");
+        stms::TransformInfo fontTransform;
+        fontTransform.pos = {-0.5, 0, 0};
+        fontTransform.scale = {1.0/256, 1.0/256, 1.0/256};
+        glm::mat4 fontMat = fontTransform.buildMatM();
+
         while (!win.shouldClose()) {
+
+            grassTex.bind();
             vao.bind();
             ibo.draw();
+            vao.unbind();
+
+            FT_ULong toRender[] = {198, 198, 'A', ' ', 'M', 216, 216, 'S', 'E', ' ', 0x2F81};
+            gnu_unifont.render(std::basic_string<FT_ULong>(toRender, 11), fontMat, {1.0, 0, 0});
 
 
             glfwGetCursorPos(win.getRawPtr(), &cursorX, &cursorY);
@@ -181,6 +198,7 @@ int main() {
             cpuMvp = cam.buildPersp((float) width / (float) height); // screw it i'm using c style casts c++ func casts are retarded
             cpuMvp *= cam.buildMatV();
 
+            shaders.bind();
             mvp.setMat4(cpuMvp);
 
             glViewport(0, 0, width, height);

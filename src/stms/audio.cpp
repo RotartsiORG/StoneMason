@@ -150,9 +150,7 @@ namespace stms::al {
         return *this;
     }
 
-    ALContext ALDevice::newContext(ALCint *attribs) {
-        auto ret = ALContext();
-        ret.id = alcCreateContext(id, attribs);
-        return ret;
+    ALContext::ALContext(ALDevice *dev, ALCint *attribs) {
+        id = alcCreateContext(dev->id, attribs);
     }
 }

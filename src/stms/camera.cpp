@@ -7,7 +7,7 @@
 namespace stms {
     glm::mat4 TransformInfo::buildMatM() {
         // Hopefully this is the right order. We want scale, rotate, then translate.
-        mat4 = glm::translate(idMat, pos) * glm::toMat4(rot) * glm::scale(idMat, scale);
+        mat4 = glm::translate(pos) * glm::toMat4(rot) * glm::scale(scale);
 
         return mat4;
     }
@@ -32,14 +32,14 @@ namespace stms {
         // Invert rot (hopefully this is right). Translate by -pos
         // and scale by 1.0/scale. We apply scaling, translation, then rotation.
 
-        matV = glm::toMat4(glm::inverse(rot)) * glm::translate(idMat, glm::vec3(0.0f, 0.0f, 0.0f) - pos)
-                * glm::scale(idMat, glm::vec3(1.0f, 1.0f, 1.0f) / scale);
+        matV = glm::toMat4(glm::inverse(rot)) * glm::translate(glm::vec3(0.0f, 0.0f, 0.0f) - pos)
+                * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f) / scale);
 
         return matV;
     }
 
     glm::mat4 Camera::buildMatM() {
-        matM = glm::translate(idMat, pos) * glm::toMat4(rot) * glm::scale(idMat, scale);
+        matM = glm::translate(pos) * glm::toMat4(rot) * glm::scale(scale);
         return matM;
     }
 
@@ -54,6 +54,7 @@ namespace stms {
         glm::vec3 u{quat.x, quat.y, quat.z};
 
         // https://gamedev.stackexchange.com/questions/28395/rotating-vector3-by-a-quaternion
+        // This is just magic to me. Screw linear algebra. I've already watched too many 3blue1brown videos
         return 2.0f * glm::dot(u, in) * u +
                (quat.w * quat.w - glm::dot(u, u)) * in +
                2.0f * quat.w * glm::cross(u, in);

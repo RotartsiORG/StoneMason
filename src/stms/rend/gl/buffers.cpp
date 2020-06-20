@@ -78,6 +78,10 @@ namespace stms::rend {
         glBindVertexArray(id);
     }
 
+    void GLVertexArray::VertexArrayImplOGL3::unbind() {
+        glBindVertexArray(0);
+    }
+
     GLVertexArray::VertexArrayImpl::VertexBufferLayout::VertexBufferLayout(GLVertexBuffer *vbo) {
         this->vbo = vbo;
     }
@@ -87,6 +91,8 @@ namespace stms::rend {
     void GLVertexArray::VertexArrayImplOGL2::bind() {
         specifyLayout();
     }
+
+    void GLVertexArray::VertexArrayImplOGL2::unbind() { /* no-up */ }
 
     GLVertexArray::GLVertexArray() {
         if (majorGlVersion < 3) {
@@ -122,6 +128,15 @@ namespace stms::rend {
     GLVertexBuffer::GLVertexBuffer(GLBufferMode mode) : _stms_GLBuffer(mode) {}
 
     GLVertexBuffer::GLVertexBuffer() : _stms_GLBuffer() {}
+
+    GLVertexBuffer::GLVertexBuffer(GLVertexBuffer &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    GLVertexBuffer &GLVertexBuffer::operator=(GLVertexBuffer &&rhs) noexcept {
+        _stms_GLBuffer<GL_ARRAY_BUFFER>::operator=(std::move(rhs));
+        return *this;
+    }
 
     GLIndexBuffer::GLIndexBuffer(const void *dat, GLsizeiptr size, GLBufferMode mode) : _stms_GLBuffer(dat, size,
                                                                                                        mode) {}

@@ -154,6 +154,9 @@ namespace stms::rend {
         GLVertexBuffer();
         ~GLVertexBuffer() override = default;
 
+        GLVertexBuffer(GLVertexBuffer &&rhs) noexcept;
+        GLVertexBuffer &operator=(GLVertexBuffer &&rhs) noexcept;
+
         GLVertexBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic);
         explicit GLVertexBuffer(GLBufferMode mode);
 
@@ -162,7 +165,7 @@ namespace stms::rend {
             glDrawArrays(mode, first, numElements);
         };
 
-        void drawInstanced(GLsizei num = 1, GLDrawMode mode = eTriangles, GLint first = 0) {
+        inline void drawInstanced(GLsizei num = 1, GLDrawMode mode = eTriangles, GLint first = 0) {
             bind();
             glDrawArraysInstanced(mode, first, numElements, num);
         };
@@ -243,6 +246,7 @@ namespace stms::rend {
 
             virtual void build() = 0;
             virtual void bind() = 0;
+            virtual void unbind() = 0;
 
             inline void freeLayouts() {
                 vboLyos.clear();
@@ -255,6 +259,7 @@ namespace stms::rend {
 
             void build() override;
             void bind() override;
+            void unbind() override;
         };
 
         class VertexArrayImplOGL3 : public VertexArrayImpl {
@@ -266,6 +271,7 @@ namespace stms::rend {
 
             void build() override;
             void bind() override;
+            void unbind() override;
         };
 
         VertexArrayImpl *impl{};
@@ -279,6 +285,10 @@ namespace stms::rend {
 
         GLVertexArray(GLVertexArray &&rhs) noexcept;
         GLVertexArray &operator=(GLVertexArray &&rhs) noexcept;
+
+        inline void unbind() {
+            impl->unbind();
+        }
 
         inline void build() {
             impl->build();

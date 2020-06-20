@@ -11,11 +11,15 @@
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
+#include <string>
+
 namespace stms::rend {
     extern bool glInfoDumped;
     extern GLint majorGlVersion;
 
     void initGl();
+
+    void flushGlErrs(const std::string &log);
 
 
 }

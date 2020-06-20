@@ -115,7 +115,7 @@ namespace stms {
 
     void ThreadPool::pushThread() {
         if (!this->running) {
-            STMS_DEBUG(
+            STMS_PUSH_WARNING(
                     "`ThreadPool::pushThread()` called while the thread pool was stopped! Starting the thread pool!");
             this->running = true;
         }
@@ -139,7 +139,7 @@ namespace stms {
             this->stopRequest = this->workers.size(); // Request the last worker to stop.
             this->workers.pop_back();
             if (this->workers.empty()) {
-                STMS_DEBUG("The last thread was popped from ThreadPool! Stopping the pool!");
+                STMS_PUSH_WARNING("The last thread was popped from ThreadPool! Stopping the pool!");
                 this->running = false;
             }
         }
