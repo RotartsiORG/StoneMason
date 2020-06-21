@@ -13,6 +13,8 @@
 #include <stms/logging.hpp>
 #include <stms/rend/gl/gl.hpp>
 
+#include "stms/timers.hpp"
+
 void clamp(float *val, float min, float max) {
     if (*val > max) {
         *val = max;
@@ -89,7 +91,6 @@ int main() {
         stms::rend::GLIndexBuffer ibo(stms::rend::eDrawStatic);
         ibo.fromVector(iboDat);
 
-
         stms::rend::GLVertexArray vao;
         vao.pushVbo(&vbo);
         vao.pushFloats(3); // position
@@ -137,21 +138,34 @@ int main() {
         glfwGetCursorPos(win.getRawPtr(), &prevX, &prevY); // Make you start looking in the right dir.
 
         auto gnu_unifont = stms::rend::GLFTFace(&stms::rend::defaultFtLib(), "./res/gnu-unifont-13.0.02.ttf");
-        stms::TransformInfo fontTransform;
-        fontTransform.pos = {-0.5, 0, 0};
-        fontTransform.scale = {1.0/256, 1.0/256, 1.0/256};
-        glm::mat4 fontMat = fontTransform.buildMatM();
+        gnu_unifont.setSize(50);
 
+        stms::rend::U32String toRend = U"FPS: 60\nMSPT: 16.1234234234";
+        glm::ivec2 txtSize = gnu_unifont.getDims(toRend);
+
+        glm::mat4 fontMat = glm::translate(glm::vec3{0, txtSize.y, 0});
+
+        int width, height;
+        stms::TPSTimer tpsTimer;
+        tpsTimer.tick();
         while (!win.shouldClose()) {
+            tpsTimer.tick();
+            toRend = U"FPS: ";
+            auto fpsStr = std::to_string(tpsTimer.getLatestTps());
+            toRend.append(fpsStr.begin(), fpsStr.end());
+            toRend += U"\nMSPT: ";
+            fpsStr = std::to_string(tpsTimer.getLatestMspt());
+            toRend.append(fpsStr.begin(), fpsStr.end());
+            tpsTimer.wait(60);
+
+            glm::mat4 proj = glm::ortho(0.0f, (float) width, 0.0f, (float) height);
 
             grassTex.bind();
             vao.bind();
             ibo.draw();
             vao.unbind();
 
-            FT_ULong toRender[] = {198, 198, 'A', ' ', 'M', 216, 216, 'S', 'E', ' ', 0x2F81};
-            gnu_unifont.render(std::basic_string<FT_ULong>(toRender, 11), fontMat, {1.0, 0, 0});
-
+            gnu_unifont.render(toRend, proj * fontMat, {1.0, 1.0, 0, 1.0});
 
             glfwGetCursorPos(win.getRawPtr(), &cursorX, &cursorY);
             camEuler.y += -(cursorX - prevX) * mouseSensitivity;
@@ -192,8 +206,6 @@ int main() {
                 glfwSetInputMode(win.getRawPtr(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
 
-
-            int width, height;
             glfwGetWindowSize(win.getRawPtr(), &width, &height);
             cpuMvp = cam.buildPersp((float) width / (float) height); // screw it i'm using c style casts c++ func casts are retarded
             cpuMvp *= cam.buildMatV();

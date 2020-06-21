@@ -17,6 +17,8 @@
 
 namespace stms::rend {
 
+    typedef std::basic_string<char32_t> U32String;
+
     class FTLibrary {
     private:
         FT_Library lib = nullptr;
@@ -36,6 +38,10 @@ namespace stms::rend {
     class _stms_FTFace {
     protected:
         FT_Face face = nullptr;
+        bool kern = false;
+        float newlineAdv = 50;
+        float spacing = 1.0f;
+        int tabSize = 4;
 
     public:
         _stms_FTFace(FTLibrary *lib, const char *filename, FT_Long index = 0);
@@ -49,6 +55,15 @@ namespace stms::rend {
 
         inline void setSize(FT_UInt height, FT_UInt width = 0) {
             FT_Set_Pixel_Sizes(face, width, height);
+            newlineAdv = height;
+        }
+
+        inline void setSpacing(float newSpacing) {
+            spacing = newSpacing;
+        }
+
+        inline void setTabSize(int spaces) {
+            tabSize = spaces;
         }
     };
 

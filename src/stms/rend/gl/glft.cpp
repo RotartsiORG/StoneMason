@@ -30,11 +30,11 @@ static constexpr char fragSrc[] = R"(
 
 varying vec2 vTexCoords;
 
-uniform vec3 color;
+uniform vec4 color;
 uniform sampler2D tex;
 
 void main() {
-    gl_FragColor = vec4(color, texture2D(tex, vTexCoords).r);
+    gl_FragColor = vec4(color.rgb, texture2D(tex, vTexCoords).r * color.a);
 }
 
 )";
@@ -46,14 +46,13 @@ namespace stms::rend {
     GLFTFace::GLFTFace(FTLibrary *lib, const char *filename, FT_Long index) : _stms_FTFace(lib, filename, index) {
         uvVbo.fromArray(std::array<glm::vec2, 6>{{
              {0.0f, 0.0f },
-             { 0.0f, 1.0f },
+             { 1.0f, 0.0f },
              { 1.0f, 1.0f },
 
              { 0.0f, 0.0f },
-             { 1.0f, 1.0f },
-             { 1.0f, 0.0f }
+             { 0.0f, 1.0f },
+             { 1.0f, 1.0f }
         }});
-
 
         ftVbo.write(nullptr, 6 * 2 * sizeof(float));
 
@@ -65,20 +64,49 @@ namespace stms::rend {
         ftVao.build();
     }
 
-    glm::ivec2 GLFTFace::getDims(const std::basic_string<FT_ULong> &str) {
-        glm::ivec2 ret = {0, 0};
-        for (const FT_ULong &c : str) {
-            if (cache.find(c) == cache.end()) {
-                if (!loadGlyph(c)) {continue;}
+    glm::ivec2 GLFTFace::getDims(const U32String &str) {
+        glm::ivec2 ret = {0, newlineAdv * 2};
+        int stage = 0;
+        FT_UInt prevGlyph = 0;
+        for (const auto &c : str) {
+            if (!loadGlyph(c)) {continue;}
+
+            if (c == '\n') {
+                if (stage > ret.x) {
+                    ret.x = stage;
+                    stage = 0;
+                }
+
+                ret.y += newlineAdv * spacing;
+                continue;
             }
 
-            ret += cache[c].advance;
+            if (c == '\t') {
+                if (!loadGlyph(' ')) { continue; }
+                int target = static_cast<int>(cache[' '].metrics.horiAdvance) * tabSize;
+                stage += (target - (stage % target));
+                continue;
+            }
+
+            if (kern && prevGlyph) {
+                FT_Vector delta;
+                FT_Get_Kerning(face, prevGlyph, cache[c].index, FT_KERNING_DEFAULT, &delta);
+                stage += delta.x;
+            }
+
+            prevGlyph = cache[c].index;
+
+            stage += cache[c].metrics.horiAdvance;
+        }
+
+        if (stage > ret.x) {
+            ret.x = stage;
         }
 
         return ret;
     }
 
-    void GLFTFace::render(const std::basic_string<FT_ULong>& str, glm::mat4 trans, glm::vec3 col) {
+    void GLFTFace::render(const U32String& str, glm::mat4 trans, glm::vec4 col, void *usrDat) {
         if (ftShader == nullptr) { // TODO: Async compile this?
             ftShader = new GLShaderProgram();
 
@@ -99,38 +127,74 @@ namespace stms::rend {
         ftShader->bind();
 
         ftShader->getUniform("tex").set1i(0);
-        ftShader->getUniform("color").set3f(col);
+        ftShader->getUniform("color").set4f(col);
         ftShader->getUniform("mvp").setMat4(trans);
 
-        renderWithShader(str, ftShader);
+        renderWithShader(str, ftShader, [](const U32String &, unsigned) -> glm::ivec2 {
+            return {0, 0}; // no-op
+        });
     }
 
-    void GLFTFace::renderWithShader(const std::basic_string<FT_ULong> &str, GLShaderProgram *customShader) {
+    void GLFTFace::renderWithShader(const U32String &str, GLShaderProgram *customShader, const std::function<glm::ivec2(const U32String&, unsigned)> &renderCb) {
         customShader->bind();
 
         GLTexture::activateSlot(0);
 
         glm::ivec2 pen = {0, 0};
 
-        for (const FT_ULong &c : str) {
-            if (cache.find(c) == cache.end()) {
-                if (!loadGlyph(c)) {continue;}
+        unsigned i = 0;
+        FT_UInt prevGlyph = 0;
+        for (const auto &c : str) {
+            switch (c) {
+                case '\n': {
+                    pen.x = 0;
+                    pen.y -= static_cast<int>(newlineAdv * spacing);
+                    pen += renderCb(str, i++);
+                    continue;
+                }
+                case ' ': {
+                    if (!loadGlyph(' ')) { i++; continue; }
+                    pen.x += cache[' '].metrics.horiAdvance;
+                    pen += renderCb(str, i++);
+                    continue;
+                }
+                case '\t': {
+                    if (!loadGlyph(' ')) { i++; continue; }
+                    long target = cache[' '].metrics.horiAdvance * tabSize;
+                    pen.x += (target - (pen.x % target));
+                    pen += renderCb(str, i++);
+                    continue;
+                }
+                default: {
+                    break;
+                }
             }
 
-            auto x = static_cast<float>(pen.x + cache[c].offset.x);
-            auto y = static_cast<float>(pen.y - (cache[c].size.y - cache[c].offset.y));
+            if (!loadGlyph(c)) { i++; continue; }
 
-            float w = cache[c].size.x;
-            float h = cache[c].size.y;
+            if (kern && prevGlyph) {
+                FT_Vector delta;
+                FT_Get_Kerning(face, prevGlyph, cache[c].index, FT_KERNING_DEFAULT, &delta);
+                pen.x += delta.x;
+                pen.y += delta.y;
+            }
+
+            prevGlyph = cache[c].index;
+
+            auto x = pen.x + cache[c].metrics.horiBearingX;
+            auto y = (pen.y - newlineAdv) + cache[c].metrics.horiBearingY;
+
+            float w = cache[c].metrics.width;
+            float h = cache[c].metrics.height;
 
             auto vboDat = std::array<glm::vec2, 6>{{
-                 { x,     y + h,   },
-                 { x,     y,       },
-                 { x + w, y,       },
+                 { x,     y,   },
+                 { x + w,     y,     },
+                 { x + w, y - h,       },
 
-                 { x,     y + h,   },
-                 { x + w, y,       },
-                 { x + w, y + h,  }
+                 { x,     y,   },
+                 { x, y - h,       },
+                 { x + w, y - h,  }
              }};
 
             ftVbo.writeRange(0, vboDat.data(), 6 * 2 * sizeof(float));
@@ -138,29 +202,48 @@ namespace stms::rend {
             cache[c].texture.bind();
             ftVao.bind();
 
+            glm::ivec2 additionalAdvance = renderCb(str, i++);
+
             glDrawArrays(GL_TRIANGLES, 0, 6);
             ftVao.unbind();
 
-            pen += cache[c].advance;
+            pen.x += cache[c].metrics.horiAdvance;
+            pen += additionalAdvance;
         }
     }
 
-    bool GLFTFace::loadGlyph(FT_ULong glyph) {
+    bool GLFTFace::loadGlyph(char32_t glyph) {
+        if (cache.find(glyph) != cache.end()) {
+            return true; // Glyph has already been cached, no work needed
+        }
+
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Should this be set back to 4 after we're done?
 
         if (FT_Load_Char(face, glyph, FT_LOAD_RENDER)) {
-            STMS_PUSH_ERROR("Failed to load glyph {}! It will not be accounted for in the dim returned!", glyph);
+            STMS_PUSH_ERROR("Failed to load glyph {}! It will be ignored!", static_cast<char>(glyph));
             glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
             return false;
         }
 
         auto toInsert = GLFTChar{};
-        toInsert.size = {face->glyph->bitmap.width, face->glyph->bitmap.rows};
-        toInsert.advance = {face->glyph->advance.x >> 6, face->glyph->advance.y >> 6};
-        toInsert.offset = {face->glyph->bitmap_left, face->glyph->bitmap_top};
+        toInsert.metrics = face->glyph->metrics;
+
+        // Bit shift right by 6 to div by 64 (2^6) to convert from subpixel positions to pixel positions.
+        toInsert.metrics.width >>= 6;
+        toInsert.metrics.height >>= 6;
+
+        toInsert.metrics.horiBearingY >>= 6;
+        toInsert.metrics.horiBearingX >>= 6;
+        toInsert.metrics.horiAdvance >>= 6;
+
+        toInsert.metrics.vertBearingY >>= 6;
+        toInsert.metrics.vertBearingX >>= 6;
+        toInsert.metrics.vertAdvance >>= 6;
+
+        toInsert.index = face->glyph->glyph_index;
 
         toInsert.texture.bind();
-        glTexImage2D(GL_TEXTURE_2D,0, GL_RED, toInsert.size.x, toInsert.size.y,
+        glTexImage2D(GL_TEXTURE_2D,0, GL_RED, toInsert.metrics.width, toInsert.metrics.height,
                      0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
 
         toInsert.texture.setWrapX(eClampToEdge);
@@ -177,5 +260,11 @@ namespace stms::rend {
         cache[glyph] = std::move(toInsert);
         glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
         return true;
+    }
+
+    void GLFTFace::attachFile(const char *filename) {
+        if (FT_Attach_File(face, filename)) {
+            STMS_PUSH_ERROR("Failed to attach '{}' to face!", filename);
+        }
     }
 }

@@ -35,7 +35,7 @@ namespace stms {
 
         void stop();
 
-        unsigned getTime();
+        float getTime();
 
         void reset();
 
@@ -59,11 +59,11 @@ namespace stms {
 
         void tick();
 
-        void wait(int targetFps = 60);
+        void wait(float targetFps = 60);
 
-        unsigned getLatestMspt();
+        float getLatestMspt();
 
-        unsigned getLatestTps();
+        float getLatestTps();
     };
 
 }
