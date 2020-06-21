@@ -55,7 +55,7 @@ namespace stms::rend {
 
         inline void setSize(FT_UInt height, FT_UInt width = 0) {
             FT_Set_Pixel_Sizes(face, width, height);
-            newlineAdv = height;
+            newlineAdv = face->size->metrics.height >> 6;
         }
 
         inline void setSpacing(float newSpacing) {

@@ -8,6 +8,8 @@
 #include "stms/rend/gl/gl.hpp"
 #include "stms/logging.hpp"
 
+#include "glm/gtx/transform.hpp"
+
 static constexpr char vertSrc[] = R"(
 #version 120
 
@@ -16,10 +18,11 @@ attribute vec2 inTexCoords;
 
 varying vec2 vTexCoords;
 
-uniform mat4 mvp;
+uniform mat4 userTrans;
+uniform mat4 txtTrans;
 
 void main() {
-    gl_Position = mvp * vec4(pos, 0.0, 1.0);
+    gl_Position = userTrans * txtTrans * vec4(pos, 0.0, 1.0);
     vTexCoords = inTexCoords;
 }
 
@@ -42,30 +45,37 @@ void main() {
 namespace stms::rend {
 
     GLShaderProgram *GLFTFace::ftShader = nullptr;
+    GLVertexArray *GLFTFace::ftVao = nullptr;
+    GLVertexBuffer *GLFTFace::ftVbo = nullptr;
 
     GLFTFace::GLFTFace(FTLibrary *lib, const char *filename, FT_Long index) : _stms_FTFace(lib, filename, index) {
-        uvVbo.fromArray(std::array<glm::vec2, 6>{{
-             {0.0f, 0.0f },
-             { 1.0f, 0.0f },
-             { 1.0f, 1.0f },
 
-             { 0.0f, 0.0f },
-             { 0.0f, 1.0f },
-             { 1.0f, 1.0f }
-        }});
+        if (ftVbo == nullptr) {
+            ftVbo = new GLVertexBuffer(eDrawStatic);
+            ftVbo->fromArray(std::array<glm::vec4, 6>{{
+                { 0,  0,  0,  0  },
+                { 1,  0,  1,  0  },
+                { 1, -1,  1,  1  },
 
-        ftVbo.write(nullptr, 6 * 2 * sizeof(float));
+                { 0,  0,  0,  0 },
+                { 0, -1,  0,  1 },
+                { 1, -1,  1,  1 }
+            }});
+        }
 
-        ftVao.freeLayouts();
-        ftVao.pushVbo(&ftVbo);
-        ftVao.pushFloats(2);
-        ftVao.pushVbo(&uvVbo);
-        ftVao.pushFloats(2);
-        ftVao.build();
+        if (ftVao == nullptr) {
+            ftVao = new GLVertexArray();
+
+            ftVao->freeLayouts();
+            ftVao->pushVbo(ftVbo);
+            ftVao->pushFloats(2);
+            ftVao->pushFloats(2);
+            ftVao->build();
+        }
     }
 
     glm::ivec2 GLFTFace::getDims(const U32String &str) {
-        glm::ivec2 ret = {0, newlineAdv * 2};
+        glm::ivec2 ret = {0, newlineAdv * spacing};
         int stage = 0;
         FT_UInt prevGlyph = 0;
         for (const auto &c : str) {
@@ -128,7 +138,7 @@ namespace stms::rend {
 
         ftShader->getUniform("tex").set1i(0);
         ftShader->getUniform("color").set4f(col);
-        ftShader->getUniform("mvp").setMat4(trans);
+        ftShader->getUniform("userTrans").setMat4(trans);
 
         renderWithShader(str, ftShader, [](const U32String &, unsigned) -> glm::ivec2 {
             return {0, 0}; // no-op
@@ -140,7 +150,7 @@ namespace stms::rend {
 
         GLTexture::activateSlot(0);
 
-        glm::ivec2 pen = {0, 0};
+        glm::ivec2 pen = {0, -(newlineAdv * spacing) - (face->size->metrics.descender >> 6)};
 
         unsigned i = 0;
         FT_UInt prevGlyph = 0;
@@ -181,31 +191,18 @@ namespace stms::rend {
 
             prevGlyph = cache[c].index;
 
-            auto x = pen.x + cache[c].metrics.horiBearingX;
-            auto y = (pen.y - newlineAdv) + cache[c].metrics.horiBearingY;
-
-            float w = cache[c].metrics.width;
-            float h = cache[c].metrics.height;
-
-            auto vboDat = std::array<glm::vec2, 6>{{
-                 { x,     y,   },
-                 { x + w,     y,     },
-                 { x + w, y - h,       },
-
-                 { x,     y,   },
-                 { x, y - h,       },
-                 { x + w, y - h,  }
-             }};
-
-            ftVbo.writeRange(0, vboDat.data(), 6 * 2 * sizeof(float));
+            customShader->getUniform("txtTrans").setMat4(
+                glm::translate(glm::vec3{pen.x + cache[c].metrics.horiBearingX, pen.y + cache[c].metrics.horiBearingY, 0}) *
+                glm::scale(glm::vec3{cache[c].metrics.width, cache[c].metrics.height, 0})
+            );
 
             cache[c].texture.bind();
-            ftVao.bind();
+            ftVao->bind();
 
             glm::ivec2 additionalAdvance = renderCb(str, i++);
 
             glDrawArrays(GL_TRIANGLES, 0, 6);
-            ftVao.unbind();
+            ftVao->unbind();
 
             pen.x += cache[c].metrics.horiAdvance;
             pen += additionalAdvance;

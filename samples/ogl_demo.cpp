@@ -137,11 +137,13 @@ int main() {
         double prevX, prevY;
         glfwGetCursorPos(win.getRawPtr(), &prevX, &prevY); // Make you start looking in the right dir.
 
-        auto gnu_unifont = stms::rend::GLFTFace(&stms::rend::defaultFtLib(), "./res/gnu-unifont-13.0.02.ttf");
-        gnu_unifont.setSize(50);
+        auto gnu_unifont = stms::rend::GLFTFace(&stms::rend::defaultFtLib(), "./res/arial-unicode-ms.ttf");
+        gnu_unifont.setSpacing(1.2908);
+        gnu_unifont.setSize(39);
 
-        stms::rend::U32String toRend = U"FPS: 60\nMSPT: 16.1234234234";
+        stms::rend::U32String toRend = U"FPS: 60\nMSPT: 16";
         glm::ivec2 txtSize = gnu_unifont.getDims(toRend);
+        glfwSetWindowSize(win.getRawPtr(), txtSize.x, txtSize.y);
 
         glm::mat4 fontMat = glm::translate(glm::vec3{0, txtSize.y, 0});
 
@@ -151,9 +153,10 @@ int main() {
         while (!win.shouldClose()) {
             tpsTimer.tick();
             toRend = U"FPS: ";
+
             auto fpsStr = std::to_string(tpsTimer.getLatestTps());
             toRend.append(fpsStr.begin(), fpsStr.end());
-            toRend += U"\nMSPT: ";
+            toRend += U"\nMgSPT: ";
             fpsStr = std::to_string(tpsTimer.getLatestMspt());
             toRend.append(fpsStr.begin(), fpsStr.end());
             tpsTimer.wait(60);

@@ -120,13 +120,15 @@ namespace stms::rend {
         };
 
         template <typename T>
-        void fromVector(const std::vector<T> &vec) {
+        void fromVector(const std::vector<T> &vec, GLBufferMode mode = eDrawStatic) {
+            usage = mode;
             write(vec.data(), vec.size() * sizeof(T));
             numElements = vec.size();
         }
 
         template <typename T, size_t S>
-        void fromArray(const std::array<T, S> &arr) {
+        void fromArray(const std::array<T, S> &arr, GLBufferMode mode = eDrawStatic) {
+            usage = mode;
             write(arr.data(), S * sizeof(T));
             numElements = S;
         }

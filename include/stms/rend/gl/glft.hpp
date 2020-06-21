@@ -15,6 +15,10 @@
 #include "buffers.hpp"
 
 namespace stms::rend {
+
+    /**
+     * This is not thread safe!!! TODO: add a mutex for accessing static members!
+     */
     class GLFTFace : public _stms_FTFace {
     private:
         struct GLFTChar {
@@ -29,10 +33,8 @@ namespace stms::rend {
         bool alias = false;
         bool mipMaps = false;
 
-        // TODO: Should these properties be static?
-        GLVertexArray ftVao = GLVertexArray();
-        GLVertexBuffer ftVbo = GLVertexBuffer(eDrawDynamic);
-        GLVertexBuffer uvVbo = GLVertexBuffer(eDrawStatic);
+        static GLVertexArray *ftVao;
+        static GLVertexBuffer *ftVbo;
 
     public:
 
@@ -42,6 +44,15 @@ namespace stms::rend {
 
         inline void setAlias(bool newVal) {
             alias = newVal;
+        }
+
+        /**
+         * Query the shader that is used for text rendering. Useful for custom rendering callbacks.
+         * WARNING: THIS FUNCTION CAN RETURN NULLPTR IF THE SHADER IS UNINITIALIZED!!!
+         * @return Pointer to the default `GLShaderProgram` used for text rendering.
+         */
+        static inline GLShaderProgram *getTextShader() {
+            return ftShader;
         }
 
         inline void setMipMaps(bool newVal) {
@@ -57,6 +68,7 @@ namespace stms::rend {
          *        The red channel is a value between 0 and 1 and could be used as the alpha value of the final output.
          *     2. The position for the glyph to be rendered at could be found at vertex attribute location 0.
          *     3. The UV value for sampling the texture (see above) could be found at vertex attrib location 1.
+         *     4. A mat4 uniform `txtTrans` that must be applied to the position.
          *
          * @param str Text to render
          * @param customShader Shader to use
@@ -75,8 +87,7 @@ namespace stms::rend {
         /**
          * Get the size of a certain string
          * @param str The string to get the size of
-         * @return The size of the string. NOTE: THIS CAN BE NEGATIVE!!! A NEGATIVE VALUE SIGNIFIES THAT YOU MUSH
-         *         START THE PEN IN THE OPPOSITE CORNER!!
+         * @return The size of the string.
          */
         glm::ivec2 getDims(const U32String &str);
 
