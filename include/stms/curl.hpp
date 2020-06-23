@@ -30,10 +30,54 @@ namespace stms {
         bool success = false;
     };
 
-    // TODO: Username and passcode stuff, cert authentication
-    std::future<CurlResult> readURL(const char *url, ThreadPool *pool, unsigned priority = 8);
+    static size_t curlWriteCb(void *buf, size_t size, size_t nmemb, void *userDat);
 
-    // TODO: writeURL()
+    // https://curl.haxx.se/libcurl/c/libcurl-tutorial.html
+    class CURLHandle {
+    private:
+        ThreadPool *pool{};
+        unsigned poolPrio = 8;
+
+        std::mutex resultMtx;
+
+        CURL *handle;
+        std::string url;
+
+        friend size_t curlWriteCb(void *buf, size_t size, size_t nmemb, void *userDat);
+    public:
+        std::string result;
+//        std::string toWrite;
+
+        double downloadSoFar = 0;
+        double downloadTotal = 0;
+
+        double uploadSoFar = 0;
+        double uploadTotal = 0;
+
+        CURLHandle(ThreadPool *inPool, unsigned prio = 8);
+
+        ~CURLHandle();
+
+        CURLHandle() = delete;
+
+        inline void setUrl(const char *cUrl) {
+            curl_easy_setopt(handle, CURLOPT_URL, cUrl);
+            url = std::string(cUrl);
+        }
+
+        inline std::string getUrl() {
+            return url;
+        }
+
+        /**
+         * Actually perform the operation that was configured
+         * @return See libcurl documentation for `CURLcode`. You can treat is as a bool that is false if
+         *         the operation was successful, true otherwise.
+         */
+        std::future<CURLcode> perform();
+
+
+    };
 }
 
 #endif //__STONEMASON_CURL_HPP

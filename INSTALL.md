@@ -1,7 +1,10 @@
 
 [comment]: # (This is a markdown document, but can still be read in plaintext.
               If you're seeing this, then you're reading the plaintext version.)
-              
+
+
+#THIS DOCUMENT PROBABLY WON'T BE UPDATED! EMAIL ME IF YOU HAVE TROUBLE (rotartsi0482@gmail.com)
+
 #Building StoneMason
 1. Download StoneMason and make sure that the submodules are cloned.
     - Method 1: Use `git clone --recursive https://www.github.com/RotartsiORG/StoneMason`
@@ -30,4 +33,3 @@
 ### Tested Operating Systems
 1. *\[Ubuntu 19.10\]*: Main development platform, thoroughly tested. Works 100%
 2. *\[Mac OSX Catalina 10.15\]*: Will test later. Should work with minor tweaks.
-3. *\[Windows 10\]*: Hopeless. I gave up. Windows is a godforsaken wasteland.

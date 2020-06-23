@@ -88,11 +88,14 @@ namespace {
         stms::ThreadPool pool;
         pool.start();
 
-        auto future = stms::readURL("https://www.example.com", &pool);
+        auto handle = stms::CURLHandle(&pool);
+        handle.setUrl("https://www.example.com");
+        auto future = handle.perform();
+
         auto res = future.get();
-        STMS_INFO("dat = '{}', size = {}", res.data, res.data.size());
-        EXPECT_TRUE(res.success);
-        EXPECT_GT(res.data.size(), 0);
+        STMS_INFO("dat = '{}', size = {}", handle.result, handle.result.size());
+        EXPECT_FALSE(res);
+        EXPECT_GT(handle.result.size(), 0);
         pool.stop();
     }
 
