@@ -6,7 +6,7 @@
 #include "stb/stb_vorbis.c"
 #include <stms/logging.hpp>
 
-namespace stms::al {
+namespace stms {
 
     ALenum handleAlError() {
         ALenum error = alGetError();

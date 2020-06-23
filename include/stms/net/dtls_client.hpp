@@ -17,7 +17,7 @@
 #include "openssl/rand.h"
 #include "openssl/opensslv.h"
 
-namespace stms::net {
+namespace stms {
     class DTLSClient : public _stms_SSLBase {
     private:
         BIO *pBio{};

@@ -8,10 +8,9 @@
 #include "stms/logging.hpp"
 #include "stms/config.hpp"
 
-namespace stms::rend {
+namespace stms {
 
     void(*pollEvents)() = &glfwPollEvents;
-    void(*quitGlfw)() = &glfwTerminate;
 
     GLWindow::GLWindow(int width, int height, const char *title) {
         win = glfwCreateWindow(width, height, title, nullptr, nullptr);
@@ -28,15 +27,21 @@ namespace stms::rend {
         }
 
         if (majorGlVersion == -1) {
-            glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion);
+            STMS_GLC(glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion));
         }
 
         if (glInfoDumped) {
             glInfoDumped = false;
-            STMS_INFO("Initialized OpenGL {} with GLEW {}", glGetString(GL_VERSION), glewGetString(GLEW_VERSION));
-            STMS_INFO("OpenGL vendor is {} with renderer {}", glGetString(GL_VENDOR), glGetString(GL_RENDERER));
-            STMS_INFO("GLSL version is {} and got major version {}", glGetString(GL_SHADING_LANGUAGE_VERSION), majorGlVersion);
-            STMS_INFO("Enabled OpenGL exts: '{}'", glGetString(GL_EXTENSIONS));
+            auto vers = STMS_GLC(glGetString(GL_VERSION));
+            auto vendor = STMS_GLC(glGetString(GL_VENDOR));
+            auto gpu = STMS_GLC(glGetString(GL_RENDERER));
+            auto glsl = STMS_GLC(glGetString(GL_SHADING_LANGUAGE_VERSION));
+            auto ext = STMS_GLC(glGetString(GL_EXTENSIONS));
+
+            STMS_INFO("Initialized OpenGL {} with GLEW {}", vers, glewGetString(GLEW_VERSION));
+            STMS_INFO("OpenGL vendor is {} with renderer {}", vendor, gpu);
+            STMS_INFO("GLSL version is {} and got major version {}", glsl, majorGlVersion);
+            STMS_INFO("Enabled OpenGL exts: '{}'", ext);
         }
 
         if (majorGlVersion < 2) {

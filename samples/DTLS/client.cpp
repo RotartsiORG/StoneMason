@@ -10,7 +10,7 @@ int main() {
     stms::ThreadPool pool;
     pool.start();
 
-    stms::net::DTLSClient cli = stms::net::DTLSClient(&pool, "Grant-PC.local", "3000", false,
+    stms::DTLSClient cli = stms::DTLSClient(&pool, "Grant-PC.local", "3000", false,
                                                       "./res/ssl/cli-pub-cert.pem", "./res/ssl/cli-priv-key.pem",
                                                       "./res/ssl/ca-pub-cert.pem", "", "");
     cli.setRecvCallback([](uint8_t *in, int size) {
@@ -23,6 +23,6 @@ int main() {
     if (cli.isRunning()) {
         cli.stop();  // Stop is automatically called in destructor.
     }
-    stms::net::flushSSLErrors();
+    stms::flushSSLErrors();
     pool.waitIdle();
 }

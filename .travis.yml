@@ -33,7 +33,6 @@ addons:
       - dos2unix
   apt:
     packages:
-      - libharfbuzz-dev
       - libglew-dev
       - libglew2.0
       - glew-utils
@@ -57,8 +56,9 @@ addons:
   artifacts:
     paths:
       - ./build
-install:
+install: # we apt purge libharfbuzz-dev because cmake grabs 1.7 despite the min version requirement being 1.8 and compile fails.
   - STMS_WD=$(pwd)
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (sudo apt purge libharfbuzz-dev); fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -); fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-bionic.list http://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-bionic.list); fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then (sudo apt update); fi

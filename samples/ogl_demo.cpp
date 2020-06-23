@@ -1,3 +1,6 @@
+// IMPORTANT: This is spaghetti code and is only used for testing the ogl api as it is developed.
+// THIS CODE IS VERY BAD! A NEW OPENGL DEMO WITH THE AIM OF DEMONSTRATING THE API WILL BE WRITTEN!!
+
 //
 // Created by grant on 6/8/20.
 //
@@ -27,7 +30,7 @@ int main() {
     stms::initAll();
 
     {
-        stms::rend::GLWindow win(640, 480);
+        stms::GLWindow win(640, 480);
         glfwSetInputMode(win.getRawPtr(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetInputMode(win.getRawPtr(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE); // This is not always supported...
 
@@ -37,10 +40,11 @@ int main() {
         glm::vec3 camEuler = {0, 0, 0};
 
         glEnable(GL_DEPTH_TEST);
-
+        glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+//        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         stms::Camera cam;
 
@@ -85,19 +89,19 @@ int main() {
             20, 21, 22, 23, 20, 22
         });
 
-        stms::rend::GLVertexBuffer vbo(stms::rend::eDrawStatic);
+        stms::GLVertexBuffer vbo(stms::eDrawStatic);
         vbo.fromVector(vboDat);
 
-        stms::rend::GLIndexBuffer ibo(stms::rend::eDrawStatic);
+        stms::GLIndexBuffer ibo(stms::eDrawStatic);
         ibo.fromVector(iboDat);
 
-        stms::rend::GLVertexArray vao;
+        stms::GLVertexArray vao;
         vao.pushVbo(&vbo);
         vao.pushFloats(3); // position
         vao.pushFloats(2); // tex coords (unused)
         vao.build();
 
-        stms::rend::GLShaderProgram shaders;
+        stms::GLShaderProgram shaders;
         {
             std::string vertSrc, fragSrc;
             std::ifstream vertShader("./res/shaders/default.vert");
@@ -107,10 +111,10 @@ int main() {
 
             fragSrc = std::string(std::istreambuf_iterator<char>(fragShader), std::istreambuf_iterator<char>());
 
-            stms::rend::GLShaderModule vert(stms::rend::eVert);
+            stms::GLShaderModule vert(stms::eVert);
             vert.setAndCompileSrc(vertSrc.c_str());
 
-            stms::rend::GLShaderModule frag(stms::rend::eFrag);
+            stms::GLShaderModule frag(stms::eFrag);
             frag.setAndCompileSrc(fragSrc.c_str());
 
             shaders.attachModule(&vert);
@@ -122,14 +126,14 @@ int main() {
 
         shaders.bind();
 
-        stms::rend::GLTexture::activateSlot(0);
-        stms::rend::GLTexture grassTex("./res/grass_texture.png");
+        stms::GLTexture::activateSlot(0);
+        stms::GLTexture grassTex("./res/grass_texture.png");
         grassTex.genMipMaps();
-        grassTex.setUpscale(stms::rend::eNearest);
-        grassTex.setDownscale(stms::rend::eNearMipNear);
+        grassTex.setUpscale(stms::eNearest);
+        grassTex.setDownscale(stms::eNearMipNear);
         grassTex.bind();
 
-        stms::rend::GLUniform mvp = shaders.getUniform("mvp");
+        stms::GLUniform mvp = shaders.getUniform("mvp");
         glm::mat4 cpuMvp;
 
         shaders.getUniform("slot0").set1i(0); // Use texture slot 0. Why do samplers have to be uniforms?!!
@@ -137,20 +141,26 @@ int main() {
         double prevX, prevY;
         glfwGetCursorPos(win.getRawPtr(), &prevX, &prevY); // Make you start looking in the right dir.
 
-        auto gnu_unifont = stms::rend::GLFTFace(&stms::rend::defaultFtLib(), "./res/arial-unicode-ms.ttf");
+        auto gnu_unifont = stms::GLFTFace(&stms::defaultFtLib(), "./res/gnu-unifont-13.0.02.ttf");
         gnu_unifont.setSpacing(1.2908);
         gnu_unifont.setSize(39);
 
-        stms::rend::U32String toRend = U"FPS: 60\nMSPT: 16";
+        stms::U32String toRend = U"FPS: 60\nMSPT: 16";
         glm::ivec2 txtSize = gnu_unifont.getDims(toRend);
         glfwSetWindowSize(win.getRawPtr(), txtSize.x, txtSize.y);
 
         glm::mat4 fontMat = glm::translate(glm::vec3{0, txtSize.y, 0});
 
+        stms::GLFrameBuffer frameBuf = stms::GLFrameBuffer(txtSize.x, txtSize.y);
+
         int width, height;
         stms::TPSTimer tpsTimer;
         tpsTimer.tick();
         while (!win.shouldClose()) {
+            frameBuf.bind();
+            glEnable(GL_DEPTH_TEST);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
             tpsTimer.tick();
             toRend = U"FPS: ";
 
@@ -164,11 +174,21 @@ int main() {
             glm::mat4 proj = glm::ortho(0.0f, (float) width, 0.0f, (float) height);
 
             grassTex.bind();
+            shaders.bind();
             vao.bind();
             ibo.draw();
             vao.unbind();
 
             gnu_unifont.render(toRend, proj * fontMat, {1.0, 1.0, 0, 1.0});
+
+            stms::GLFrameBuffer::bindDefault();
+            glViewport(0, 0, width, height);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDisable(GL_DEPTH_TEST);
+
+            stms::GLTexRenderer::renderTexture(&frameBuf.tex);
+            stms::flushGlErrs("something");
+
 
             glfwGetCursorPos(win.getRawPtr(), &cursorX, &cursorY);
             camEuler.y += -(cursorX - prevX) * mouseSensitivity;
@@ -213,15 +233,16 @@ int main() {
             cpuMvp = cam.buildPersp((float) width / (float) height); // screw it i'm using c style casts c++ func casts are retarded
             cpuMvp *= cam.buildMatV();
 
+            frameBuf = stms::GLFrameBuffer(width, height);
+
             shaders.bind();
             mvp.setMat4(cpuMvp);
 
-            glViewport(0, 0, width, height);
 
-
-            win.lazyFlip();
+            glfwPollEvents();
+            glfwSwapBuffers(win.getRawPtr());
         }
-    }
 
-    stms::rend::quitGlfw();
+        stms::flushGlErrs("Terminate");
+    }
 }

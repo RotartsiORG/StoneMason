@@ -11,7 +11,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-namespace stms::rend {
+namespace stms {
     class VKInstance;
 
     class VKWindow {

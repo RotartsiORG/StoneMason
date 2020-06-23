@@ -16,6 +16,8 @@
 namespace stms {
     void initCurl();
 
+    void quitCurl();
+
     struct CurlResult {
         std::string data;
 

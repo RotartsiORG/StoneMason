@@ -28,20 +28,16 @@ namespace stms {
     constexpr char timeFormat[] = "%Y.%m.%d %H:%M:%S %Z";
     constexpr char logDir[] = "./stms_logs/"; // must have trailing slash
 
-    namespace net {
-        constexpr unsigned certAndCipherLen = 256;
-        constexpr int sslShutdownMaxRetries = 10;
-        constexpr int minIoTimeout = 1000;
-        constexpr int maxConnectionTimeouts = 1;
-        constexpr int threadPoolPriority = 8;
-        constexpr int maxRecvLen = 16384; // RFC 8449
-        constexpr int secretCookieLen = 16;
-    }
+    constexpr unsigned certAndCipherLen = 256;
+    constexpr int sslShutdownMaxRetries = 10;
+    constexpr int minIoTimeout = 1000;
+    constexpr int maxConnectionTimeouts = 1;
+    constexpr int threadPoolPriority = 8;
+    constexpr int maxRecvLen = 16384; // RFC 8449
+    constexpr int secretCookieLen = 16;
 
-    namespace rend {
-        // Allow experimental driver features, useful for backwards compatibility.
-        constexpr bool enableExperimentalGlew = true;
-    }
+    // Allow experimental driver features, useful for backwards compatibility.
+    constexpr bool enableExperimentalGlew = true;
 }
 
 

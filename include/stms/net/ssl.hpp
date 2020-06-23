@@ -13,10 +13,12 @@
 #include <stms/async.hpp>
 #include "sys/socket.h"
 
-namespace stms::net {
+namespace stms {
     extern uint8_t secretCookie[secretCookieLen];
 
     void initOpenSsl();
+
+    void quitOpenSsl();
 
     int handleSslGetErr(SSL *, int);
 

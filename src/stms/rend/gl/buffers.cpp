@@ -7,10 +7,10 @@
 #include "stms/rend/gl/gl.hpp"
 #include "stms/logging.hpp"
 
-namespace stms::rend {
+namespace stms {
     GLuint GLVertexArray::VertexArrayImpl::enabledIndices = 0;
 
-    void GLVertexArray::VertexArrayImpl::pushVbo(stms::rend::GLVertexBuffer *vbo) {
+    void GLVertexArray::VertexArrayImpl::pushVbo(stms::GLVertexBuffer *vbo) {
         vboLyos.emplace_back(VertexBufferLayout{vbo});
     }
 
@@ -35,22 +35,22 @@ namespace stms::rend {
 
     void GLVertexArray::VertexArrayImpl::specifyLayout() {
         while (enabledIndices != 0) {  // Remove leftover layout specification from previous binds
-            glDisableVertexAttribArray(--enabledIndices);
+            STMS_GLC(glDisableVertexAttribArray(--enabledIndices));
         }
 
         for (const auto &vboLyo : vboLyos) {
             vboLyo.vbo->bind();
 
             for (const auto &attrib : vboLyo.attribs) {
-                glEnableVertexAttribArray(enabledIndices);
-                glVertexAttribPointer(enabledIndices, attrib.size, attrib.type, attrib.normalized, vboLyo.stride, attrib.ptr);
+                STMS_GLC(glEnableVertexAttribArray(enabledIndices));
+                STMS_GLC(glVertexAttribPointer(enabledIndices, attrib.size, attrib.type, attrib.normalized, vboLyo.stride, attrib.ptr));
 
                 if (attrib.divisor != 0) {
                     STMS_PUSH_WARNING("OpenGL 2 doesn't support vertex attribute divisors or "
                                       "instanced rendering! Don't use these if you want to support OpenGL 2!");
 
                     if (majorGlVersion > 2) {
-                        glVertexAttribDivisor(enabledIndices, attrib.divisor);
+                        STMS_GLC(glVertexAttribDivisor(enabledIndices, attrib.divisor));
                     } else {
                         STMS_PUSH_ERROR("OGL 2 doesn't support vertex attribute divisors! Expect crashes and/or bugs!");
                     }
@@ -62,11 +62,11 @@ namespace stms::rend {
     }
 
     GLVertexArray::VertexArrayImplOGL3::VertexArrayImplOGL3() {
-        glCreateVertexArrays(1, &id);
+        STMS_GLC(glCreateVertexArrays(1, &id));
     }
 
     GLVertexArray::VertexArrayImplOGL3::~VertexArrayImplOGL3() {
-        glDeleteVertexArrays(1, &id);
+        STMS_GLC(glDeleteVertexArrays(1, &id));
     }
 
     void GLVertexArray::VertexArrayImplOGL3::build() {
@@ -75,11 +75,11 @@ namespace stms::rend {
     }
 
     void GLVertexArray::VertexArrayImplOGL3::bind() {
-        glBindVertexArray(id);
+        STMS_GLC(glBindVertexArray(id));
     }
 
     void GLVertexArray::VertexArrayImplOGL3::unbind() {
-        glBindVertexArray(0);
+        STMS_GLC(glBindVertexArray(0));
     }
 
     GLVertexArray::VertexArrayImpl::VertexBufferLayout::VertexBufferLayout(GLVertexBuffer *vbo) {
@@ -92,7 +92,11 @@ namespace stms::rend {
         specifyLayout();
     }
 
-    void GLVertexArray::VertexArrayImplOGL2::unbind() { /* no-up */ }
+    void GLVertexArray::VertexArrayImplOGL2::unbind() {
+        while (enabledIndices != 0) {  // Remove leftover layout specification from previous binds
+            STMS_GLC(glDisableVertexAttribArray(--enabledIndices));
+        }
+    }
 
     GLVertexArray::GLVertexArray() {
         if (majorGlVersion < 3) {

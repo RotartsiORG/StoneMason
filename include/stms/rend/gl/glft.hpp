@@ -14,7 +14,7 @@
 #include "shaders.hpp"
 #include "buffers.hpp"
 
-namespace stms::rend {
+namespace stms {
 
     /**
      * This is not thread safe!!! TODO: add a mutex for accessing static members!
@@ -33,9 +33,6 @@ namespace stms::rend {
         bool alias = false;
         bool mipMaps = false;
 
-        static GLVertexArray *ftVao;
-        static GLVertexBuffer *ftVbo;
-
     public:
 
         GLFTFace(FTLibrary *lib, const char *filename, FT_Long index = 0);
@@ -46,21 +43,13 @@ namespace stms::rend {
             alias = newVal;
         }
 
-        /**
-         * Query the shader that is used for text rendering. Useful for custom rendering callbacks.
-         * WARNING: THIS FUNCTION CAN RETURN NULLPTR IF THE SHADER IS UNINITIALIZED!!!
-         * @return Pointer to the default `GLShaderProgram` used for text rendering.
-         */
-        static inline GLShaderProgram *getTextShader() {
-            return ftShader;
-        }
+        static inline GLShaderProgram *getTextShader();
 
         inline void setMipMaps(bool newVal) {
             mipMaps = newVal;
         }
 
-        void render(const U32String& str, glm::mat4 trans = glm::mat4(1.0f),
-                 glm::vec4 col = {0, 0, 0, 1}, void *usrDat = nullptr);
+        void render(const U32String& str, glm::mat4 trans = glm::mat4(1.0f), glm::vec4 col = {0, 0, 0, 1});
 
         /**
          * Allows you to write a custom text-rendering shader. In the shader, you will have access to the following:

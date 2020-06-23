@@ -56,7 +56,7 @@ namespace stms {
 
     float floatRand(float min, float max);
 
-    class _stms_STMSInitializer {
+    class _stms_STMSInitializer { // TODO: Add destructor (quit routine)
 
     public:
         static bool hasRun;
@@ -64,6 +64,8 @@ namespace stms {
         uint8_t specialValue;
 
         _stms_STMSInitializer() noexcept;
+
+        ~_stms_STMSInitializer() noexcept;
 
         _stms_STMSInitializer(_stms_STMSInitializer &rhs) = delete;
 

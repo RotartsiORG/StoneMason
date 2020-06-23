@@ -5,14 +5,12 @@
 #ifndef __STONEMASON_GL_BUFFERS_HPP
 #define __STONEMASON_GL_BUFFERS_HPP
 
-#define GLEW_STATIC 1
-#include "GL/glew.h"
-#include "GLFW/glfw3.h"
+#include "gl.hpp"
 
 #include <vector>
 #include <array>
 
-namespace stms::rend {
+namespace stms {
     enum GLBufferMode {
         eDrawStatic = GL_STATIC_DRAW,
         eDrawDynamic = GL_DYNAMIC_DRAW,
@@ -57,20 +55,20 @@ namespace stms::rend {
 
     public:
         _stms_GLBuffer() {
-            glCreateBuffers(1, &id);
+            STMS_GLC(glCreateBuffers(1, &id));
         }
 
         virtual ~_stms_GLBuffer() {
-            glDeleteBuffers(1, &id);
+            STMS_GLC(glDeleteBuffers(1, &id));
         }
 
         _stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic)  : usage(mode) {
-            glCreateBuffers(1, &id);
+            STMS_GLC(glCreateBuffers(1, &id));
             write(data, size);
         }
 
         explicit _stms_GLBuffer(GLBufferMode mode)  : usage(mode) {
-            glCreateBuffers(1, &id);
+            STMS_GLC(glCreateBuffers(1, &id));
         };
 
         _stms_GLBuffer(const _stms_GLBuffer<bufType> &rhs) = delete;
@@ -85,7 +83,7 @@ namespace stms::rend {
                 return *this;
             }
 
-            glDeleteBuffers(1, &id);
+            STMS_GLC(glDeleteBuffers(1, &id));
             id = rhs.id;
             rhs.id = 0;
             rhs.numElements = 0;
@@ -98,7 +96,7 @@ namespace stms::rend {
 
 
         inline void bind() const {
-            glBindBuffer(bufType, id);
+            STMS_GLC(glBindBuffer(bufType, id));
         }
 
         inline void setUsage(GLBufferMode mode) {
@@ -106,17 +104,17 @@ namespace stms::rend {
         }
 
         inline void unmap() const {
-            glUnmapNamedBuffer(id);
+            STMS_GLC(glUnmapNamedBuffer(id));
         }
 
         inline void flush(GLintptr offset, GLsizeiptr len) const {
             bind();
-            glFlushMappedBufferRange(bufType, offset, len);
+            STMS_GLC(glFlushMappedBufferRange(bufType, offset, len));
         }
 
         inline void write(const void *data, GLsizeiptr size) {
             bind();
-            glBufferData(bufType, size, data, usage);
+            STMS_GLC(glBufferData(bufType, size, data, usage));
         };
 
         template <typename T>
@@ -137,17 +135,17 @@ namespace stms::rend {
 
         inline void writeRange(GLintptr offset, void *data, GLsizeiptr size) {
             bind();
-            glBufferSubData(bufType, offset, size, data);
+            STMS_GLC(glBufferSubData(bufType, offset, size, data));
         };
 
         [[nodiscard]] inline void *map(GLBufferAccessMode access) const {
             bind();
-            return glMapBuffer(bufType, access);
+            return STMS_GLC(glMapBuffer(bufType, access));
         };
 
         [[nodiscard]] inline void *mapRange(GLintptr offset, GLsizeiptr len, GLBufferAccessMode access) const {
             bind();
-            return glMapBufferRange(bufType, offset, len, access);
+            return STMS_GLC(glMapBufferRange(bufType, offset, len, access));
         };
     };
 
@@ -164,12 +162,12 @@ namespace stms::rend {
 
         inline void draw(GLDrawMode mode = eTriangles, GLint first = 0) {
             bind();
-            glDrawArrays(mode, first, numElements);
+            STMS_GLC(glDrawArrays(mode, first, numElements));
         };
 
         inline void drawInstanced(GLsizei num = 1, GLDrawMode mode = eTriangles, GLint first = 0) {
             bind();
-            glDrawArraysInstanced(mode, first, numElements, num);
+            STMS_GLC(glDrawArraysInstanced(mode, first, numElements, num));
         };
     };
 
@@ -192,23 +190,23 @@ namespace stms::rend {
 
         inline void draw(GLDrawMode mode = eTriangles, GLint first = 0) {
             bind();
-            glDrawElements(mode, numElements, type, nullptr);
+            STMS_GLC(glDrawElements(mode, numElements, type, nullptr));
         };
 
         void drawInstanced(GLsizei num = 1, GLDrawMode mode = eTriangles) {
             bind();
-            glDrawElementsInstanced(mode, numElements, type, nullptr, num);
+            STMS_GLC(glDrawElementsInstanced(mode, numElements, type, nullptr, num));
         };
     };
 
     inline void localIndexedGlDrawInstanced(const void *indices, GLsizei numIndices,  GLsizei num = 1,
                                             GLIndexType indexType = eInt, GLDrawMode mode = eTriangles) {
-        glDrawElementsInstanced(mode, numIndices, indexType, indices, num);
+        STMS_GLC(glDrawElementsInstanced(mode, numIndices, indexType, indices, num));
     }
 
     inline void localIndexedGlDraw(const void *indices, GLsizei numIndices, GLIndexType indexType = eInt,
                                    GLDrawMode mode = eTriangles) {
-        glDrawElements(mode, numIndices, indexType, indices);
+        STMS_GLC(glDrawElements(mode, numIndices, indexType, indices));
     }
 
     class GLVertexArray {

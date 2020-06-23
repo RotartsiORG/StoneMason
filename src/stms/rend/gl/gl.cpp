@@ -6,7 +6,7 @@
 
 #include "stms/logging.hpp"
 
-namespace stms::rend {
+namespace stms {
     bool glInfoDumped = true;
     GLint majorGlVersion = -1;
 
@@ -19,8 +19,12 @@ namespace stms::rend {
     void flushGlErrs(const std::string &log) {
         GLenum err = glGetError();
         while (err != GL_NO_ERROR) {
-            STMS_PUSH_ERROR("OGL ERR at {}: {}", log, err);
+            STMS_PUSH_ERROR("[* OGL ERR `{}` *]: {}", log, err);
             err = glGetError();
         }
+    }
+
+    void quitGl() {
+        glfwTerminate();
     }
 }

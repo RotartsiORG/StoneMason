@@ -73,5 +73,9 @@ namespace stms {
         auto version = curl_version_info(CURLVERSION_NOW);
         STMS_INFO("LibCURL {}: On host '{}' with libZ {} & SSL {}", version->version, version->host, version->libz_version, version->ssl_version);
     }
+
+    void quitCurl() {
+        curl_global_cleanup();
+    }
 }
 

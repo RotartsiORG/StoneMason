@@ -15,7 +15,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace stms::rend {
+namespace stms {
 
     typedef std::basic_string<char32_t> U32String;
 

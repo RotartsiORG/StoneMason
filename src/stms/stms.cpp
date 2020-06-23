@@ -139,10 +139,18 @@ namespace stms {
 
         stms::initLogging();
 
-        net::initOpenSsl();
+        stms::initOpenSsl();
 
-        stms::rend::initGl();
+        stms::initGl();
 
         stms::initCurl();
+    }
+
+    _stms_STMSInitializer::~_stms_STMSInitializer() noexcept {
+        stms::quitGl();
+
+        stms::quitOpenSsl();
+
+        stms::quitCurl();
     }
 }

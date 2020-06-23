@@ -7,20 +7,23 @@
 #ifndef __STONEMASON_GL_GL_HPP
 #define __STONEMASON_GL_GL_HPP
 
+#define STMS_GLC(glCall) (glCall); ::stms::flushGlErrs(#glCall);
+
 #define GLEW_STATIC 1
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
 #include <string>
 
-namespace stms::rend {
+namespace stms {
     extern bool glInfoDumped;
     extern GLint majorGlVersion;
 
     void initGl();
 
-    void flushGlErrs(const std::string &log);
+    void quitGl();
 
+    void flushGlErrs(const std::string &log);
 
 }
 

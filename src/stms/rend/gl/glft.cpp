@@ -42,37 +42,11 @@ void main() {
 
 )";
 
-namespace stms::rend {
+namespace stms {
 
     GLShaderProgram *GLFTFace::ftShader = nullptr;
-    GLVertexArray *GLFTFace::ftVao = nullptr;
-    GLVertexBuffer *GLFTFace::ftVbo = nullptr;
 
-    GLFTFace::GLFTFace(FTLibrary *lib, const char *filename, FT_Long index) : _stms_FTFace(lib, filename, index) {
-
-        if (ftVbo == nullptr) {
-            ftVbo = new GLVertexBuffer(eDrawStatic);
-            ftVbo->fromArray(std::array<glm::vec4, 6>{{
-                { 0,  0,  0,  0  },
-                { 1,  0,  1,  0  },
-                { 1, -1,  1,  1  },
-
-                { 0,  0,  0,  0 },
-                { 0, -1,  0,  1 },
-                { 1, -1,  1,  1 }
-            }});
-        }
-
-        if (ftVao == nullptr) {
-            ftVao = new GLVertexArray();
-
-            ftVao->freeLayouts();
-            ftVao->pushVbo(ftVbo);
-            ftVao->pushFloats(2);
-            ftVao->pushFloats(2);
-            ftVao->build();
-        }
-    }
+    GLFTFace::GLFTFace(FTLibrary *lib, const char *filename, FT_Long index) : _stms_FTFace(lib, filename, index) {}
 
     glm::ivec2 GLFTFace::getDims(const U32String &str) {
         glm::ivec2 ret = {0, newlineAdv * spacing};
@@ -116,7 +90,7 @@ namespace stms::rend {
         return ret;
     }
 
-    void GLFTFace::render(const U32String& str, glm::mat4 trans, glm::vec4 col, void *usrDat) {
+    GLShaderProgram *GLFTFace::getTextShader() {
         if (ftShader == nullptr) { // TODO: Async compile this?
             ftShader = new GLShaderProgram();
 
@@ -134,7 +108,11 @@ namespace stms::rend {
             ftShader->bindAttribLoc(1, "inTexCoords");
         }
 
-        ftShader->bind();
+        return ftShader;
+    }
+
+    void GLFTFace::render(const U32String& str, glm::mat4 trans, glm::vec4 col) {
+        getTextShader()->bind();
 
         ftShader->getUniform("tex").set1i(0);
         ftShader->getUniform("color").set4f(col);
@@ -197,12 +175,14 @@ namespace stms::rend {
             );
 
             cache[c].texture.bind();
-            ftVao->bind();
+            GLTexRenderer::getVao()->bind();
 
             glm::ivec2 additionalAdvance = renderCb(str, i++);
 
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            ftVao->unbind();
+            STMS_GLC(glDrawArrays(GL_TRIANGLES, 0, 6));
+
+            // Unbinding the VAO is important! Don't corrupt the VAO by unintentionally writing stuff to it!
+            GLTexRenderer::getVao()->unbind();
 
             pen.x += cache[c].metrics.horiAdvance;
             pen += additionalAdvance;
@@ -214,11 +194,11 @@ namespace stms::rend {
             return true; // Glyph has already been cached, no work needed
         }
 
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Should this be set back to 4 after we're done?
+        STMS_GLC(glPixelStorei(GL_UNPACK_ALIGNMENT, 1)); // Should this be set back to 4 after we're done?
 
         if (FT_Load_Char(face, glyph, FT_LOAD_RENDER)) {
             STMS_PUSH_ERROR("Failed to load glyph {}! It will be ignored!", static_cast<char>(glyph));
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            STMS_GLC(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
             return false;
         }
 
@@ -240,8 +220,8 @@ namespace stms::rend {
         toInsert.index = face->glyph->glyph_index;
 
         toInsert.texture.bind();
-        glTexImage2D(GL_TEXTURE_2D,0, GL_RED, toInsert.metrics.width, toInsert.metrics.height,
-                     0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
+        STMS_GLC(glTexImage2D(GL_TEXTURE_2D,0, GL_RED, toInsert.metrics.width, toInsert.metrics.height,
+                     0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer));
 
         toInsert.texture.setWrapX(eClampToEdge);
         toInsert.texture.setWrapY(eClampToBorder);
@@ -255,7 +235,7 @@ namespace stms::rend {
         }
 
         cache[glyph] = std::move(toInsert);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        STMS_GLC(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
         return true;
     }
 

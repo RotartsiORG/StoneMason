@@ -6,7 +6,7 @@
 
 #include "stms/logging.hpp"
 
-namespace stms::rend {
+namespace stms {
     FTLibrary::FTLibrary() {
         FT_Init_FreeType(&lib);
     }

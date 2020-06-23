@@ -14,10 +14,12 @@
 
 #include "stms/stms.hpp"
 #include "stms/logging.hpp"
+
 #include "openssl/rand.h"
 #include "openssl/err.h"
+#include "openssl/conf.h"
 
-namespace stms::net {
+namespace stms {
     uint8_t secretCookie[secretCookieLen];
 
     std::string getAddrStr(const sockaddr *const addr) {
@@ -140,6 +142,9 @@ namespace stms::net {
         }
     }
 
+    void quitOpenSsl() {
+        CONF_modules_unload(1);
+    }
 
     static int getPassword(char *dest, int size, int flag, void *pass) {
         auto *passStr = reinterpret_cast<std::string *>(pass);

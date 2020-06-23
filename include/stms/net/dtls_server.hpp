@@ -23,7 +23,7 @@
 #include "stms/net/ssl.hpp"
 #include "stms/stms.hpp"
 
-namespace stms::net {
+namespace stms {
     struct DTLSClientRepresentation {
         uint8_t timeouts = 0;
         std::string addrStr{};
@@ -92,7 +92,7 @@ namespace stms::net {
         DTLSServer() = default;
 
         /**
-         * @fn stms::net::DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any",
+         * @fn stms::DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any",
          *                  const std::string &port = "3000", bool preferV6 = true,
          *                  const std::string &certPem = "server-cert.pem",
          *                  const std::string &keyPem = "server-key.pem",
@@ -151,7 +151,7 @@ namespace stms::net {
 
         // Try to send a message. A return >0 is success, =0 is invalid clientUUID, <0 is openssl error.
         /**
-         * @fn int stms::net::DTLSServer::send(const std::string &clientUuid, char *msg, std::size_t msgLen)
+         * @fn int stms::DTLSServer::send(const std::string &clientUuid, char *msg, std::size_t msgLen)
          * @brief Send an message (in the form of an array of `uint8_t`s) to a client.
          *
          * @param clientUuid UUIDv4 of the client to send this message to.
@@ -168,7 +168,7 @@ namespace stms::net {
         std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen);
 
         /**
-         * @fn bool stms::net::DTLSServer::tick()
+         * @fn bool stms::DTLSServer::tick()
          * @brief Tick the server, to be called at regular intervals.
          *
          * `tick()` accepts incoming client connections and

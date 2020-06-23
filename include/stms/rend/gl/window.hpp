@@ -7,13 +7,11 @@
 #ifndef __STONEMASON_GL_WINDOW_HPP
 #define __STONEMASON_GL_WINDOW_HPP
 
-#define GLEW_STATIC 1
-#include "GL/glew.h"
-#include "GLFW/glfw3.h"
+#include "gl.hpp"
 
 #include <unordered_map>
 
-namespace stms::rend {
+namespace stms {
 
     class GLWindow {
     private:
@@ -34,7 +32,7 @@ namespace stms::rend {
         inline void lazyFlip() {
             glfwPollEvents();
             glfwSwapBuffers(win);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Stencil buffer is omitted.
+            STMS_GLC(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)); // Stencil buffer is omitted.
         }
 
         GLWindow(const GLWindow &rhs) = delete;
@@ -49,7 +47,6 @@ namespace stms::rend {
     };
 
     extern void(*pollEvents)();
-    extern void(*quitGlfw)();
 }
 
 

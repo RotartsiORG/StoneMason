@@ -17,7 +17,7 @@
 #include "openssl/ssl.h"
 #include "openssl/rand.h"
 
-namespace stms::net {
+namespace stms {
 
     static bool hashSSL(SSL *ssl, unsigned *len, unsigned char *result) {
         sockaddr_storage peer{};
@@ -141,13 +141,13 @@ namespace stms::net {
 
                 if (handshakeStatus == -3) { // Want write
                     STMS_INFO("WANT_WRITE returned from SSL_accept! Blocking until write-ready...");
-                    if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
+                    if (!stms::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
                         STMS_WARN("SSL_accpet() WANT_WRITE timed out!");
                         continue;
                     }
                 } else if (handshakeStatus == -2) { // Want read
                     STMS_INFO("WANT_READ returned from SSL_accept! Blocking until read-ready...");
-                    if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLIN)) {
+                    if (!stms::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLIN)) {
                         STMS_INFO("SSL_accpet() WANT_READ timed out!");
                         continue;
                     }
@@ -306,7 +306,7 @@ namespace stms::net {
                         while (retryRead && lambCli->timeouts < 1 && readTimeouts < maxTimeouts) {
                             readTimeouts++;
 
-                            if (!stms::net::DTLSServer::blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN)) {
+                            if (!stms::DTLSServer::blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN)) {
                                 STMS_WARN("SSL_read() timed out!");
                                 continue;
                             }
@@ -403,7 +403,7 @@ namespace stms::net {
             int sendTimeouts = 0;
             while (ret == -3 && sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
-                if (!stms::net::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
+                if (!stms::DTLSServer::blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
                     STMS_WARN("SSL_write() timed out!");
                     continue;
                 }
@@ -479,7 +479,7 @@ namespace stms::net {
                     STMS_WARN("Error in SSL_shutdown (see above)!");
 
                     if (shutdownRet == -2) {
-                        if (!stms::net::DTLSServer::blockUntilReady(sock, pSsl, POLLIN)) {
+                        if (!stms::DTLSServer::blockUntilReady(sock, pSsl, POLLIN)) {
                             STMS_WARN("Reading timed out for SSL_shutdown!");
                         }
                     } else {

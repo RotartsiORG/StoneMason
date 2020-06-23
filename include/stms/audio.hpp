@@ -13,7 +13,7 @@
 #include "al.h"
 #include "alc.h"
 
-namespace stms::al {
+namespace stms {
     class ALDevice {
     private:
         ALCdevice *id{};
