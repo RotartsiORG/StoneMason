@@ -10,9 +10,13 @@ int main() {
     stms::ThreadPool pool;
     pool.start();
 
-    stms::DTLSServer serv = stms::DTLSServer(&pool, "Grant-PC.local", "3000", false,
-                                                       "./res/ssl/serv-pub-cert.pem", "./res/ssl/serv-priv-key.pem",
-                                                       "./res/ssl/ca-pub-cert.pem", "", "");
+    stms::DTLSServer serv = stms::DTLSServer(&pool);
+    serv.setHostAddr(); // can be left out but *shurgs*
+    serv.setIPv6(false);
+    serv.setCertAuth("./res/ssl/ca-pub-cert.pem", "");
+    serv.setPublicCert("./res/ssl/serv-pub-cert.pem");
+    serv.setPrivateKey("./res/ssl/serv-priv-key.pem");
+    serv.verifyKeyMatchCert();
 
     serv.setRecvCallback([&](const std::string &cliuuid, const sockaddr *const sockaddr, uint8_t *buf, int size) {
         buf[size] = '\0';

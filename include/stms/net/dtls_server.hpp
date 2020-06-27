@@ -91,37 +91,7 @@ namespace stms {
 
         DTLSServer() = default;
 
-        /**
-         * @fn stms::DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any",
-         *                  const std::string &port = "3000", bool preferV6 = true,
-         *                  const std::string &certPem = "server-cert.pem",
-         *                  const std::string &keyPem = "server-key.pem",
-         *                  const std::string &caCert = "", const std::string &caPath = "",
-         *                  const std::string &password = "");
-         * @brief Initialize a `DTLSServer`. No connection is opened.
-         *
-         * @param pool The thread pool for submitting async tasks to. Currently unused.
-         * @param addr String containing IPv4 (`127.0.0.1`), IPv6 (`2001:db8:85a3::8a2e:370:7334`), a
-         *             hostname to be resolved (`example.com`) or the value `any`.
-         *             If `any` is used, the address of the host machine will be used. (Like `INADDR_ANY`)
-         *             The server will be hosted on this address.
-         * @param port String containing either a port number (`3000`), or a service to be resolved (`http` or `ftp`).
-         * @param preferV6 If true, IPv6 addresses would be used instead of IPv4. Otherwise, IPv4 is used.
-         * @param certPem Path to the certificate pem file to be used as the server certificate.
-         * @param keyPem Path to the private key pem file to be used as the server private key.
-         * @param caCert Path to the Certificate Authority certificate pem file to be used. Will be ignored if empty.
-         * @param caPath The directory in which to look for Certificate Authority certificate pem files.
-         *                Will be ignored if empty.
-         * @param password Password for the private pem file. (Only applicable for password-protected private keys).
-         *                 Will be ignored if empty.
-         */
-        explicit DTLSServer(stms::ThreadPool *pool, const std::string &addr = "any",
-                            const std::string &port = "3000", bool preferV6 = true,
-                            const std::string &certPem = "server-cert.pem",
-                            const std::string &keyPem = "server-key.pem",
-                            const std::string &caCert = "", const std::string &caPath = "",
-                            const std::string &password = ""
-        );
+        explicit DTLSServer(stms::ThreadPool *pool);
 
         ~DTLSServer() override;
 

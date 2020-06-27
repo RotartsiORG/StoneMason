@@ -180,37 +180,8 @@ namespace stms {
     }
 
 
-    _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr, const std::string &port,
-                                 bool preferV6,
-                                 const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                                 const std::string &caPath, std::string password) :
-                                 isServ(isServ), wantV6(preferV6), pPool(pool), password(std::move(password)) {
-
+    _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool) : isServ(isServ), pPool(pool) {
         pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
-
-        SSL_CTX_set_default_passwd_cb_userdata(pCtx, &this->password);
-        SSL_CTX_set_default_passwd_cb(pCtx, getPassword);
-
-        flushSSLErrors();
-        if (!SSL_CTX_use_certificate_chain_file(pCtx, certPem.c_str())) {
-            STMS_INFO("Failed to set public cert chain for DTLS Server (cert='{}')", certPem);
-            handleSSLError();
-        }
-        if (!SSL_CTX_use_PrivateKey_file(pCtx, keyPem.c_str(), SSL_FILETYPE_PEM)) {
-            STMS_INFO("Failed to set private key for DTLS Server (key='{}')", keyPem);
-            handleSSLError();
-        }
-        if (!SSL_CTX_check_private_key(pCtx)) {
-            STMS_INFO("Public cert and private key mismatch in DTLS server"
-                      "for public cert '{}' and private key '{}'", certPem, keyPem);
-            handleSSLError();
-        }
-
-        if (!SSL_CTX_load_verify_locations(pCtx, caCert.empty() ? nullptr : caCert.c_str(),
-                                           caPath.empty() ? nullptr : caPath.c_str())) {
-            STMS_INFO("Failed to set the CA certs and paths for DTLS server! Path='{}', cert='{}'", caPath, caCert);
-            handleSSLError();
-        }
 
         SSL_CTX_set_verify(pCtx, SSL_VERIFY_PEER, verifyCert);
 
@@ -219,19 +190,7 @@ namespace stms {
         SSL_CTX_set_options(pCtx, SSL_OP_COOKIE_EXCHANGE | SSL_OP_NO_ANTI_REPLAY);
         SSL_CTX_clear_options(pCtx, SSL_OP_NO_COMPRESSION);
 
-        addrinfo hints{};
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_DGRAM;
-        hints.ai_protocol = IPPROTO_UDP;
-        if (addr == "any") {
-            hints.ai_flags = AI_PASSIVE;
-        }
-
-        STMS_INFO("DTLS {} to be hosted on {}:{}", isServ ? "server" : "client", addr, port);
-        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &pAddrCandidates);
-        if (lookupStatus != 0) {
-            STMS_INFO("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
-        }
+        setHostAddr(); // By default, bind to any, port 3000.
     }
 
     void _stms_SSLBase::stop() {
@@ -381,13 +340,13 @@ namespace stms {
         STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
 
         if (poll(&cliPollFd, 1, recvTimeout) == 0) {
-            STMS_WARN("poll() timed out!");
+            STMS_PUSH_WARNING("poll() timed out!");
             DTLSv1_handle_timeout(ssl);
             return false;
         }
 
         if (!(cliPollFd.revents & event)) {
-            STMS_WARN("Desired flags not set in poll()!");
+            STMS_PUSH_WARNING("Desired flags not set in poll()!");
             DTLSv1_handle_timeout(ssl);
             return false;
         }
@@ -397,6 +356,60 @@ namespace stms {
 
     void _stms_SSLBase::onStop() {
         // no-op
+    }
+
+    void _stms_SSLBase::setHostAddr(const std::string &port, const std::string &addr) {
+        addrinfo hints{};
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+        hints.ai_protocol = IPPROTO_UDP;
+        if (addr == "any") {
+            hints.ai_flags = AI_PASSIVE;
+        }
+
+        STMS_INFO("DTLS {} to be hosted on {}:{}", isServ ? "server" : "client", addr, port);
+        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &pAddrCandidates);
+        if (lookupStatus != 0) {
+            STMS_PUSH_WARNING("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
+        }
+    }
+
+    void _stms_SSLBase::setKeyPassword(const std::string &newPass) {
+        password = newPass;
+        SSL_CTX_set_default_passwd_cb_userdata(pCtx, &this->password);
+        SSL_CTX_set_default_passwd_cb(pCtx, getPassword);
+    }
+
+    void _stms_SSLBase::setCertAuth(const std::string &caCert, const std::string &caPath) {
+        if (!SSL_CTX_load_verify_locations(pCtx, caCert.empty() ? nullptr : caCert.c_str(),
+                                           caPath.empty() ? nullptr : caPath.c_str())) {
+            STMS_PUSH_WARNING("Failed to set the CA certs and paths for DTLS cli/server! Path='{}', cert='{}'", caPath, caCert);
+            handleSSLError();
+        }
+    }
+
+    void _stms_SSLBase::setPrivateKey(const std::string &key) {
+        if (!SSL_CTX_use_PrivateKey_file(pCtx, key.c_str(), SSL_FILETYPE_PEM)) {
+            STMS_PUSH_WARNING("Failed to set private key for DTLS cli/server (key='{}')", key);
+            handleSSLError();
+        }
+    }
+
+    void _stms_SSLBase::setPublicCert(const std::string &cert) {
+        if (!SSL_CTX_use_certificate_chain_file(pCtx, cert.c_str())) {
+            STMS_PUSH_WARNING("Failed to set public cert chain for DTLS Server (cert='{}')", cert);
+            handleSSLError();
+        }
+    }
+
+    bool _stms_SSLBase::verifyKeyMatchCert() {
+        if (!SSL_CTX_check_private_key(pCtx)) {
+            STMS_PUSH_WARNING("Public cert and private key mismatch in DTLS client/server!");
+            handleSSLError();
+            return false;
+        }
+
+        return true;
     }
 }
 

@@ -10,9 +10,14 @@ int main() {
     stms::ThreadPool pool;
     pool.start();
 
-    stms::DTLSClient cli = stms::DTLSClient(&pool, "Grant-PC.local", "3000", false,
-                                                      "./res/ssl/cli-pub-cert.pem", "./res/ssl/cli-priv-key.pem",
-                                                      "./res/ssl/ca-pub-cert.pem", "", "");
+    stms::DTLSClient cli = stms::DTLSClient(&pool);
+    cli.setHostAddr(); // can be omitted.
+    cli.setIPv6(false);
+    cli.setCertAuth("./res/ssl/ca-pub-cert.pem", "");
+    cli.setPublicCert("./res/ssl/cli-pub-cert.pem");
+    cli.setPrivateKey("./res/ssl/cli-priv-key.pem");
+    cli.verifyKeyMatchCert();
+
     cli.setRecvCallback([](uint8_t *in, int size) {
 
     });

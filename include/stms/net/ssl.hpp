@@ -33,7 +33,7 @@ namespace stms {
     class _stms_SSLBase {
     protected:
         bool isServ{};
-        bool wantV6{};
+        bool wantV6 = true;
         std::string addrStr;
         addrinfo *pAddrCandidates{};
         addrinfo *pAddr{};
@@ -45,13 +45,7 @@ namespace stms {
         stms::ThreadPool *pPool{};
         std::string password{};
 
-        explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool, const std::string &addr = "any",
-                               const std::string &port = "3000", bool preferV6 = true,
-                               const std::string &certPem = "server-cert.pem",
-                               const std::string &keyPem = "server-key.pem",
-                               const std::string &caCert = "", const std::string &caPath = "",
-                               std::string password = ""
-        );
+        explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool);
 
         virtual void onStart();
         virtual void onStop();
@@ -88,6 +82,22 @@ namespace stms {
 
         inline void disableAntiReplay() {
             SSL_CTX_set_options(pCtx, SSL_OP_NO_ANTI_REPLAY);
+        }
+
+        void setHostAddr(const std::string &port = "3000", const std::string &addr = "any");
+
+        void setKeyPassword(const std::string &pass);
+
+        void setCertAuth(const std::string &caCert, const std::string &caPath);
+
+        void setPrivateKey(const std::string &key);
+
+        void setPublicCert(const std::string &cert);
+
+        bool verifyKeyMatchCert();
+
+        inline void setIPv6(bool preferV6) {
+            wantV6 = preferV6;
         }
     };
 }

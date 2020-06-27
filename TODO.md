@@ -11,7 +11,7 @@
 1. Make DTLSServer/Client code protocol agnostic (work with DTLS/UDP or TLS/TCP )
     - Add ability to kick any client based on uuid
 2. Raw server with no OpenSSL encryption with same interface.
-3. Pretty-ify the constructors of DTLSServer/Client/Base. Move cert & ipv6 stuff into config funcs.
+3. Add support for kicking clients & list of all clients (by uuid). Also add support for blockUntilMessageFrom
 
 ### Audio
 1. Device Enumeration support (both playback and capture devices)

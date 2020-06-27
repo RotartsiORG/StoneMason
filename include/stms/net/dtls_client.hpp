@@ -36,13 +36,7 @@ namespace stms {
     public:
         DTLSClient() = default;
 
-        explicit DTLSClient(stms::ThreadPool *pool, const std::string &addr = "any",
-                            const std::string &port = "3000", bool preferV6 = true,
-                            const std::string &certPem = "server-cert.pem",
-                            const std::string &keyPem = "server-key.pem",
-                            const std::string &caCert = "", const std::string &caPath = "",
-                            const std::string &password = ""
-        );
+        explicit DTLSClient(stms::ThreadPool *pool);
 
         inline void setRecvCallback(const std::function<void(uint8_t *, size_t)> &newCb) {
             recvCallback = newCb;

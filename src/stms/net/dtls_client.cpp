@@ -8,14 +8,7 @@
 
 namespace stms {
 
-    DTLSClient::DTLSClient(stms::ThreadPool *pool, const std::string &addr, const std::string &port, bool preferV6,
-                           const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                           const std::string &caPath, const std::string &password) : _stms_SSLBase(false, pool, addr,
-                                                                                                   port, preferV6, certPem,
-                                                                                                   keyPem, caCert, caPath,
-                                                                                                   password) {
-
-    }
+    DTLSClient::DTLSClient(stms::ThreadPool *pool) : _stms_SSLBase(false, pool) {}
 
     DTLSClient::~DTLSClient() {
         if (running) {

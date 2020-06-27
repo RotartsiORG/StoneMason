@@ -196,12 +196,7 @@ namespace stms {
         serv->connectCallback(uuid, cli->pSockAddr);
     }
 
-    DTLSServer::DTLSServer(stms::ThreadPool *pool, const std::string &addr, const std::string &port, bool preferV6,
-                           const std::string &certPem, const std::string &keyPem, const std::string &caCert,
-                           const std::string &caPath, const std::string &password) : _stms_SSLBase(true, pool, addr, port,
-                                                                                                   preferV6,
-                                                                                                   certPem, keyPem, caCert,
-                                                                                                   caPath, password) {
+    DTLSServer::DTLSServer(stms::ThreadPool *pool) : _stms_SSLBase(true, pool) {
         SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
         SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
     }
