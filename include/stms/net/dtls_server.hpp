@@ -118,6 +118,19 @@ namespace stms {
             disconnectCallback = newCb;
         }
 
+        std::string refreshUuid(const std::string &client);
+
+        bool setNewUuid(const std::string &old, const std::string &newUuid);
+
+        std::vector<std::string> getClientUuids();
+
+        inline std::size_t getNumClients() {
+            std::lock_guard<std::mutex> lg(clientsMtx);
+            return clients.size();
+        };
+
+        bool waitEventsFrom(const std::vector<std::string> &clients, int timeoutMs, FDEventType events = eReadReady, bool silent = false);
+
 
         // Try to send a message. A return >0 is success, =0 is invalid clientUUID, <0 is openssl error.
         /**
@@ -127,6 +140,8 @@ namespace stms {
          * @param clientUuid UUIDv4 of the client to send this message to.
          * @param msg Array of unsigned chars to send to the client
          * @param msgLen Length of `msg` in bytes (octets)
+         * @param cpy If true, the contents of msg are copied. That way, msg can be destroyed after passing it into
+         *            send. Otherwise, we read from msg directly and assume it won't be gone.
          * @return If `clientUuid` is invalid, 0 is returned. If there is an OpenSSL error, a value < 0 is returned.
          *         If `-1`, `-5`, or `-999` is returned, there was a fatal error and the connection to the client
          *         has been closed. If `-3` or `-2` is returned, you can retry immediately.
@@ -135,7 +150,7 @@ namespace stms {
          *         Otherwise, if the operation completed successfully, a positive value containing the number
          *         of bytes sent would be returned.
          */
-        std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen);
+        std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy = false);
 
         /**
          * @fn bool stms::DTLSServer::tick()

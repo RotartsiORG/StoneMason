@@ -22,6 +22,11 @@ namespace stms {
         return ret;
     }
 
+    enum UUIDType {
+        eUninitialized,
+        eUuid4
+    };
+
     extern int(*sslRand)(unsigned char *, int);
 
     std::string toHex(unsigned long long in, uint8_t places = 0);
@@ -35,11 +40,11 @@ namespace stms {
         uint8_t clockSeqLow{};
         uint8_t node[6]{};
 
-        std::string strCache;
-
         std::string buildStr();
 
         UUID() = default;
+
+        explicit UUID(UUIDType type);
 
         UUID(const UUID &rhs);
 

@@ -31,19 +31,13 @@ namespace stms {
 
     UUID genUUID4() {
         UUID uuid{};
-        int status = RAND_bytes(reinterpret_cast<unsigned char *>(&uuid),
-                                16); // UUIDs have 128 bits (16 bytes). This ignores the cacheString attrib
+        int status = RAND_bytes(reinterpret_cast<unsigned char *>(&uuid), 16); // UUIDs have 128 bits (16 octets).
         if (status != 1) {
             STMS_PUSH_WARNING("Failed to randomly generate UUID using OpenSSL! Using less secure C++ stdlib random instead");
-            uuid.timeLow = intRand(0, UINT32_MAX);
-            uuid.timeMid = intRand(0, UINT16_MAX);
-            uuid.timeHiAndVersion = intRand(0, UINT16_MAX);
-            uuid.clockSeqHiAndReserved = intRand(0, UINT8_MAX);
-            uuid.clockSeqLow = intRand(0, UINT8_MAX);
-
-            std::generate(std::begin(uuid.node), std::end(uuid.node), []() {
-                return intRand(0, UINT8_MAX);
-            });
+            std::uniform_int_distribution<uint64_t> u64Dist(0UL, UINT64_MAX);
+            auto *lowerHalf = reinterpret_cast<uint64_t *>(&uuid);
+            *lowerHalf = u64Dist(stmsRand());
+            *(lowerHalf + 1) = u64Dist(stmsRand());
         }
 
         uuid.timeHiAndVersion &= (65535u ^ ((1u << 15u) | (1u << 13u) | (1u << 12u)));
@@ -78,24 +72,24 @@ namespace stms {
     }
 
     std::string UUID::buildStr() {
-        strCache.clear();
-        strCache.reserve(36);
+        std::string ret;
+        ret.reserve(36);
 
-        strCache += toHex(timeLow, 8);
-        strCache += '-';
-        strCache += toHex(timeMid, 4);
-        strCache += '-';
-        strCache += toHex(timeHiAndVersion, 4);
-        strCache += '-';
-        strCache += toHex(clockSeqHiAndReserved, 2);
-        strCache += toHex(clockSeqLow, 2);
-        strCache += '-';
+        ret += toHex(timeLow, 8);
+        ret += '-';
+        ret += toHex(timeMid, 4);
+        ret += '-';
+        ret += toHex(timeHiAndVersion, 4);
+        ret += '-';
+        ret += toHex(clockSeqHiAndReserved, 2);
+        ret += toHex(clockSeqLow, 2);
+        ret += '-';
 
         for (uint8_t i : node) {
-            strCache += toHex(i, 2);
+            ret += toHex(i, 2);
         }
 
-        return strCache;
+        return ret;
     }
 
     UUID::UUID(const UUID &rhs) {
@@ -114,8 +108,6 @@ namespace stms {
         clockSeqHiAndReserved = rhs.clockSeqHiAndReserved;
         std::copy(std::begin(rhs.node), std::end(rhs.node), std::begin(node));
 
-        strCache = rhs.strCache;
-
         return *this;
     }
 
@@ -127,6 +119,20 @@ namespace stms {
 
     bool UUID::operator!=(const UUID &rhs) const {
         return !(*this == rhs);
+    }
+
+    UUID::UUID(UUIDType type) {
+        switch (type) {
+            case (eUuid4): {
+                *this = genUUID4();
+                break;
+            }
+
+            default: {
+                // no-op
+                break;
+            }
+        }
     }
 
     _stms_STMSInitializer::_stms_STMSInitializer() noexcept: specialValue(0) {
@@ -153,4 +159,18 @@ namespace stms {
 
         stms::quitCurl();
     }
+}
+
+// https://www.boost.org/doc/libs/1_73_0/boost/container_hash/hash.hpp
+static size_t boostHashCombine(size_t lhs, size_t rhs) {
+    return lhs ^ rhs + 0x9e3779b9 + (lhs << 6UL) + (lhs >> 2UL);
+}
+
+namespace std {
+    template<> struct hash<stms::UUID> {
+        std::size_t operator()(stms::UUID const& s) const noexcept {
+            auto *lowerHalf = reinterpret_cast<const uint64_t *>(&s);
+            return boostHashCombine(*lowerHalf, *(lowerHalf + 1));
+        }
+    };
 }

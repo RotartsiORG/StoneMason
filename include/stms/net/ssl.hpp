@@ -11,7 +11,9 @@
 #include <string>
 #include <netdb.h>
 #include <stms/async.hpp>
-#include "sys/socket.h"
+
+#include <sys/socket.h>
+#include <sys/poll.h>
 
 namespace stms {
     extern uint8_t secretCookie[secretCookieLen];
@@ -29,6 +31,11 @@ namespace stms {
     }
 
     std::string getAddrStr(const sockaddr *const addr);
+
+    enum FDEventType {
+        eWriteReady = POLLOUT,
+        eReadReady = POLLIN
+    };
 
     class _stms_SSLBase {
     protected:
@@ -63,6 +70,20 @@ namespace stms {
         void start();
 
         void stop();
+
+        /**
+         * When called on the server side, this function will block until a new client tries to connect (or when
+         * the timeout expires, whichever occurs first.).
+         *
+         * When called on the client side, this function will block until we receive a message from the server.
+         * (or when timeout expires, whichever comes first.)
+         *
+         * @param timeoutMs Maximum amount of time to block for (in milliseconds)
+         * @param events Events to wait for (`eReadReady`, `eWriteRead`, or both).
+         * @param silent If true, we will skip printing upon a timeout.
+         * @return True if we are ready (ie the specified `events` happened), false if we timed out.
+         */
+        bool waitEvents(int timeoutMs, FDEventType events = eReadReady, bool silent = false) const;
 
         [[nodiscard]] inline bool isRunning() const {
             return running;

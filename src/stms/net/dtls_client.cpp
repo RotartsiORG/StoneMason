@@ -146,7 +146,8 @@ namespace stms {
                         recvCallback(recvBuf, readLen);
                         retryRead = false;
                     } else if (readLen == -2) {
-                        STMS_INFO("Retrying SSL_read(): WANT_READ");
+                        STMS_INFO("SSL_read() returned WANT_READ. Will retry next loop.");
+                        retryRead = false;
                     } else if (readLen == -1 || readLen == -5 || readLen == -6) {
                         STMS_WARN("Connection to server closed forcefully!");
                         doShutdown = false;
@@ -212,7 +213,7 @@ namespace stms {
         pSsl = nullptr; // Don't double-free!
     }
 
-    std::future<int> DTLSClient::send(const uint8_t *const msg, int msgLen) {
+    std::future<int> DTLSClient::send(const uint8_t *const msg, int msgLen, bool copy) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
             STMS_PUSH_ERROR("DTLSClient::send called when not connected! {} bytes dropped!", msgLen);
@@ -220,8 +221,18 @@ namespace stms {
             return prom->get_future();
         }
 
+        uint8_t *passIn{};
+        if (copy) {
+            passIn = new uint8_t[msgLen];
+            std::memcpy(reinterpret_cast<void *>(passIn), msg, msgLen);
+        } else {
+            // I am forced to do this as memcpy would be impossible otherwise. We don't actually do anything with
+            // the non-const-ness though.
+            passIn = const_cast<uint8_t *>(msg);
+        }
+
         // lambda captures validated
-        pPool->submitTask([&, capProm{prom}, capMsg{msg}, capLen{msgLen}](void *) -> void * {
+        pPool->submitTask([&, capProm{prom}, capMsg{passIn}, capLen{msgLen}, capCpy{copy}](void *) -> void * {
             int ret = -3;
 
             int sendTimeouts = 0;
@@ -259,6 +270,10 @@ namespace stms {
                     STMS_WARN("SSL_write failed for the reason above! Retrying!");
                 }
                 STMS_INFO("Retrying SSL_write!");
+            }
+
+            if (capCpy) {
+                delete[] capMsg;
             }
 
             if (sendTimeouts >= maxTimeouts) {

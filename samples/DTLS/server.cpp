@@ -11,6 +11,7 @@ int main() {
     pool.start();
 
     stms::DTLSServer serv = stms::DTLSServer(&pool);
+    serv.setTimeout(5000); // 5 sec timeout
     serv.setHostAddr(); // can be left out but *shurgs*
     serv.setIPv6(false);
     serv.setCertAuth("./res/ssl/ca-pub-cert.pem", "");
@@ -33,6 +34,7 @@ int main() {
 
     serv.start();
     while (serv.tick()) {
+        serv.waitEvents(1000, stms::eReadReady, true);
         stms::flushSSLErrors();
     }
 

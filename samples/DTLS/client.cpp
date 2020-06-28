@@ -11,6 +11,7 @@ int main() {
     pool.start();
 
     stms::DTLSClient cli = stms::DTLSClient(&pool);
+    cli.setTimeout(5000); // 5 sec timeout
     cli.setHostAddr(); // can be omitted.
     cli.setIPv6(false);
     cli.setCertAuth("./res/ssl/ca-pub-cert.pem", "");
@@ -19,12 +20,18 @@ int main() {
     cli.verifyKeyMatchCert();
 
     cli.setRecvCallback([](uint8_t *in, int size) {
-
+        in[size] = '\0';
+        STMS_WARN("Client recv {}", reinterpret_cast<char *>(in));
     });
 
 
     cli.start();
-    while (cli.tick());
+    cli.send(reinterpret_cast<const uint8_t *>("Hello world!"), 12, true);
+    while (cli.tick()) {
+        cli.waitEvents(1000, stms::eReadReady, true);
+        stms::flushSSLErrors();
+    }
+
     if (cli.isRunning()) {
         cli.stop();  // Stop is automatically called in destructor.
     }

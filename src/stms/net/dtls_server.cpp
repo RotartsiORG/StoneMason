@@ -188,8 +188,8 @@ namespace stms {
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
         {
-            std::lock_guard<std::mutex> lg(serv->clientsMtx);
             cli->timeoutTimer.start();
+            std::lock_guard<std::mutex> lg(serv->clientsMtx);
             serv->clients[uuid] = cli;
         }
 
@@ -315,7 +315,8 @@ namespace stms {
                                 recvCallback(lambUUid, lambCli->pSockAddr, recvBuf, readLen);
                                 retryRead = false;
                             } else if (readLen == -2) {
-                                STMS_INFO("Retrying SSL_read(): WANT_READ");
+                                STMS_INFO("SSL_read() returned WANT_READ. Retrying next loop.");
+                                retryRead = false;
                             } else if (readLen == -1 || readLen == -5 || readLen == -6) {
                                 STMS_WARN("Connection to client {} closed forcefully!", lambUUid);
                                 lambCli->doShutdown = false;
@@ -352,8 +353,8 @@ namespace stms {
             deadClients.pop();
 
             if (clients.find(cliUuid) == clients.end()) {
-                STMS_INFO("Dead clients contained a duplicate! Ignoring duplicate...");
-                return running;
+                STMS_INFO("Dead clients contained a non-existent client! Ignoring...");
+                continue;
             }
 
             // lambda captures validated
@@ -370,7 +371,7 @@ namespace stms {
         return running;
     }
 
-    std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen) {
+    std::future<int> DTLSServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
             STMS_PUSH_ERROR("DTLSServer::send() called when stopped! Dropping {} bytes!", msgLen);
@@ -378,8 +379,17 @@ namespace stms {
             return prom->get_future();
         }
 
+        uint8_t *passIn{};
+        if (cpy) {
+            passIn = new uint8_t[msgLen];
+            std::memcpy(reinterpret_cast<void *>(passIn), msg, msgLen);
+        } else {
+            // I am forced to do this as memcpy would be impossible otherwise. We don't actually do anything with
+            // the non-const-ness though.
+            passIn = const_cast<uint8_t *>(msg);
+        }
         // lambda captures validated
-        pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{msg}, capLen{msgLen}](void *) -> void * {
+        pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{passIn}, capLen{msgLen}, capCpy{cpy}](void *) -> void * {
 
             clientsMtx.lock();
 
@@ -434,6 +444,10 @@ namespace stms {
                 STMS_INFO("Retrying SSL_write!");
             }
 
+            if (capCpy) {
+                delete[] capMsg;
+            }
+
             if (sendTimeouts >= maxTimeouts) {
                 STMS_WARN("SSL_write() timed out completely! Dropping connection!");
 
@@ -455,6 +469,75 @@ namespace stms {
         }
 
         return DTLS_get_data_mtu(clients[cli]->pSsl);
+    }
+
+    bool DTLSServer::waitEventsFrom(const std::vector<std::string> &cliUuids, int timeoutMs, FDEventType events, bool silent) {
+        std::vector<pollfd> toPoll;
+
+        for (const auto &c : cliUuids) {
+            pollfd cliPollFd{};
+            cliPollFd.events = events;
+            cliPollFd.fd = 0;
+
+            {
+                std::lock_guard<std::mutex> lg(clientsMtx);
+                if (clients.find(c) != clients.end()) {
+                    cliPollFd.fd = clients[c]->sock;
+                } else {
+                    STMS_PUSH_WARNING("Block-requested client {} doesn't exist!", c);
+                }
+            }
+
+            if (cliPollFd.fd != 0) { toPoll.push_back(cliPollFd); }
+        }
+
+        if (toPoll.empty()) {
+            STMS_PUSH_WARNING("DTLSServer::waitEventsFrom called without valid client uuids! Ignoring invocation!");
+            return false;
+        }
+
+        if (poll(toPoll.data(), toPoll.size(), timeoutMs) == 0) {
+            if (!silent) { STMS_PUSH_WARNING("Client-requested poll() timed out!"); }
+            return false;
+        }
+
+        return true;
+    }
+
+    std::vector<std::string> DTLSServer::getClientUuids() {
+        std::vector<std::string> ret;
+
+        std::lock_guard<std::mutex> lg(clientsMtx);
+        ret.reserve(clients.size());
+        for (const auto &cliPair : clients) {
+            ret.emplace_back(cliPair.first);
+        }
+
+        return ret;
+    }
+
+    std::string DTLSServer::refreshUuid(const std::string &client) {
+        UUID newUuid(eUuid4);
+        std::string newStr = newUuid.buildStr();
+
+        if (!setNewUuid(client, newStr)) {
+            return ""; // `client` is invalid! return empty.
+        }
+
+        return newStr;
+    }
+
+    bool DTLSServer::setNewUuid(const std::string &old, const std::string &newUuid) {
+        std::lock_guard<std::mutex> lg(clientsMtx);
+        if (clients.find(old) == clients.end()) {
+            STMS_PUSH_WARNING("Requested uuid edit {} -> {} failed: Client non-existent.", old, newUuid);
+            return false;
+        }
+
+        std::shared_ptr<DTLSClientRepresentation> clientValue = clients[old];
+        clients.erase(old);
+        clients[newUuid] = clientValue;
+        return true;
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {

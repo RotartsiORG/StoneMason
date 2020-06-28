@@ -42,7 +42,7 @@ namespace stms {
             recvCallback = newCb;
         }
 
-        std::future<int> send(const uint8_t *const, int);
+        std::future<int> send(const uint8_t *const, int, bool copy = false);
 
         ~DTLSClient() override;
 
