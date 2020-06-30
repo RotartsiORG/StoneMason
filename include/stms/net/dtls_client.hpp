@@ -44,6 +44,8 @@ namespace stms {
 
         std::future<int> send(const uint8_t *const, int, bool copy = false);
 
+        void waitEvents(int timeoutMs) override;
+
         ~DTLSClient() override;
 
         DTLSClient &operator=(const DTLSClient &rhs) = delete;
@@ -52,7 +54,9 @@ namespace stms {
 
         bool tick();
 
-        size_t getMtu();
+        inline size_t getMtu() {
+            return DTLS_get_data_mtu(pSsl);
+        };
 
         DTLSClient &operator=(DTLSClient &&rhs);
 

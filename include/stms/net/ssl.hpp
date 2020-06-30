@@ -71,19 +71,7 @@ namespace stms {
 
         void stop();
 
-        /**
-         * When called on the server side, this function will block until a new client tries to connect (or when
-         * the timeout expires, whichever occurs first.).
-         *
-         * When called on the client side, this function will block until we receive a message from the server.
-         * (or when timeout expires, whichever comes first.)
-         *
-         * @param timeoutMs Maximum amount of time to block for (in milliseconds)
-         * @param events Events to wait for (`eReadReady`, `eWriteRead`, or both).
-         * @param silent If true, we will skip printing upon a timeout.
-         * @return True if we are ready (ie the specified `events` happened), false if we timed out.
-         */
-        bool waitEvents(int timeoutMs, FDEventType events = eReadReady, bool silent = false) const;
+        virtual void waitEvents(int timeoutMs) = 0;
 
         [[nodiscard]] inline bool isRunning() const {
             return running;
@@ -119,6 +107,10 @@ namespace stms {
 
         inline void setIPv6(bool preferV6) {
             wantV6 = preferV6;
+        }
+
+        inline unsigned getTimeout() {
+            return timeoutMs;
         }
     };
 }

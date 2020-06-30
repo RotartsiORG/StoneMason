@@ -36,7 +36,6 @@ namespace stms {
     class CURLHandle {
     private:
         ThreadPool *pool{};
-        unsigned poolPrio = 8;
 
         std::mutex resultMtx;
 
@@ -54,7 +53,7 @@ namespace stms {
         double uploadSoFar = 0;
         double uploadTotal = 0;
 
-        CURLHandle(ThreadPool *inPool, unsigned prio = 8);
+        explicit CURLHandle(ThreadPool *inPool);
 
         ~CURLHandle();
 

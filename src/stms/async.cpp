@@ -21,24 +21,13 @@ namespace stms {
                 std::this_thread::sleep_for(std::chrono::milliseconds(parent->workerDelay));
                 continue;
             } else {
-                ThreadPool::ThreadPoolTask front = std::move(
-                        *const_cast<ThreadPool::ThreadPoolTask *>(&parent->tasks.top()));
-
+                auto front = std::move(parent->tasks.front());
                 parent->tasks.pop();
                 parent->taskQueueMtx.unlock();
 
-                front.task(front.pData);
+                front(); // execute the task UwU
+                parent->unfinishedTasks--;
             }
-        }
-    }
-
-    ThreadPool::TaskComparator::TaskComparator(const bool &rev) : reverse(rev) {}
-
-    bool ThreadPool::TaskComparator::operator()(const ThreadPoolTask &lhs, const ThreadPoolTask &rhs) const {
-        if (this->reverse) {
-            return (lhs.priority > rhs.priority);
-        } else {
-            return (lhs.priority < rhs.priority);
         }
     }
 
@@ -98,17 +87,15 @@ namespace stms {
         }
     }
 
-    std::future<void *> ThreadPool::submitTask(std::function<void *(void *)> func, void *dat, unsigned priority) {
-        ThreadPoolTask task{};
-        task.pData = dat;
-        task.priority = priority;
-        task.task = std::packaged_task<void *(void *)>(func);
+    std::future<void> ThreadPool::submitTask(const std::function<void(void)> &func) {
+        unfinishedTasks++;
+        auto task = std::packaged_task<void(void)>(func);
 
         // Save future to variable since `task` is moved.
-        auto future = task.task.get_future();
+        auto future = task.get_future();
 
         std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
-        this->tasks.push(std::move(task));
+        this->tasks.emplace(std::move(task));
 
         return future;
     }
@@ -183,25 +170,9 @@ namespace stms {
     }
 
     void ThreadPool::waitIdle() {
-        while (getNumTasks() != 0) {
+        while (unfinishedTasks.load() > 0) {
             std::this_thread::yield();
             std::this_thread::sleep_for(std::chrono::milliseconds(workerDelay));
         }
-    }
-
-    ThreadPool::ThreadPoolTask::ThreadPoolTask(ThreadPool::ThreadPoolTask &&rhs) noexcept {
-        *this = std::move(rhs);
-    }
-
-    ThreadPool::ThreadPoolTask &ThreadPool::ThreadPoolTask::operator=(ThreadPool::ThreadPoolTask &&rhs) noexcept {
-        if (&rhs == this) {
-            return *this;
-        }
-
-        this->pData = rhs.pData;
-        this->priority = rhs.priority;
-        this->task = std::move(rhs.task);
-
-        return *this;
     }
 }

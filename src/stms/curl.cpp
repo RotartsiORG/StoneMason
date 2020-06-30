@@ -36,7 +36,7 @@ namespace stms {
         return 0;
     }
 
-    CURLHandle::CURLHandle(ThreadPool *inPool, unsigned int prio) : pool(inPool), poolPrio(prio), handle(curl_easy_init()) {
+    CURLHandle::CURLHandle(ThreadPool *inPool) : pool(inPool), handle(curl_easy_init()) {
         curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCb);
         curl_easy_setopt(handle, CURLOPT_WRITEDATA, this);
 
@@ -54,15 +54,14 @@ namespace stms {
         result.clear(); // Should we require the client to explicitly request this?
         std::shared_ptr<std::promise<CURLcode>> prom = std::make_shared<std::promise<CURLcode>>();
 
-        pool->submitTask([=](void *) -> void * {
+        pool->submitTask([=]() {
             auto err = curl_easy_perform(handle); // This is typically an expensive call so we async it
             if (err != CURLE_OK) {
                 STMS_PUSH_ERROR("Failed to perform curl operation on url {}", url);
             }
 
             prom->set_value(err);
-            return nullptr;
-        }, nullptr, poolPrio);
+        });
 
         return prom->get_future();
     }

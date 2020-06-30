@@ -411,23 +411,5 @@ namespace stms {
 
         return true;
     }
-
-    bool _stms_SSLBase::waitEvents(int pollTimeoutMs, FDEventType events, bool silent) const {
-        pollfd servPollFd{};
-        servPollFd.events = events;
-        servPollFd.fd = sock;
-
-        if (poll(&servPollFd, 1, pollTimeoutMs) == 0) {
-            if (!silent) { STMS_PUSH_WARNING("Client-requested sock poll() timed out!"); }
-            return false;
-        }
-
-        if (!(servPollFd.revents & events)) {
-            if (!silent) { STMS_PUSH_WARNING("Client-requested sock poll() returned without requested events!"); }
-            return false;
-        }
-
-        return true;
-    }
 }
 

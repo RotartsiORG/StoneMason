@@ -4,6 +4,9 @@
 
 # StoneMason TODO list
 
+### General
+1. Should I really use priority_queue for the ThreadPool?
+
 ### Physics
 1. Learn Bullet Physics (bullet3: https://github.com/bulletphysics/bullet3) 
 
@@ -11,7 +14,6 @@
 1. Make DTLSServer/Client code protocol agnostic (work with DTLS/UDP or TLS/TCP )
     - Add ability to kick any client based on uuid
 2. Raw server with no OpenSSL encryption with same interface.
-3. Add support for kicking clients & list of all clients (by uuid). Also add support for blockUntilMessageFrom
 
 ### Audio
 1. Device Enumeration support (both playback and capture devices)

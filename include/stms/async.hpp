@@ -20,33 +20,11 @@ namespace stms {
 
     class ThreadPool {
     private:
-        struct ThreadPoolTask {
-        public:
-            unsigned priority = 8;
-            std::packaged_task<void *(void *)> task;
-            void *pData{};
-
-            ThreadPoolTask() = default;
-
-            ThreadPoolTask(ThreadPoolTask &&rhs) noexcept;
-
-            ThreadPoolTask &operator=(ThreadPoolTask &&rhs) noexcept;
-        };
-
-        class TaskComparator {
-        private:
-            bool reverse;
-        public:
-            explicit TaskComparator(const bool &rev = false);
-
-            bool operator()(const ThreadPoolTask &lhs, const ThreadPoolTask &rhs) const;
-        };
-
         std::recursive_mutex taskQueueMtx;
         std::recursive_mutex workerMtx;
 
-        std::priority_queue<ThreadPoolTask, std::vector<ThreadPoolTask>, TaskComparator> tasks
-                = std::priority_queue<ThreadPoolTask, std::vector<ThreadPoolTask>, TaskComparator>();
+        std::atomic<int> unfinishedTasks = std::atomic<int>(0);
+        std::queue<std::packaged_task<void (void)>> tasks;
         std::deque<std::thread> workers;
 
         bool running = false;
@@ -91,7 +69,7 @@ namespace stms {
         // No new tasks waiting in queue would be accepted.
         void stop(bool block = true);
 
-        std::future<void *> submitTask(std::function<void *(void *)> func, void *dat, unsigned priority);
+        std::future<void> submitTask(const std::function<void(void)> &func);
 
         void pushThread();
 

@@ -83,11 +83,10 @@ namespace stms {
         ret += '-';
         ret += toHex(clockSeqHiAndReserved, 2);
         ret += toHex(clockSeqLow, 2);
-        ret += '-';
 
-        for (uint8_t i : node) {
-            ret += toHex(i, 2);
-        }
+        ret += std::accumulate(std::begin(node), std::end(node), std::string("-"), [](std::string a, uint8_t b) {
+            return std::move(a) + toHex(b, 2);
+        });
 
         return ret;
     }

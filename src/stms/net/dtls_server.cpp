@@ -218,10 +218,9 @@ namespace stms {
         for (auto &pair : clients) {
             // Lambda captures validated
             pPool->submitTask([&, capUuid = std::string(pair.first),
-                                      capStr = std::string(pair.second->addrStr), this](void *in) -> void * {
+                                      capStr = std::string(pair.second->addrStr), this]() {
                 disconnectCallback(capUuid, capStr);
-                return nullptr;
-            }, nullptr, threadPoolPriority);
+            });
         }
         clients.clear();
     }
@@ -263,10 +262,9 @@ namespace stms {
                 STMS_PUSH_WARNING("A client tried to connect with an unsupported family {}! Refusing to connect!", BIO_ADDR_family(cli->pBioAddr));
             } else {
                 // Lambda captures validated
-                pPool->submitTask([&, capCli{cli}](void *in) -> void * {
+                pPool->submitTask([&, capCli{cli}]() {
                     handleClientConnection(capCli, this);
-                    return nullptr;
-                }, this, threadPoolPriority);
+                });
             }
         }
 
@@ -294,7 +292,7 @@ namespace stms {
                     client.second->isReading = true;
                     // lambda captures validated
                     pPool->submitTask([&, lambCli = std::shared_ptr<DTLSClientRepresentation>(client.second),
-                                              lambUUid = std::string(client.first)](void *in) -> void * {
+                                              lambUUid = std::string(client.first)]() {
 
                         bool retryRead = true;
                         int readTimeouts = 0;
@@ -342,8 +340,7 @@ namespace stms {
                             deadClients.push(lambUUid);
                         }
                         lambCli->isReading = false;
-                        return nullptr;
-                    }, nullptr, threadPoolPriority);
+                    });
                 }
             }
         }
@@ -359,10 +356,9 @@ namespace stms {
 
             // lambda captures validated
             pPool->submitTask([&, capUuid = std::string(cliUuid),
-                                      capStr = std::string(clients[cliUuid]->addrStr), this](void *in) -> void * {
+                                      capStr = std::string(clients[cliUuid]->addrStr), this]() {
                 disconnectCallback(capUuid, capStr);
-                return nullptr;
-            }, nullptr, threadPoolPriority);
+            });
 
             STMS_INFO("Client {} at {} disconnected!", cliUuid, clients[cliUuid]->addrStr);
             clients.erase(cliUuid);
@@ -382,14 +378,14 @@ namespace stms {
         uint8_t *passIn{};
         if (cpy) {
             passIn = new uint8_t[msgLen];
-            std::memcpy(reinterpret_cast<void *>(passIn), msg, msgLen);
+            std::copy(msg, msg + msgLen, passIn);
         } else {
-            // I am forced to do this as memcpy would be impossible otherwise. We don't actually do anything with
+            // I am forced to do this as std::copy would be impossible otherwise. We don't actually do anything with
             // the non-const-ness though.
             passIn = const_cast<uint8_t *>(msg);
         }
         // lambda captures validated
-        pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{passIn}, capLen{msgLen}, capCpy{cpy}](void *) -> void * {
+        pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{passIn}, capLen{msgLen}, capCpy{cpy}]() {
 
             clientsMtx.lock();
 
@@ -397,7 +393,7 @@ namespace stms {
                 clientsMtx.unlock();
                 STMS_PUSH_ERROR("DTLSServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid, msgLen);
                 prom->set_value(0);
-                return nullptr;
+                return;
             }
 
             std::shared_ptr<DTLSClientRepresentation> cli = clients[capUuid];
@@ -418,7 +414,7 @@ namespace stms {
 
                 if (ret > 0) {
                     capProm->set_value(ret);
-                    return nullptr;
+                    return;
                 }
 
                 if (ret == -3) {
@@ -430,14 +426,14 @@ namespace stms {
                     std::lock_guard<std::mutex> lg(clientsMtx);
                     deadClients.push(capUuid);
                     capProm->set_value(ret);
-                    return nullptr;
+                    return;
                 } else if (ret == -999) {
                     STMS_WARN("Kicking client {} at {} for: Unknown error", capUuid, cli->addrStr);
 
                     std::lock_guard<std::mutex> lg(clientsMtx);
                     deadClients.push(capUuid);
                     capProm->set_value(ret);
-                    return nullptr;
+                    return;
                 } else if (ret < 1) {
                     STMS_WARN("SSL_write failed for the reason above! Retrying!");
                 }
@@ -455,8 +451,7 @@ namespace stms {
                 deadClients.push(capUuid);
             }
             capProm->set_value(ret);
-            return nullptr;
-        }, nullptr, threadPoolPriority);
+        });
 
         return prom->get_future();
     }
@@ -471,37 +466,32 @@ namespace stms {
         return DTLS_get_data_mtu(clients[cli]->pSsl);
     }
 
-    bool DTLSServer::waitEventsFrom(const std::vector<std::string> &cliUuids, int timeoutMs, FDEventType events, bool silent) {
+    void DTLSServer::waitEvents(int timeoutMs) {
+        // sleep for a bit and wait for clients that connected in the previous tick to become noticed.
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitEventsSleepAmount));
+
         std::vector<pollfd> toPoll;
+        toPoll.reserve(getNumClients() + 1);
 
-        for (const auto &c : cliUuids) {
+        for (const auto &c : getClientUuids()) {
             pollfd cliPollFd{};
-            cliPollFd.events = events;
-            cliPollFd.fd = 0;
+            cliPollFd.events = POLLIN;
 
-            {
-                std::lock_guard<std::mutex> lg(clientsMtx);
-                if (clients.find(c) != clients.end()) {
-                    cliPollFd.fd = clients[c]->sock;
-                } else {
-                    STMS_PUSH_WARNING("Block-requested client {} doesn't exist!", c);
-                }
+            std::lock_guard<std::mutex> lg(clientsMtx);
+            if (clients.find(c) != clients.end()) {
+                cliPollFd.fd = clients[c]->sock;
+                toPoll.push_back(cliPollFd);
+            } else {
+                STMS_PUSH_WARNING("Client {} doesn't exist! `clients` was modified after we polled it!", c);
             }
-
-            if (cliPollFd.fd != 0) { toPoll.push_back(cliPollFd); }
         }
 
-        if (toPoll.empty()) {
-            STMS_PUSH_WARNING("DTLSServer::waitEventsFrom called without valid client uuids! Ignoring invocation!");
-            return false;
-        }
+        pollfd servPollFd{};
+        servPollFd.events = POLLIN;
+        servPollFd.fd = sock;
+        toPoll.emplace_back(servPollFd);
 
-        if (poll(toPoll.data(), toPoll.size(), timeoutMs) == 0) {
-            if (!silent) { STMS_PUSH_WARNING("Client-requested poll() timed out!"); }
-            return false;
-        }
-
-        return true;
+        poll(toPoll.data(), toPoll.size(), timeoutMs);
     }
 
     std::vector<std::string> DTLSServer::getClientUuids() {
@@ -538,6 +528,18 @@ namespace stms {
         clients.erase(old);
         clients[newUuid] = clientValue;
         return true;
+    }
+
+    void DTLSServer::kickClient(const std::string &cliId) {
+        std::lock_guard<std::mutex> lg(clientsMtx);
+        if (clients.find(cliId) != clients.end()) {
+            pPool->submitTask([&, capUuid = std::string(cliId), capStr = std::string(clients[cliId]->addrStr)]() {
+                disconnectCallback(capUuid, capStr);
+            });
+            clients.erase(cliId);
+        } else {
+            STMS_PUSH_WARNING("Tried to kick non-existent client {}!", cliId);
+        }
     }
 
     DTLSClientRepresentation::~DTLSClientRepresentation() {

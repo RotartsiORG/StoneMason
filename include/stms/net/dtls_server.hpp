@@ -129,7 +129,9 @@ namespace stms {
             return clients.size();
         };
 
-        bool waitEventsFrom(const std::vector<std::string> &clients, int timeoutMs, FDEventType events = eReadReady, bool silent = false);
+        void waitEvents(int timeoutMs) override;
+
+        void kickClient(const std::string &cliId);
 
 
         // Try to send a message. A return >0 is success, =0 is invalid clientUUID, <0 is openssl error.

@@ -125,7 +125,7 @@ namespace stms {
         if (!isReading) {
             isReading = true;
             // lambda captures validated
-            pPool->submitTask([&](void *in) -> void * {
+            pPool->submitTask([&]() {
 
                 bool retryRead = true;
                 int readTimeouts = 0;
@@ -170,8 +170,7 @@ namespace stms {
                     stop();
                 }
                 isReading = false;
-                return nullptr;
-            }, nullptr, threadPoolPriority);
+            });
         }
 
         return running;
@@ -224,15 +223,15 @@ namespace stms {
         uint8_t *passIn{};
         if (copy) {
             passIn = new uint8_t[msgLen];
-            std::memcpy(reinterpret_cast<void *>(passIn), msg, msgLen);
+            std::copy(msg, msg + msgLen, passIn);
         } else {
-            // I am forced to do this as memcpy would be impossible otherwise. We don't actually do anything with
+            // I am forced to do this as std::copy would be impossible otherwise. We don't actually do anything with
             // the non-const-ness though.
             passIn = const_cast<uint8_t *>(msg);
         }
 
         // lambda captures validated
-        pPool->submitTask([&, capProm{prom}, capMsg{passIn}, capLen{msgLen}, capCpy{copy}](void *) -> void * {
+        pPool->submitTask([&, capProm{prom}, capMsg{passIn}, capLen{msgLen}, capCpy{copy}]() {
             int ret = -3;
 
             int sendTimeouts = 0;
@@ -248,7 +247,7 @@ namespace stms {
 
                 if (ret > 0) {
                     capProm->set_value(ret);
-                    return nullptr;
+                    return;
                 }
 
                 if (ret == -3) {
@@ -259,13 +258,13 @@ namespace stms {
 
                     stop();
                     capProm->set_value(ret);
-                    return nullptr;
+                    return;
                 } else if (ret == -999) {
                     STMS_WARN("Disconnecting from server at {} for: Unknown error", addrStr);
 
                     stop();
                     capProm->set_value(ret);
-                    return nullptr;
+                    return;
                 } else if (ret < 1) {
                     STMS_WARN("SSL_write failed for the reason above! Retrying!");
                 }
@@ -282,13 +281,16 @@ namespace stms {
             }
 
             capProm->set_value(ret);
-            return nullptr;
-        }, nullptr, threadPoolPriority);
+        });
 
         return prom->get_future();
     }
 
-    size_t DTLSClient::getMtu() {
-        return DTLS_get_data_mtu(pSsl);
+    void DTLSClient::waitEvents(int pollTimeoutMs) {
+        pollfd servPollFd{};
+        servPollFd.events = POLLIN;
+        servPollFd.fd = sock;
+
+        poll(&servPollFd, 1, pollTimeoutMs);
     }
 }

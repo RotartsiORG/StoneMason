@@ -25,7 +25,7 @@ namespace {
                    << f.identifier << ">";
     }
 
-    void *doWork(void *wait) {
+    WorkArgs *doWork(void *wait) {
         auto *args = reinterpret_cast<WorkArgs *>(wait);
         std::this_thread::sleep_for(std::chrono::milliseconds(args->wait));
 
@@ -41,9 +41,9 @@ namespace {
         std::string expecteOrder;
         std::mutex orderMtx;
 
-        std::vector<WorkArgs> workArgs;
+        std::vector<WorkArgs *> results;
 
-        std::vector<std::future<void *>> futures;
+        std::vector<WorkArgs> workArgs;
 
         void SetUp() override {
             this->pool = new stms::ThreadPool();
@@ -63,9 +63,11 @@ namespace {
             }
 
             order.clear();
-            futures.clear();
+            results.clear();
+            results.resize(numTasks);
+            STMS_INFO("MAP CLEAR");
             for (int i = 0; i < numTasks; i++) {
-                futures.emplace_back(pool->submitTask(doWork, &workArgs.at(i), numTasks - i));
+                pool->submitTask([&, capI{i}]() { results[capI] = doWork(&workArgs.at(capI)); STMS_INFO("ASS {}", capI); });
             }
 
             EXPECT_FALSE(pool->isRunning());
@@ -76,13 +78,15 @@ namespace {
         void stopPool() {
             pool->waitIdle();
 
-            for (int i = 0; i < numTasks; i++) {
-                EXPECT_EQ(*reinterpret_cast<WorkArgs *>(futures.at(i).get()), workArgs.at(i));
-            }
-
             EXPECT_TRUE(pool->isRunning());
             pool->stop(true);
             EXPECT_FALSE(pool->isRunning());
+
+            for (int i = 0; i < numTasks; i++) {
+                STMS_INFO("Before read {}", i);
+                EXPECT_EQ(*results.at(i), workArgs.at(i));
+                STMS_INFO("After read {}", i);
+            }
 
             // Skip order checking; it's not THAT important (i hope)
             std::lock_guard<std::mutex> lg(orderMtx);

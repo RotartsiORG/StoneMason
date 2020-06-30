@@ -34,7 +34,7 @@ int main() {
 
     serv.start();
     while (serv.tick()) {
-        serv.waitEvents(1000, stms::eReadReady, true);
+        serv.waitEvents(32); // 30 fps
         stms::flushSSLErrors();
     }
 

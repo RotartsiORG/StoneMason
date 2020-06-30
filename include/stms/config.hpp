@@ -29,6 +29,7 @@ namespace stms {
     constexpr char logDir[] = "./stms_logs/"; // must have trailing slash
 
     constexpr unsigned certAndCipherLen = 256;
+    constexpr int waitEventsSleepAmount = 4;
     constexpr int sslShutdownMaxRetries = 10;
     constexpr int minIoTimeout = 1000;
     constexpr int maxConnectionTimeouts = 1;

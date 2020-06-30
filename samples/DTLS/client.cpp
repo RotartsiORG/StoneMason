@@ -28,7 +28,7 @@ int main() {
     cli.start();
     cli.send(reinterpret_cast<const uint8_t *>("Hello world!"), 12, true);
     while (cli.tick()) {
-        cli.waitEvents(1000, stms::eReadReady, true);
+        cli.waitEvents(32); // 30 fps
         stms::flushSSLErrors();
     }
 
