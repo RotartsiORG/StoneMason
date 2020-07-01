@@ -24,37 +24,44 @@
 #include "stms/stms.hpp"
 
 namespace stms {
-    struct DTLSClientRepresentation {
-        uint8_t timeouts = 0;
+    class SSLServer;
+
+    struct ClientRepresentation {
         std::string addrStr{};
-        BIO_ADDR *pBioAddr = nullptr;
         sockaddr *pSockAddr = nullptr;
         socklen_t sockAddrLen{};
-        BIO *pBio = nullptr;
         SSL *pSsl = nullptr;
         int sock = 0;
         bool doShutdown = true;
         bool isReading = false;
-        stms::Stopwatch timeoutTimer;
 
-        DTLSClientRepresentation() = default;
+        struct DTLSSpecific {
+            BIO_ADDR *pBioAddr = nullptr;
+            BIO *pBio = nullptr;
+            stms::Stopwatch timeoutTimer;
+        };
 
-        virtual ~DTLSClientRepresentation();
+        DTLSSpecific *dtls = nullptr;
 
-        DTLSClientRepresentation &operator=(const DTLSClientRepresentation &rhs) = delete;
+        SSLServer *serv = nullptr;
 
-        DTLSClientRepresentation(const DTLSClientRepresentation &rhs) = delete;
+        ClientRepresentation() = default;
 
-        DTLSClientRepresentation &operator=(DTLSClientRepresentation &&rhs) noexcept;
+        virtual ~ClientRepresentation();
 
-        DTLSClientRepresentation(DTLSClientRepresentation &&rhs) noexcept;
+        ClientRepresentation &operator=(const ClientRepresentation &rhs) = delete;
 
-        void shutdownClient() const;
+        ClientRepresentation(const ClientRepresentation &rhs) = delete;
+
+        ClientRepresentation &operator=(ClientRepresentation &&rhs) noexcept;
+
+        ClientRepresentation(ClientRepresentation &&rhs) noexcept;
+
+        void shutdownClient();
     };
 
-    class DTLSServer;
-
-    static void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
+    static void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
+    static void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
 
     enum SSLCacheModeBits {
         eBoth = SSL_SESS_CACHE_BOTH,
@@ -66,9 +73,9 @@ namespace stms {
         eNoInternalStore = SSL_SESS_CACHE_NO_INTERNAL_STORE
     };
 
-    class DTLSServer : public _stms_SSLBase {
+    class SSLServer : public _stms_SSLBase {
     private:
-        std::unordered_map<std::string, std::shared_ptr<DTLSClientRepresentation>> clients;
+        std::unordered_map<std::string, std::shared_ptr<ClientRepresentation>> clients;
         std::queue<std::string> deadClients;
         std::mutex clientsMtx;
 
@@ -81,27 +88,27 @@ namespace stms {
         std::function<void(const std::string &, const std::string &)> disconnectCallback = [](const std::string &,
                                                                                               const std::string &) {};
 
-        friend void handleClientConnection(const std::shared_ptr<DTLSClientRepresentation> &cli, DTLSServer *voidServ);
+        friend void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
 
-        friend struct DTLSClientRepresentation;
+        friend void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *serv);
+
+        friend struct ClientRepresentation;
 
         void onStop() override;
 
     public:
 
-        DTLSServer() = default;
+        explicit SSLServer(stms::ThreadPool *pool, bool isUdp);
 
-        explicit DTLSServer(stms::ThreadPool *pool);
+        ~SSLServer() override;
 
-        ~DTLSServer() override;
+        SSLServer &operator=(const SSLServer &rhs) = delete;
 
-        DTLSServer &operator=(const DTLSServer &rhs) = delete;
+        SSLServer(const SSLServer &rhs) = delete;
 
-        DTLSServer(const DTLSServer &rhs) = delete;
+        SSLServer &operator=(SSLServer &&rhs) noexcept;
 
-        DTLSServer &operator=(DTLSServer &&rhs) noexcept;
-
-        DTLSServer(DTLSServer &&rhs) noexcept;
+        SSLServer(SSLServer &&rhs) noexcept;
 
         inline void
         setRecvCallback(const std::function<void(const std::string &, const sockaddr *const, uint8_t *, int)> &newCb) {
@@ -136,7 +143,7 @@ namespace stms {
 
         // Try to send a message. A return >0 is success, =0 is invalid clientUUID, <0 is openssl error.
         /**
-         * @fn int stms::DTLSServer::send(const std::string &clientUuid, char *msg, std::size_t msgLen)
+         * @fn int stms::SSLServer::send(const std::string &clientUuid, char *msg, std::size_t msgLen)
          * @brief Send an message (in the form of an array of `uint8_t`s) to a client.
          *
          * @param clientUuid UUIDv4 of the client to send this message to.
@@ -155,7 +162,7 @@ namespace stms {
         std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy = false);
 
         /**
-         * @fn bool stms::DTLSServer::tick()
+         * @fn bool stms::SSLServer::tick()
          * @brief Tick the server, to be called at regular intervals.
          *
          * `tick()` accepts incoming client connections and
@@ -170,6 +177,13 @@ namespace stms {
             SSL_CTX_set_session_cache_mode(pCtx, flags);
         }
 
+        /**
+         * Gets the PMTU of the connection the a specific client.
+         * **ONLY USE ON DTLS CONNECTIONS**
+         *
+         * @param cli DTLS client to query the PMTU of
+         * @return The PMTU (See OpenSSL docs for `DTLS_get_data_mtu`)
+         */
         size_t getMtu(const std::string &cli);
     };
 }

@@ -2,17 +2,17 @@
 // Created by grant on 5/13/20.
 //
 
-#include "stms/net/dtls_server.hpp"
-#include "stms/net/dtls_client.hpp"
+#include "stms/net/ssl_server.hpp"
+#include "stms/net/ssl_client.hpp"
 
 int main() {
     stms::initAll();
     stms::ThreadPool pool;
     pool.start();
 
-    stms::DTLSClient cli = stms::DTLSClient(&pool);
+    stms::SSLClient cli = stms::SSLClient(&pool, false);
     cli.setTimeout(5000); // 5 sec timeout
-    cli.setHostAddr(); // can be omitted.
+    cli.setHostAddr("3000", "127.0.0.1"); // can be omitted.
     cli.setIPv6(false);
     cli.setCertAuth("./res/ssl/ca-pub-cert.pem", "");
     cli.setPublicCert("./res/ssl/cli-pub-cert.pem");

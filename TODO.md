@@ -11,7 +11,7 @@
 1. Learn Bullet Physics (bullet3: https://github.com/bulletphysics/bullet3) 
 
 ### Networking
-1. Make DTLSServer/Client code protocol agnostic (work with DTLS/UDP or TLS/TCP )
+1. Make SSLServer/Client code protocol agnostic (work with DTLS/UDP or TLS/TCP )
     - Add ability to kick any client based on uuid
 2. Raw server with no OpenSSL encryption with same interface.
 

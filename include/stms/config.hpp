@@ -33,7 +33,7 @@ namespace stms {
     constexpr int sslShutdownMaxRetries = 10;
     constexpr int minIoTimeout = 1000;
     constexpr int maxConnectionTimeouts = 1;
-    constexpr int threadPoolPriority = 8;
+    constexpr int tcpListenBacklog = 8;
     constexpr int maxRecvLen = 16384; // RFC 8449
     constexpr int secretCookieLen = 16;
 

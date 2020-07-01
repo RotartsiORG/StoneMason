@@ -174,14 +174,19 @@ namespace stms {
         if (ok) {
             STMS_INFO("Trusting certificate: {}", name);
         } else {
-            STMS_INFO("Rejecting certificate: {}", name);
+            STMS_PUSH_WARNING("Rejecting certificate: {}", name);
         }
         return ok;
     }
 
 
-    _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool) : isServ(isServ), pPool(pool) {
-        pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
+    _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool, bool isUdp) : isServ(isServ), isUdp(isUdp), pPool(pool) {
+
+        if (isUdp) {
+            pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
+        } else {
+            pCtx = SSL_CTX_new(isServ ? TLS_server_method() : TLS_client_method());
+        }
 
         SSL_CTX_set_verify(pCtx, SSL_VERIFY_PEER, verifyCert);
 
@@ -201,7 +206,7 @@ namespace stms {
 
         running = false;
         onStop();
-        if (sock == 0) {
+        if (sock < 1) {
             STMS_INFO("DTLS server/client stopped. Resources freed. (Skipped socket as fd was 0)");
             return;
         }
@@ -253,7 +258,7 @@ namespace stms {
             i++;
         }
 
-        STMS_WARN("No IP addresses resolved from supplied address and port can be used to host the DTLS Server!");
+        STMS_WARN("No IP addresses resolved from supplied address and port can be used!");
         running = false;
     }
 
@@ -265,51 +270,98 @@ namespace stms {
 
         if (sock != 0) {
             if (shutdown(sock, 0) == -1) {
-                STMS_INFO("Failed to shutdown socket: {}", strerror(errno));
+                STMS_PUSH_WARNING("Failed to shutdown socket: {}", strerror(errno));
             }
             if (close(sock) == -1) {
-                STMS_INFO("Failed to close socket: {}", strerror(errno));
+                STMS_PUSH_WARNING("Failed to close socket: {}", strerror(errno));
             }
             sock = 0;
         }
 
         sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
         if (sock == -1) {
-            STMS_INFO("Candidate {}: Unable to create socket: {}", num, strerror(errno));
+            STMS_PUSH_WARNING("Candidate {}: Unable to create socket: {}", num, strerror(errno));
             return false;
         }
 
         if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-            STMS_INFO("Candidate {}: Failed to set socket to non-blocking: {}", num, strerror(errno));
+            STMS_PUSH_WARNING("Candidate {}: Failed to set socket to non-blocking: {}", num, strerror(errno));
         }
 
         if (addr->ai_family == AF_INET6) {
             if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
-                STMS_INFO("Candidate {}: Failed to setsockopt to allow IPv4 connections: {}", num, strerror(errno));
+                STMS_PUSH_WARNING("Candidate {}: Failed to setsockopt to allow IPv4 connections: {}", num, strerror(errno));
             }
         }
 
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) == -1) {
-            STMS_INFO(
+            STMS_PUSH_WARNING(
                     "Candidate {}: Failed to setscokopt to reuse address (this may result in 'Socket in Use' errors): {}",
                     num, strerror(errno));
         }
 
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(int)) == -1) {
-            STMS_INFO(
+            STMS_PUSH_WARNING(
                     "Candidate {}: Failed to setsockopt to reuse port (this may result in 'Socket in Use' errors): {}",
                     num, strerror(errno));
         }
 
         if (isServ) {
+            STMS_INFO("Bind");
             if (bind(sock, addr->ai_addr, addr->ai_addrlen) == -1) {
-                STMS_INFO("Candidate {}: Unable to bind socket: {}", num, strerror(errno));
+                STMS_PUSH_WARNING("Candidate {}: Unable to bind socket: {}", num, strerror(errno));
                 return false;
             }
+
+            if (!isUdp) {
+                STMS_INFO("listen");
+                if (listen(sock, tcpListenBacklog) == -1) {
+                    STMS_PUSH_WARNING("Candidate {}: listen() failed: {}", num, strerror(errno));
+                }
+            }
         } else {
+            STMS_INFO("connect");
             if (connect(sock, addr->ai_addr, addr->ai_addrlen) == -1) {
-                STMS_INFO("Candidate {}: Failed to connect socket: {}", num, strerror(errno));
-                return false;
+
+                /*
+                 * EINPROGRESS (see `man connect`)
+                 *
+                 * The socket is nonblocking and the connection cannot be completed
+                 * immediately.   (UNIX domain sockets failed with EAGAIN instead.)
+                 * It is possible to select(2) or poll(2) for completion by select‐
+                 * ing the socket for writing.  After select(2) indicates writabil‐
+                 * ity, use getsockopt(2) to read  the  SO_ERROR  option  at  level
+                 * SOL_SOCKET to determine whether connect() completed successfully
+                 * (SO_ERROR is zero) or unsuccessfully (SO_ERROR  is  one  of  the
+                 * usual  error  codes  listed  here, explaining the reason for the
+                 * failure).
+                 */
+                if (errno == EINPROGRESS) { // should we also be testing for EAGAIN?
+                    pollfd toPoll{};
+                    toPoll.events = POLLOUT;
+                    toPoll.fd = sock;
+
+                    if (poll(&toPoll, 1, static_cast<int>(timeoutMs < minIoTimeout ? minIoTimeout : timeoutMs)) < 1) {
+                        STMS_PUSH_WARNING("Candidate {}: connect() timed out!", num);
+                        return false;
+                    }
+
+                    int errcode = -999;
+                    socklen_t errlen = sizeof(int);
+                    if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &errcode, &errlen) == -1) {
+                        STMS_PUSH_WARNING("Candidate {}: connect() state querying failed: {}", num, strerror(errno));
+                        return false;
+                    }
+
+                    if (errcode != 0) {
+                        STMS_PUSH_WARNING("Candidate {}: connect() failed: {}", num, strerror(errcode));
+                    }
+
+                    // yay connect was successful!
+                } else {
+                    STMS_PUSH_WARNING("Candidate {}: Failed to connect socket: {}", num, strerror(errno));
+                    return false;
+                }
             }
         }
 
@@ -327,27 +379,35 @@ namespace stms {
         // no-op
     }
 
-    bool _stms_SSLBase::blockUntilReady(int fd, SSL *ssl, short event) {
+    bool _stms_SSLBase::blockUntilReady(int fd, SSL *ssl, short event) const {
         pollfd cliPollFd{};
         cliPollFd.events = event;
         cliPollFd.fd = fd;
 
-        timeval timevalTimeout{};
-        DTLSv1_get_timeout(ssl, &timevalTimeout);
-        int recvTimeout = static_cast<int>(timevalTimeout.tv_sec * 1000 + timevalTimeout.tv_usec / 1000);
-//        recvTimeout = recvTimeout > minIoTimeout ? recvTimeout : minIoTimeout;
+        int recvTimeout;
+        if (isUdp) {
+            timeval timevalTimeout{};
+            DTLSv1_get_timeout(ssl, &timevalTimeout);
+            recvTimeout = static_cast<int>(timevalTimeout.tv_sec * 1000 + timevalTimeout.tv_usec / 1000);
+        } else {
+            recvTimeout = static_cast<int>(timeoutMs);
+        }
+
+        recvTimeout = recvTimeout > minIoTimeout ? recvTimeout : minIoTimeout;
 
         STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
 
         if (poll(&cliPollFd, 1, recvTimeout) == 0) {
             STMS_PUSH_WARNING("poll() timed out!");
-            DTLSv1_handle_timeout(ssl);
+
+            if (isUdp) {  DTLSv1_handle_timeout(ssl); }
+
             return false;
         }
 
         if (!(cliPollFd.revents & event)) {
             STMS_PUSH_WARNING("Desired flags not set in poll()!");
-            DTLSv1_handle_timeout(ssl);
+            if (isUdp) { DTLSv1_handle_timeout(ssl); }
             return false;
         }
 
@@ -361,8 +421,15 @@ namespace stms {
     void _stms_SSLBase::setHostAddr(const std::string &port, const std::string &addr) {
         addrinfo hints{};
         hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_DGRAM;
-        hints.ai_protocol = IPPROTO_UDP;
+
+        if (isUdp) {
+            hints.ai_socktype = SOCK_DGRAM;
+            hints.ai_protocol = IPPROTO_UDP;
+        } else {
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_protocol = IPPROTO_TCP;
+        }
+
         if (addr == "any") {
             hints.ai_flags = AI_PASSIVE;
         }

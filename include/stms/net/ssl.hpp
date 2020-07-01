@@ -40,19 +40,27 @@ namespace stms {
     class _stms_SSLBase {
     protected:
         bool isServ{};
+        bool isUdp{};
+
         bool wantV6 = true;
+
         std::string addrStr;
         addrinfo *pAddrCandidates{};
         addrinfo *pAddr{};
+
         SSL_CTX *pCtx{};
         int sock = 0;
+
         unsigned timeoutMs = 1000;
         int maxTimeouts = 9;
+
         bool running = false;
+
         stms::ThreadPool *pPool{};
+
         std::string password{};
 
-        explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool);
+        explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool, bool isUdp);
 
         virtual void onStart();
         virtual void onStop();
@@ -64,7 +72,7 @@ namespace stms {
         virtual ~_stms_SSLBase();
 
         // Returns true if ready
-        static bool blockUntilReady(int fd, SSL *ssl, short event);
+        bool blockUntilReady(int fd, SSL *ssl, short event) const;
 
     public:
         void start();

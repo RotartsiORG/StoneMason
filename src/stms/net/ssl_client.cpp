@@ -4,34 +4,40 @@
 
 #include <stms/logging.hpp>
 #include <poll.h>
-#include "stms/net/dtls_client.hpp"
+#include "stms/net/ssl_client.hpp"
 
 namespace stms {
 
-    DTLSClient::DTLSClient(stms::ThreadPool *pool) : _stms_SSLBase(false, pool) {}
+    SSLClient::SSLClient(stms::ThreadPool *pool, bool isUdp) : _stms_SSLBase(false, pool, isUdp) {}
 
-    DTLSClient::~DTLSClient() {
+    SSLClient::~SSLClient() {
         if (running) {
-            STMS_PUSH_WARNING("DTLSClient destroyed whilst it was still running! Stopping it now...");
+            STMS_PUSH_WARNING("SSLClient destroyed whilst it was still running! Stopping it now...");
             stop();
         }
     }
 
-    void DTLSClient::onStart() {
+    void SSLClient::onStart() {
         doShutdown = false;
-        pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
-        BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &pAddr->ai_addr);
 
-        timeval timeout{};
-        timeout.tv_sec = timeoutMs / 1000;
-        timeout.tv_usec = (timeoutMs % 1000) * 1000;
-        BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
-        BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+        if (isUdp) {
+            pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
+            BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &pAddr->ai_addr);
 
-        BIO_ctrl(pBio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, nullptr);
+            timeval timeout{};
+            timeout.tv_sec = timeoutMs / 1000;
+            timeout.tv_usec = (timeoutMs % 1000) * 1000;
+            BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+            BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
 
-        pSsl = SSL_new(pCtx);
-        SSL_set_bio(pSsl, pBio, pBio);
+            BIO_ctrl(pBio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, nullptr);
+
+            pSsl = SSL_new(pCtx);
+            SSL_set_bio(pSsl, pBio, pBio);
+        } else {
+            pSsl = SSL_new(pCtx);
+            SSL_set_fd(pSsl, sock);
+        }
 
         STMS_INFO("DTLS client about to preform handshake!");
         bool doHandshake = true;
@@ -59,13 +65,13 @@ namespace stms {
                     return;
                 } else if (handshakeRet == -2) { // Read
                     STMS_INFO("WANT_READ returned from SSL_connect! Blocking until read-ready...");
-                    if (!stms::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                    if (!blockUntilReady(sock, pSsl, POLLIN)) {
                         STMS_WARN("SSL_connect() WANT_READ timed out!");
                         continue;
                     }
                 } else if (handshakeRet == -3) { // Write
                     STMS_INFO("WANT_WRITE returned from SSL_connect! Blocking until write-ready...");
-                    if (!stms::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
+                    if (!blockUntilReady(sock, pSsl, POLLOUT)) {
                         STMS_WARN("SSL_connect() WANT_WRITE timed out!");
                         continue;
                     }
@@ -84,7 +90,11 @@ namespace stms {
 
         char certName[certAndCipherLen];
         char cipherName[certAndCipherLen];
-        X509_NAME_oneline(X509_get_subject_name(SSL_get_certificate(pSsl)), certName, certAndCipherLen);
+
+        auto peerCert = SSL_get_certificate(pSsl);
+        X509_NAME_oneline(X509_get_subject_name(peerCert), certName, certAndCipherLen);
+        X509_free(peerCert);
+
         SSL_CIPHER_description(SSL_get_current_cipher(pSsl), cipherName, certAndCipherLen);
 
         const char *compression = SSL_COMP_get_name(SSL_get_current_compression(pSsl));
@@ -96,29 +106,32 @@ namespace stms {
         STMS_INFO("Connected using compression {} and expansion {}",
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
-        timeoutTimer.start();
+        if (isUdp) { timeoutTimer.start(); }
     }
 
-    bool DTLSClient::tick() {
+    bool SSLClient::tick() {
         if (!running) {
-            STMS_PUSH_WARNING("DTLSClient::tick() called when stopped! Ignoring invocation!");
+            STMS_PUSH_WARNING("SSLClient::tick() called when stopped! Ignoring invocation!");
             return false;
         }
 
-        if (SSL_get_shutdown(pSsl) & SSL_RECEIVED_SHUTDOWN || timeouts >= maxConnectionTimeouts) {
+        if (SSL_get_shutdown(pSsl) & SSL_RECEIVED_SHUTDOWN) {
             stop();
             return false;
         }
 
-        if (timeoutTimer.getTime() >= timeoutMs) {
-            timeouts++;
-            timeoutTimer.reset();
-            DTLSv1_handle_timeout(pSsl);
-            STMS_INFO("Connection to server timed out! (timeout #{})", timeouts);
+        if (isUdp) {
+            if (timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
+                timeoutTimer.reset();
+                DTLSv1_handle_timeout(pSsl);
+                STMS_INFO("Connection to server timed out! Dropping connection!");
+                stop();
+                return false;
+            }
         }
 
-        if (recvfrom(sock, nullptr, 0, MSG_PEEK, pAddr->ai_addr,
-                     &pAddr->ai_addrlen) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        if (recvfrom(sock, nullptr, 0, MSG_PEEK, nullptr, nullptr) == -1
+             && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             return running;  // No data could be read
         }
 
@@ -129,10 +142,10 @@ namespace stms {
 
                 bool retryRead = true;
                 int readTimeouts = 0;
-                while (retryRead && timeouts < 1 && readTimeouts < maxTimeouts) {
+                while (retryRead && readTimeouts < maxTimeouts) {
                     readTimeouts++;
 
-                    if (!stms::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                    if (!blockUntilReady(sock, pSsl, POLLIN)) {
                         STMS_WARN("SSL_read() timed out!");
                         continue;
                     }
@@ -142,7 +155,7 @@ namespace stms {
                     readLen = handleSslGetErr(pSsl, readLen);
 
                     if (readLen > 0) {
-                        timeoutTimer.reset();
+                        if (isUdp) { timeoutTimer.reset(); }
                         recvCallback(recvBuf, readLen);
                         retryRead = false;
                     } else if (readLen == -2) {
@@ -176,7 +189,7 @@ namespace stms {
         return running;
     }
 
-    void DTLSClient::onStop() {
+    void SSLClient::onStop() {
         if (pSsl != nullptr && doShutdown) {
             int shutdownRet = 0;
             int numTries = 0;
@@ -189,7 +202,7 @@ namespace stms {
                     STMS_WARN("Error in SSL_shutdown (see above)!");
 
                     if (shutdownRet == -2) {
-                        if (!stms::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLIN)) {
+                        if (!blockUntilReady(sock, pSsl, POLLIN)) {
                             STMS_WARN("Reading timed out for SSL_shutdown!");
                         }
                     } else {
@@ -212,10 +225,10 @@ namespace stms {
         pSsl = nullptr; // Don't double-free!
     }
 
-    std::future<int> DTLSClient::send(const uint8_t *const msg, int msgLen, bool copy) {
+    std::future<int> SSLClient::send(const uint8_t *const msg, int msgLen, bool copy) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
-            STMS_PUSH_ERROR("DTLSClient::send called when not connected! {} bytes dropped!", msgLen);
+            STMS_PUSH_ERROR("SSLClient::send called when not connected! {} bytes dropped!", msgLen);
             prom->set_value(-114);
             return prom->get_future();
         }
@@ -237,7 +250,7 @@ namespace stms {
             int sendTimeouts = 0;
             while (ret == -3 && sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
-                if (!stms::_stms_SSLBase::blockUntilReady(sock, pSsl, POLLOUT)) {
+                if (!blockUntilReady(sock, pSsl, POLLOUT)) {
                     STMS_WARN("SSL_write() timed out!");
                     continue;
                 }
@@ -286,7 +299,7 @@ namespace stms {
         return prom->get_future();
     }
 
-    void DTLSClient::waitEvents(int pollTimeoutMs) {
+    void SSLClient::waitEvents(int pollTimeoutMs) {
         pollfd servPollFd{};
         servPollFd.events = POLLIN;
         servPollFd.fd = sock;

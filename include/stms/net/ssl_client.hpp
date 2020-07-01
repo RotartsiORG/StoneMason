@@ -18,11 +18,10 @@
 #include "openssl/opensslv.h"
 
 namespace stms {
-    class DTLSClient : public _stms_SSLBase {
+    class SSLClient : public _stms_SSLBase {
     private:
         BIO *pBio{};
         SSL *pSsl{};
-        int timeouts{};
         bool doShutdown = false;
         bool isReading = false;
         Stopwatch timeoutTimer{};
@@ -34,9 +33,8 @@ namespace stms {
         std::function<void(uint8_t *, size_t)> recvCallback = [](uint8_t *, size_t) {};
         // Connect/Disconnect callback?
     public:
-        DTLSClient() = default;
 
-        explicit DTLSClient(stms::ThreadPool *pool);
+        explicit SSLClient(stms::ThreadPool *pool, bool isUdp);
 
         inline void setRecvCallback(const std::function<void(uint8_t *, size_t)> &newCb) {
             recvCallback = newCb;
@@ -46,11 +44,11 @@ namespace stms {
 
         void waitEvents(int timeoutMs) override;
 
-        ~DTLSClient() override;
+        ~SSLClient() override;
 
-        DTLSClient &operator=(const DTLSClient &rhs) = delete;
+        SSLClient &operator=(const SSLClient &rhs) = delete;
 
-        DTLSClient(const DTLSClient &rhs) = delete;
+        SSLClient(const SSLClient &rhs) = delete;
 
         bool tick();
 
@@ -58,9 +56,9 @@ namespace stms {
             return DTLS_get_data_mtu(pSsl);
         };
 
-        DTLSClient &operator=(DTLSClient &&rhs);
+        SSLClient &operator=(SSLClient &&rhs);
 
-        DTLSClient(DTLSClient &&rhs);
+        SSLClient(SSLClient &&rhs);
     };
 }
 
