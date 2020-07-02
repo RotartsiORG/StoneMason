@@ -305,7 +305,7 @@ namespace stms {
             // Prayin' that this works.
             if (storage.ss_family == AF_INET) {
                 auto in4Addr = new sockaddr_in();
-                std::copy_n(reinterpret_cast<sockaddr_in *>(&storage), 1, in4Addr);
+                *in4Addr = *reinterpret_cast<sockaddr_in *>(&storage);
                 cli->pSockAddr = reinterpret_cast<sockaddr *>(in4Addr);
 
                 if (cli->pSockAddr->sa_family != AF_INET) {
@@ -314,7 +314,7 @@ namespace stms {
 
             } else if (storage.ss_family == AF_INET6) {
                 auto in6Addr = new sockaddr_in6();
-                std::copy_n(reinterpret_cast<sockaddr_in6 *>(&storage), 1, in6Addr);
+                *in6Addr = *reinterpret_cast<sockaddr_in6 *>(&storage);
                 cli->pSockAddr = reinterpret_cast<sockaddr *>(in6Addr);
                 if (cli->pSockAddr->sa_family != AF_INET6) {
                     throw std::runtime_error("family mismatch");

@@ -136,14 +136,13 @@ namespace stms {
 
     _stms_STMSInitializer::_stms_STMSInitializer() noexcept: specialValue(0) {
         if (hasRun) {
-            // Logging isn't initialized, we can't use it!
-//            std::cerr << ("_stms_STMSInitializer was called more than once! Ignoring invocation!");
+            STMS_WARN("_stms_STMSInitializer was called more than once! Ignoring invocation!");
             return;
         }
 
         hasRun = true;
 
-//        stms::initLogging();
+        stms::initLogging();
 
         stms::initOpenSsl();
 
@@ -158,12 +157,14 @@ namespace stms {
         stms::quitOpenSsl();
 
         stms::quitCurl();
+
+        stms::quitLogging();
     }
 }
 
 // https://www.boost.org/doc/libs/1_73_0/boost/container_hash/hash.hpp
 static size_t boostHashCombine(size_t lhs, size_t rhs) {
-    return lhs ^ rhs + 0x9e3779b9 + (lhs << 6UL) + (lhs >> 2UL);
+    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6UL) + (lhs >> 2UL));
 }
 
 namespace std {

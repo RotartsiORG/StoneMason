@@ -21,13 +21,10 @@ namespace stms {
 
     constexpr unsigned threadPoolWorkerDelayMs = 16; // 62 Hz
 
-    constexpr bool asyncLogging = false;
-    constexpr bool logToLatest = true;
+    constexpr bool logToLatestLog = true;
     constexpr bool logToUniqueFile = false;
-    constexpr char logFormat[] = "%^[%H:%M:%S.%e] [%=8l] [%P|%t] [%!|%s:%#]: %v%$";
-    constexpr char dateFormat[] = "%Y.%m.%d";
-    constexpr char timeFormat[] = "%H:%M:%S %Z"; // 24 hour clock? :|
-    constexpr char logDir[] = "./stms_logs/"; // must have trailing slash
+    constexpr bool logToStdout = true;
+    constexpr char logsDir[] = "./stms_logs"; // there must NOT be a trailing slash
 
     constexpr unsigned certAndCipherLen = 256;
     constexpr int waitEventsSleepAmount = 4;

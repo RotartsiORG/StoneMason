@@ -34,5 +34,6 @@
 # custom
 build
 cmake-build-debug
+stms_logs
 Doxyfile
 latest.log

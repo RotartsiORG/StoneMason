@@ -66,9 +66,8 @@ namespace {
             order.clear();
             results.clear();
             results.resize(numTasks);
-            STMS_INFO("MAP CLEAR");
             for (int i = 0; i < numTasks; i++) {
-                pool->submitTask([&, capI{i}]() { results[capI] = doWork(&workArgs.at(capI)); STMS_INFO("ASS {}", capI); });
+                pool->submitTask([&, capI{i}]() { results[capI] = doWork(&workArgs.at(capI)); });
             }
 
             EXPECT_FALSE(pool->isRunning());
@@ -84,9 +83,7 @@ namespace {
             EXPECT_FALSE(pool->isRunning());
 
             for (int i = 0; i < numTasks; i++) {
-                STMS_INFO("Before read {}", i);
                 EXPECT_EQ(*results.at(i), workArgs.at(i));
-                STMS_INFO("After read {}", i);
             }
 
             // Skip order checking; it's not THAT important (i hope)

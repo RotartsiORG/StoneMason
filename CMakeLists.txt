@@ -3,16 +3,33 @@ cmake_minimum_required(VERSION 3.13.5)
 SET(CMAKE_CXX_STANDARD 17)
 
 set(STMS_VERSION 0.0.1)
-set(STMS_COMPILE_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -O3 -g3 -ggdb -std=c++17)
+set(STMS_COMPILE_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
 add_compile_options(-fPIC)
 add_link_options(-fPIC)
 
+option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
+option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" ON)
+option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
+option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols for GDB" ON)
+option(STMS_OPTIMIZE "Builds STMS with -O3" ON)
+
+if (STMS_OPTIMIZE)
+    message("-- Compiling with -O3")
+    add_compile_options(-O3)
+endif()
+
+if (STMS_DEBUG_SYMBOLS)
+    message("-- Debug symbols for GDB on")
+    add_compile_options(-g3 -ggdb)
+endif()
+
 project(stms_shared LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
 project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
 
 set(GLEW_USE_STATIC_LIBS ON CACHE BOOL "" FORCE)
+set(GLEW_VERBOSE ON CACHE BOOL "" FORCE)
 
 if (APPLE)
     # This is a bug in CMake that causes it to prefer the system version over
@@ -39,9 +56,6 @@ add_subdirectory(dep/freetype2)
 
 #add_subdirectory(dep/bullet3)
 
-#set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-#add_subdirectory(dep/spdlog)
-
 add_subdirectory(dep/fmt)
 
 file(GLOB_RECURSE STMS_SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
@@ -65,16 +79,11 @@ target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INC
 target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
 
-# Do not include spdlog in shared lib, linking will fail
-target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
-target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl stdc++fs)
+target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl stdc++fs)
 
 target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
 target_link_libraries(stms_static PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
-
-option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
-option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" ON)
-option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
 
 # TODO: Remove later. Here bc otherwise clion won't properly see our CMake project.
 set(STMS_BUILD_TESTS ON CACHE BOOL "" FORCE)

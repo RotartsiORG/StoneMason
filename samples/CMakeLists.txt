@@ -19,4 +19,4 @@ project(stms_ogl_demo LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples
 add_executable(stms_ogl_demo ogl_demo.cpp)
 target_compile_options(stms_ogl_demo PUBLIC ${STMS_COMPILE_FLAGS})
 target_include_directories(stms_ogl_demo PUBLIC ../include)
-target_link_libraries(stms_ogl_demo stms_static)
+target_link_libraries(stms_ogl_demo stms_shared) # for some reason linking fails with g++ when we use a static lib, but works fine with clang
