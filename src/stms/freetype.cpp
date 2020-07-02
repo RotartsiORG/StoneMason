@@ -55,14 +55,14 @@ namespace stms {
 
     _stms_FTFace::_stms_FTFace(FTLibrary *lib, const char *filename, FT_Long index) {
         if (FT_New_Face(lib->lib, filename, index, &face)) {
-            STMS_PUSH_ERROR("Failed to load font face '{}' (index {})!", filename, index);
+            STMS_ERROR("Failed to load font face '{}' (index {})!", filename, index);
         }
         FT_Set_Pixel_Sizes(face, 0, 50);
         newlineAdv = face->size->metrics.height >> 6;
 
         kern = FT_HAS_KERNING(face);
         if (!FT_HAS_HORIZONTAL(face)) {
-            STMS_PUSH_WARNING("Face {} doesn't have horizontal support! This may break things!", filename);
+            STMS_WARN("Face {} doesn't have horizontal support! This may break things!", filename);
         }
     }
 }

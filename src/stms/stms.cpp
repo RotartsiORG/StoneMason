@@ -33,7 +33,7 @@ namespace stms {
         UUID uuid{};
         int status = RAND_bytes(reinterpret_cast<unsigned char *>(&uuid), 16); // UUIDs have 128 bits (16 octets).
         if (status != 1) {
-            STMS_PUSH_WARNING("Failed to randomly generate UUID using OpenSSL! Using less secure C++ stdlib random instead");
+            STMS_WARN("Failed to randomly generate UUID using OpenSSL! Using less secure C++ stdlib random instead");
             std::uniform_int_distribution<uint64_t> u64Dist(0UL, UINT64_MAX);
             auto *lowerHalf = reinterpret_cast<uint64_t *>(&uuid);
             *lowerHalf = u64Dist(stmsRand());
@@ -136,13 +136,14 @@ namespace stms {
 
     _stms_STMSInitializer::_stms_STMSInitializer() noexcept: specialValue(0) {
         if (hasRun) {
-            STMS_PUSH_WARNING("_stms_STMSInitializer was called more than once! Ignoring invocation!")
+            // Logging isn't initialized, we can't use it!
+//            std::cerr << ("_stms_STMSInitializer was called more than once! Ignoring invocation!");
             return;
         }
 
         hasRun = true;
 
-        stms::initLogging();
+//        stms::initLogging();
 
         stms::initOpenSsl();
 

@@ -57,7 +57,7 @@ namespace stms {
         pool->submitTask([=]() {
             auto err = curl_easy_perform(handle); // This is typically an expensive call so we async it
             if (err != CURLE_OK) {
-                STMS_PUSH_ERROR("Failed to perform curl operation on url {}", url);
+                STMS_ERROR("Failed to perform curl operation on url {}", url);
             }
 
             prom->set_value(err);

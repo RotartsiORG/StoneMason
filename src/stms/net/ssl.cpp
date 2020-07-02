@@ -42,7 +42,7 @@ namespace stms {
         if (ret != 0) {
             char errStr[256]; // Min length specified by man pages for ERR_error_string_n()
             ERR_error_string_n(ret, errStr, 256);
-            STMS_PUSH_ERROR("[** OPENSSL ERROR **]: {}", errStr);
+            STMS_ERROR("[** OPENSSL ERROR **]: {}", errStr);
         }
         return ret;
     }
@@ -53,7 +53,7 @@ namespace stms {
                 return ret;
             }
             case SSL_ERROR_ZERO_RETURN: {
-                STMS_PUSH_ERROR("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
+                STMS_ERROR("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
                 flushSSLErrors();
                 return -6;
             }
@@ -66,12 +66,12 @@ namespace stms {
                 return -2;
             }
             case SSL_ERROR_SYSCALL: {
-                STMS_PUSH_ERROR("System Error from OpenSSL call: {}", strerror(errno));
+                STMS_ERROR("System Error from OpenSSL call: {}", strerror(errno));
                 flushSSLErrors();
                 return -5;
             }
             case SSL_ERROR_SSL: {
-                STMS_PUSH_ERROR("Fatal OpenSSL error occurred!");
+                STMS_ERROR("Fatal OpenSSL error occurred!");
                 flushSSLErrors();
                 return -1;
             }
@@ -100,7 +100,7 @@ namespace stms {
                 return -11;
             }
             default: {
-                STMS_PUSH_ERROR("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
+                STMS_ERROR("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
                 return -999;
             }
         }
@@ -109,24 +109,24 @@ namespace stms {
     void initOpenSsl() {
         // OpenSSL initialization
         if (OpenSSL_version_num() != OPENSSL_VERSION_NUMBER) {
-            STMS_PUSH_ERROR("[* FATAL ERROR *] OpenSSL version mismatch! Compiled with "
+            STMS_FATAL("[* FATAL ERROR *] OpenSSL version mismatch! Compiled with "
                             "{} but linked {}. Aborting!", OPENSSL_VERSION_TEXT, OpenSSL_version(OPENSSL_VERSION));
-            STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
+            STMS_FATAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
             throw std::runtime_error("OpenSSL version mismatch!");
         }
 
         if (OPENSSL_VERSION_NUMBER < 0x10101000L) {
-            STMS_PUSH_ERROR("[* FATAL ERROR *] {} is outdated and insecure!"
+            STMS_FATAL("[* FATAL ERROR *] {} is outdated and insecure!"
                             "At least OpenSSL 1.1.1 is required! Aborting.", OpenSSL_version(OPENSSL_VERSION));
-            STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
+            STMS_FATAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
             throw std::runtime_error("Outdated OpenSSL!");
         }
 
         int pollStatus = RAND_poll();
         if (pollStatus != 1 || RAND_status() != 1) {
-            STMS_PUSH_ERROR("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data! Aborting.");
-            STMS_CRITICAL("OpenSSL may generate insecure cryptographic keys, and UUID collisions may occur");
-            STMS_CRITICAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
+            STMS_FATAL("[* FATAL ERROR *] Unable to seed OpenSSL RNG with enough random data! Aborting.");
+            STMS_FATAL("OpenSSL may generate insecure cryptographic keys, and UUID collisions may occur");
+            STMS_FATAL("Aborting! Disable OpenSSL by setting `STMS_NO_OPENSSL` in `config.hpp` to supress this.");
             throw std::runtime_error("Bad OpenSSL RNG!");
         }
 
@@ -134,7 +134,7 @@ namespace stms {
         STMS_INFO("Initialized {}!", OpenSSL_version(OPENSSL_VERSION));
 
         if (RAND_bytes(secretCookie, sizeof(uint8_t) * secretCookieLen) != 1) {
-            STMS_WARN(
+            STMS_FATAL(
                     "OpenSSL RNG is faulty! Using C++ RNG instead! This may leave you vulnerable to DDoS attacks!");
             std::generate(std::begin(secretCookie), std::end(secretCookie), []() {
                 return stms::intRand(0, UINT8_MAX);
@@ -154,7 +154,7 @@ namespace stms {
         }
 
         if (static_cast<std::string::size_type>(size) < (passStr->size() + 1)) { // Null-terminate
-            STMS_PUSH_ERROR("Provided SSL password too long! Got len={} when max len is {}", passStr->size(), size - 1);
+            STMS_ERROR("Provided SSL password too long! Got len={} when max len is {}", passStr->size(), size - 1);
             dest[0] = '\0';
             return 0;
         }
@@ -174,7 +174,7 @@ namespace stms {
         if (ok) {
             STMS_INFO("Trusting certificate: {}", name);
         } else {
-            STMS_PUSH_WARNING("Rejecting certificate: {}", name);
+            STMS_WARN("Rejecting certificate: {}", name);
         }
         return ok;
     }
@@ -200,7 +200,7 @@ namespace stms {
 
     void _stms_SSLBase::stop() {
         if (!running) {
-            STMS_PUSH_WARNING("_stms_SSLBase::stop() called when server/client was already stopped! Ignoring...");
+            STMS_WARN("_stms_SSLBase::stop() called when server/client was already stopped! Ignoring...");
             return;
         }
 
@@ -223,12 +223,12 @@ namespace stms {
 
     void _stms_SSLBase::start() {
         if (running) {
-            STMS_PUSH_WARNING("_stms_SSLBase::start() called when server/client was already started! Ignoring...");
+            STMS_WARN("_stms_SSLBase::start() called when server/client was already started! Ignoring...");
             return;
         }
 
         if (!pPool->isRunning()) {
-            STMS_PUSH_ERROR("_stms_SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
+            STMS_ERROR("_stms_SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
             pPool->start();
         }
 
@@ -270,38 +270,38 @@ namespace stms {
 
         if (sock != 0) {
             if (shutdown(sock, 0) == -1) {
-                STMS_PUSH_WARNING("Failed to shutdown socket: {}", strerror(errno));
+                STMS_WARN("Failed to shutdown socket: {}", strerror(errno));
             }
             if (close(sock) == -1) {
-                STMS_PUSH_WARNING("Failed to close socket: {}", strerror(errno));
+                STMS_WARN("Failed to close socket: {}", strerror(errno));
             }
             sock = 0;
         }
 
         sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
         if (sock == -1) {
-            STMS_PUSH_WARNING("Candidate {}: Unable to create socket: {}", num, strerror(errno));
+            STMS_WARN("Candidate {}: Unable to create socket: {}", num, strerror(errno));
             return false;
         }
 
         if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-            STMS_PUSH_WARNING("Candidate {}: Failed to set socket to non-blocking: {}", num, strerror(errno));
+            STMS_WARN("Candidate {}: Failed to set socket to non-blocking: {}", num, strerror(errno));
         }
 
         if (addr->ai_family == AF_INET6) {
             if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
-                STMS_PUSH_WARNING("Candidate {}: Failed to setsockopt to allow IPv4 connections: {}", num, strerror(errno));
+                STMS_WARN("Candidate {}: Failed to setsockopt to allow IPv4 connections: {}", num, strerror(errno));
             }
         }
 
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) == -1) {
-            STMS_PUSH_WARNING(
+            STMS_WARN(
                     "Candidate {}: Failed to setscokopt to reuse address (this may result in 'Socket in Use' errors): {}",
                     num, strerror(errno));
         }
 
         if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(int)) == -1) {
-            STMS_PUSH_WARNING(
+            STMS_WARN(
                     "Candidate {}: Failed to setsockopt to reuse port (this may result in 'Socket in Use' errors): {}",
                     num, strerror(errno));
         }
@@ -309,14 +309,14 @@ namespace stms {
         if (isServ) {
             STMS_INFO("Bind");
             if (bind(sock, addr->ai_addr, addr->ai_addrlen) == -1) {
-                STMS_PUSH_WARNING("Candidate {}: Unable to bind socket: {}", num, strerror(errno));
+                STMS_WARN("Candidate {}: Unable to bind socket: {}", num, strerror(errno));
                 return false;
             }
 
             if (!isUdp) {
                 STMS_INFO("listen");
                 if (listen(sock, tcpListenBacklog) == -1) {
-                    STMS_PUSH_WARNING("Candidate {}: listen() failed: {}", num, strerror(errno));
+                    STMS_WARN("Candidate {}: listen() failed: {}", num, strerror(errno));
                 }
             }
         } else {
@@ -342,24 +342,24 @@ namespace stms {
                     toPoll.fd = sock;
 
                     if (poll(&toPoll, 1, static_cast<int>(timeoutMs < minIoTimeout ? minIoTimeout : timeoutMs)) < 1) {
-                        STMS_PUSH_WARNING("Candidate {}: connect() timed out!", num);
+                        STMS_WARN("Candidate {}: connect() timed out!", num);
                         return false;
                     }
 
                     int errcode = -999;
                     socklen_t errlen = sizeof(int);
                     if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &errcode, &errlen) == -1) {
-                        STMS_PUSH_WARNING("Candidate {}: connect() state querying failed: {}", num, strerror(errno));
+                        STMS_WARN("Candidate {}: connect() state querying failed: {}", num, strerror(errno));
                         return false;
                     }
 
                     if (errcode != 0) {
-                        STMS_PUSH_WARNING("Candidate {}: connect() failed: {}", num, strerror(errcode));
+                        STMS_WARN("Candidate {}: connect() failed: {}", num, strerror(errcode));
                     }
 
                     // yay connect was successful!
                 } else {
-                    STMS_PUSH_WARNING("Candidate {}: Failed to connect socket: {}", num, strerror(errno));
+                    STMS_WARN("Candidate {}: Failed to connect socket: {}", num, strerror(errno));
                     return false;
                 }
             }
@@ -398,7 +398,7 @@ namespace stms {
         STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
 
         if (poll(&cliPollFd, 1, recvTimeout) == 0) {
-            STMS_PUSH_WARNING("poll() timed out!");
+            STMS_WARN("poll() timed out!");
 
             if (isUdp) {  DTLSv1_handle_timeout(ssl); }
 
@@ -406,7 +406,7 @@ namespace stms {
         }
 
         if (!(cliPollFd.revents & event)) {
-            STMS_PUSH_WARNING("Desired flags not set in poll()!");
+            STMS_WARN("Desired flags not set in poll()!");
             if (isUdp) { DTLSv1_handle_timeout(ssl); }
             return false;
         }
@@ -437,7 +437,7 @@ namespace stms {
         STMS_INFO("DTLS {} to be hosted on {}:{}", isServ ? "server" : "client", addr, port);
         int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &pAddrCandidates);
         if (lookupStatus != 0) {
-            STMS_PUSH_WARNING("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
+            STMS_WARN("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
         }
     }
 
@@ -450,28 +450,28 @@ namespace stms {
     void _stms_SSLBase::setCertAuth(const std::string &caCert, const std::string &caPath) {
         if (!SSL_CTX_load_verify_locations(pCtx, caCert.empty() ? nullptr : caCert.c_str(),
                                            caPath.empty() ? nullptr : caPath.c_str())) {
-            STMS_PUSH_WARNING("Failed to set the CA certs and paths for DTLS cli/server! Path='{}', cert='{}'", caPath, caCert);
+            STMS_WARN("Failed to set the CA certs and paths for DTLS cli/server! Path='{}', cert='{}'", caPath, caCert);
             handleSSLError();
         }
     }
 
     void _stms_SSLBase::setPrivateKey(const std::string &key) {
         if (!SSL_CTX_use_PrivateKey_file(pCtx, key.c_str(), SSL_FILETYPE_PEM)) {
-            STMS_PUSH_WARNING("Failed to set private key for DTLS cli/server (key='{}')", key);
+            STMS_WARN("Failed to set private key for DTLS cli/server (key='{}')", key);
             handleSSLError();
         }
     }
 
     void _stms_SSLBase::setPublicCert(const std::string &cert) {
         if (!SSL_CTX_use_certificate_chain_file(pCtx, cert.c_str())) {
-            STMS_PUSH_WARNING("Failed to set public cert chain for DTLS Server (cert='{}')", cert);
+            STMS_WARN("Failed to set public cert chain for DTLS Server (cert='{}')", cert);
             handleSSLError();
         }
     }
 
     bool _stms_SSLBase::verifyKeyMatchCert() {
         if (!SSL_CTX_check_private_key(pCtx)) {
-            STMS_PUSH_WARNING("Public cert and private key mismatch in DTLS client/server!");
+            STMS_WARN("Public cert and private key mismatch in DTLS client/server!");
             handleSSLError();
             return false;
         }

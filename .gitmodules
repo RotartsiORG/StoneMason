@@ -31,3 +31,6 @@
 [submodule "dep/freetype2"]
 	path = dep/freetype2
 	url = git://git.sv.nongnu.org/freetype/freetype2.git
+[submodule "dep/fmt"]
+	path = dep/fmt
+	url = git@github.com:fmtlib/fmt.git

@@ -39,10 +39,10 @@ add_subdirectory(dep/freetype2)
 
 #add_subdirectory(dep/bullet3)
 
-set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-add_subdirectory(dep/spdlog)
+#set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+#add_subdirectory(dep/spdlog)
 
-#add_subdirectory(dep/fmt)
+add_subdirectory(dep/fmt)
 
 file(GLOB_RECURSE STMS_SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE STMS_INCLUDE ${PROJECT_SOURCE_DIR}/include/*.hpp)
@@ -56,8 +56,8 @@ add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
 target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm)
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/spdlog/include dep/glm)
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm)
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm)
 
 target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
@@ -67,7 +67,7 @@ target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_IN
 
 # Do not include spdlog in shared lib, linking will fail
 target_link_libraries(stms_shared PUBLIC glfw ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
-target_link_libraries(stms_static PUBLIC glfw spdlog ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
 
 target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
 target_link_libraries(stms_static PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)

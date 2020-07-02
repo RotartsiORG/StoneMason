@@ -215,7 +215,7 @@ namespace stms {
     SSLServer::~SSLServer() {
         // We cannot throw from a destructor (bc that is a terrible idea) so we settle for this instead.
         if (running) {
-            STMS_PUSH_ERROR("SSLServer destroyed whilst it was still running! Stopping it now...");
+            STMS_ERROR("SSLServer destroyed whilst it was still running! Stopping it now...");
             stop();
         }
     }
@@ -238,7 +238,7 @@ namespace stms {
 
     bool SSLServer::tick() {
         if (!running) {
-            STMS_PUSH_WARNING("SSLServer::tick() called when stopped! Ignoring invocation!");
+            STMS_WARN("SSLServer::tick() called when stopped! Ignoring invocation!");
             return false;
         }
 
@@ -270,12 +270,12 @@ namespace stms {
 
             // If it returns 0 it means no clients have tried to connect.
             if (listenStatus < 0) {
-                STMS_PUSH_ERROR("Fatal error from DTLSv1_listen!");
+                STMS_ERROR("Fatal error from DTLSv1_listen!");
                 flushSSLErrors();
             } else if (listenStatus >= 1) {
                 if (BIO_ADDR_family(cli->dtls->pBioAddr) != AF_INET6 &&
                     BIO_ADDR_family(cli->dtls->pBioAddr) != AF_INET) {
-                    STMS_PUSH_WARNING("A client tried to connect with an unsupported family {}! Refusing to connect!",
+                    STMS_WARN("A client tried to connect with an unsupported family {}! Refusing to connect!",
                                       BIO_ADDR_family(cli->dtls->pBioAddr));
                 } else {
                     // Lambda captures validated
@@ -296,7 +296,7 @@ namespace stms {
             if (cli->sock < 1) {
                 // if errno is one of these, then there's simply no client
                 if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                    STMS_PUSH_WARNING("accept() failed: {}", strerror(errno));
+                    STMS_WARN("accept() failed: {}", strerror(errno));
                 }
 
                 goto skipConnect; // Forgive me (looks around for velociraptors)
@@ -320,7 +320,7 @@ namespace stms {
                     throw std::runtime_error("family mismatch");
                 }
             } else {
-                STMS_PUSH_WARNING("Client tried to connect with bad proto {}! Dropping connection!", storage.ss_family);
+                STMS_WARN("Client tried to connect with bad proto {}! Dropping connection!", storage.ss_family);
                 goto skipConnect;
             }
 
@@ -443,7 +443,7 @@ namespace stms {
     std::future<int> SSLServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
-            STMS_PUSH_ERROR("SSLServer::send() called when stopped! Dropping {} bytes!", msgLen);
+            STMS_ERROR("SSLServer::send() called when stopped! Dropping {} bytes!", msgLen);
             prom->set_value(-114);
             return prom->get_future();
         }
@@ -464,7 +464,7 @@ namespace stms {
 
             if (clients.find(capUuid) == clients.end()) {
                 clientsMtx.unlock();
-                STMS_PUSH_ERROR("SSLServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid, msgLen);
+                STMS_ERROR("SSLServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid, msgLen);
                 prom->set_value(0);
                 return;
             }
@@ -532,13 +532,13 @@ namespace stms {
 
     size_t SSLServer::getMtu(const std::string &cli) {
         if (!isUdp) {
-            STMS_PUSH_WARNING("SSLServer::getMtu() called when the server is TLS not DTLS! Ignoring invocation...");
+            STMS_WARN("SSLServer::getMtu() called when the server is TLS not DTLS! Ignoring invocation...");
             return 0;
         }
 
         std::lock_guard<std::mutex> lg(clientsMtx);
         if (clients.find(cli) == clients.end()) {
-            STMS_PUSH_ERROR("SSLServer::getMtu called with invalid client uuid '{}'!", cli);
+            STMS_ERROR("SSLServer::getMtu called with invalid client uuid '{}'!", cli);
             return 0;
         }
 
@@ -561,7 +561,7 @@ namespace stms {
                 cliPollFd.fd = clients[c]->sock;
                 toPoll.push_back(cliPollFd);
             } else {
-                STMS_PUSH_WARNING("Client {} doesn't exist! `clients` was modified after we polled it!", c);
+                STMS_WARN("Client {} doesn't exist! `clients` was modified after we polled it!", c);
             }
         }
 
@@ -599,7 +599,7 @@ namespace stms {
     bool SSLServer::setNewUuid(const std::string &old, const std::string &newUuid) {
         std::lock_guard<std::mutex> lg(clientsMtx);
         if (clients.find(old) == clients.end()) {
-            STMS_PUSH_WARNING("Requested uuid edit {} -> {} failed: Client non-existent.", old, newUuid);
+            STMS_WARN("Requested uuid edit {} -> {} failed: Client non-existent.", old, newUuid);
             return false;
         }
 

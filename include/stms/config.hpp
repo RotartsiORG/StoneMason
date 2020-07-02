@@ -25,14 +25,14 @@ namespace stms {
     constexpr bool logToLatest = true;
     constexpr bool logToUniqueFile = false;
     constexpr char logFormat[] = "%^[%H:%M:%S.%e] [%=8l] [%P|%t] [%!|%s:%#]: %v%$";
-    constexpr char timeFormat[] = "%Y.%m.%d %H:%M:%S %Z";
+    constexpr char dateFormat[] = "%Y.%m.%d";
+    constexpr char timeFormat[] = "%H:%M:%S %Z"; // 24 hour clock? :|
     constexpr char logDir[] = "./stms_logs/"; // must have trailing slash
 
     constexpr unsigned certAndCipherLen = 256;
     constexpr int waitEventsSleepAmount = 4;
     constexpr int sslShutdownMaxRetries = 10;
     constexpr int minIoTimeout = 1000;
-    constexpr int maxConnectionTimeouts = 1;
     constexpr int tcpListenBacklog = 8;
     constexpr int maxRecvLen = 16384; // RFC 8449
     constexpr int secretCookieLen = 16;

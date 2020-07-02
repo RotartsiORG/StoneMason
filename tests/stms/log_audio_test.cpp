@@ -35,7 +35,7 @@ namespace {
             std::this_thread::yield();
             std::this_thread::sleep_for(std::chrono::seconds(1));
             if (numSecs++ > alPlayBlockTimeout) {
-                STMS_CRITICAL("AL Play timed out! This should only happen in Travis CI mac builds.");
+                STMS_ERROR("AL Play timed out! This should only happen in Travis CI mac builds.");
                 break;
             }
         }
@@ -51,8 +51,8 @@ namespace {
         STMS_DEBUG("STMS_DEBUG");
         STMS_INFO("STMS_INFO");
         STMS_WARN("STMS_WARN");
-        STMS_FATAL("STMS_FATAL, same as STMS_CRITICAL");
-        STMS_CRITICAL("STMS_CRITICAL, same as STMS_FATAL");
+        STMS_ERROR("STMS_ERROR");
+        STMS_FATAL("STMS_FATAL");
     }
 
     TEST(UUID, Collisions) {

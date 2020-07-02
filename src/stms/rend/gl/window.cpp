@@ -15,7 +15,7 @@ namespace stms {
     GLWindow::GLWindow(int width, int height, const char *title) {
         win = glfwCreateWindow(width, height, title, nullptr, nullptr);
         if (!win) {
-            STMS_PUSH_ERROR("GLFW window creation failed! This window is unusable!");
+            STMS_ERROR("GLFW window creation failed! This window is unusable!");
         }
 
         glfwMakeContextCurrent(win);
@@ -23,7 +23,7 @@ namespace stms {
         glewExperimental = enableExperimentalGlew;
         GLenum err = glewInit();
         if (err != GLEW_OK) {
-            STMS_PUSH_ERROR("GLEW failed to load OpenGL implementation! OpenGL for this window is unusable! Expect a crash!");
+            STMS_ERROR("GLEW failed to load OpenGL implementation! OpenGL for this window is unusable! Expect a crash!");
         }
 
         // In newer versions of opengl, we can do `glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion)`, but it will
@@ -43,7 +43,7 @@ namespace stms {
         }
 
         if (majorGlVersion < 2) {
-            STMS_PUSH_WARNING("Your OpenGL version is outdated and unsupported! Expect crashes and/or bugs!");
+            STMS_WARN("Your OpenGL version is outdated and unsupported! Expect crashes and/or bugs!");
         }
     }
 

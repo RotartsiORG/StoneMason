@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "stms/async.hpp"
+#include "stms/logging.hpp"
 
 namespace {
     const int numTasks = 8;
@@ -106,7 +107,7 @@ namespace {
     }
 
     TEST_F(ThreadPoolTests, MoveWhileRunningTest) {
-        startPool();
+        startPool();;
         *pool = std::move(*pool);
         stms::ThreadPool temp = std::move(*pool);
         *pool = std::move(temp);

@@ -11,7 +11,6 @@
 #include <cinttypes>
 #include <future>
 #include "stms/config.hpp"
-#include "stms/logging.hpp"
 
 namespace stms {
     class ThreadPool;
@@ -20,10 +19,11 @@ namespace stms {
 
     class ThreadPool {
     private:
-        std::recursive_mutex taskQueueMtx;
-        std::recursive_mutex workerMtx;
+        std::mutex taskQueueMtx;
+        std::mutex workerMtx;
+        std::mutex unfinishedTaskMtx;
 
-        std::atomic<int> unfinishedTasks = std::atomic<int>(0);
+        unsigned short unfinishedTasks;
         std::queue<std::packaged_task<void (void)>> tasks;
         std::deque<std::thread> workers;
 
@@ -32,16 +32,7 @@ namespace stms {
 
         friend void workerFunc(ThreadPool *parent, size_t index);
 
-        inline void destroy() {
-            if (this->running) {
-                STMS_PUSH_WARNING("ThreadPool destroyed while running! Stopping it now (with block=true)");
-                stop(true);
-            }
-
-            if (!tasks.empty()) {
-                STMS_PUSH_WARNING("ThreadPool destroyed with unfinished tasks! {} tasks will never be executed!", tasks.size());
-            }
-        }
+        void destroy();
 
     public:
         // The number of milliseconds the workers should sleep for before checking for a task. If set too low,
@@ -83,12 +74,12 @@ namespace stms {
         void popThread(bool block = true);
 
         inline size_t getNumThreads() {
-            std::lock_guard<std::recursive_mutex> lg(this->workerMtx);
+            std::lock_guard<std::mutex> lg(this->workerMtx);
             return workers.size();
         }
 
         inline size_t getNumTasks() {
-            std::lock_guard<std::recursive_mutex> lg(this->taskQueueMtx);
+            std::lock_guard<std::mutex> lg(this->taskQueueMtx);
             return tasks.size();
         }
 

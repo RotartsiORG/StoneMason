@@ -61,7 +61,7 @@ namespace stms {
         if(!success) {
             char infoLog[512];
             STMS_GLC(glGetShaderInfoLog(id, 512, nullptr, infoLog));
-            STMS_PUSH_ERROR("Shader Compile failed: '{}'", infoLog);
+            STMS_ERROR("Shader Compile failed: '{}'", infoLog);
         }
 
         return success;
@@ -102,7 +102,7 @@ namespace stms {
         if(!success) {
             char infoLog[512];
             STMS_GLC(glGetProgramInfoLog(id, 512, nullptr, infoLog));
-            STMS_PUSH_ERROR("Failed to link shader program: {}", infoLog);
+            STMS_ERROR("Failed to link shader program: {}", infoLog);
         }
     }
 
@@ -170,7 +170,7 @@ namespace stms {
         int channels = 0;
         unsigned char *data = stbi_load(filename, &width, &height, &channels, 0);
         if (data == nullptr || width == 0 || height == 0 || channels == 0) {
-            STMS_PUSH_ERROR("Failed to load GLTexture from {}!", filename);
+            STMS_ERROR("Failed to load GLTexture from {}!", filename);
             return;
         }
 
@@ -189,7 +189,7 @@ namespace stms {
 
     void GLTexture::setUpscale(GLScaleMode mode) const {
         if (!(mode == eNearest || mode == eLinear)) {
-            STMS_PUSH_ERROR("GLTexture::setUpscale() called with invalid mode {}! Only eNearest and eLinear are valid! Ignoring...", mode);
+            STMS_ERROR("GLTexture::setUpscale() called with invalid mode {}! Only eNearest and eLinear are valid! Ignoring...", mode);
             return;
         }
 
@@ -243,7 +243,7 @@ namespace stms {
 
         auto complete = STMS_GLC(glCheckFramebufferStatus(GL_FRAMEBUFFER));
         if (complete != GL_FRAMEBUFFER_COMPLETE) {
-            STMS_PUSH_ERROR("{}x{} framebuffer cannot be completed!", width, height);
+            STMS_ERROR("{}x{} framebuffer cannot be completed!", width, height);
         }
     }
 

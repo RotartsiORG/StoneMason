@@ -12,14 +12,14 @@ namespace stms {
 
     void initGl() {
         if (!glfwInit()) {
-            STMS_PUSH_ERROR("GLFW initialization failed! OpenGL is unusable! Expect a crash!");
+            STMS_ERROR("GLFW initialization failed! OpenGL is unusable! Expect a crash!");
         }
     }
 
     void flushGlErrs(const std::string &log) {
         GLenum err = glGetError();
         while (err != GL_NO_ERROR) {
-            STMS_PUSH_ERROR("[* OGL ERR `{}` *]: {}", log, err);
+            STMS_ERROR("[* OGL ERR `{}` *]: {}", log, err);
             err = glGetError();
         }
     }

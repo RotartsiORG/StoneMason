@@ -12,7 +12,7 @@ namespace stms {
 
     SSLClient::~SSLClient() {
         if (running) {
-            STMS_PUSH_WARNING("SSLClient destroyed whilst it was still running! Stopping it now...");
+            STMS_WARN("SSLClient destroyed whilst it was still running! Stopping it now...");
             stop();
         }
     }
@@ -111,7 +111,7 @@ namespace stms {
 
     bool SSLClient::tick() {
         if (!running) {
-            STMS_PUSH_WARNING("SSLClient::tick() called when stopped! Ignoring invocation!");
+            STMS_WARN("SSLClient::tick() called when stopped! Ignoring invocation!");
             return false;
         }
 
@@ -228,7 +228,7 @@ namespace stms {
     std::future<int> SSLClient::send(const uint8_t *const msg, int msgLen, bool copy) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
-            STMS_PUSH_ERROR("SSLClient::send called when not connected! {} bytes dropped!", msgLen);
+            STMS_ERROR("SSLClient::send called when not connected! {} bytes dropped!", msgLen);
             prom->set_value(-114);
             return prom->get_future();
         }

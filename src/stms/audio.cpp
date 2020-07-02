@@ -11,7 +11,7 @@ namespace stms {
     ALenum handleAlError() {
         ALenum error = alGetError();
         if (error != AL_NO_ERROR) {
-            STMS_PUSH_ERROR("[** OpenAL ERROR **]: {}", error);
+            STMS_ERROR("[** OpenAL ERROR **]: {}", error);
         }
         return error;
     }
@@ -47,7 +47,7 @@ namespace stms {
 
         int len = stb_vorbis_decode_filename(filename, &channels, &sampleRate, &data);
         if (len == 0 || channels == 0 || sampleRate == 0 || data == nullptr) {
-            STMS_PUSH_ERROR("Failed to load ALBuffer audio from {}!", filename);
+            STMS_ERROR("Failed to load ALBuffer audio from {}!", filename);
             return;
         }
 
@@ -126,7 +126,7 @@ namespace stms {
     bool ALDevice::handleError() {
         ALCenum error = alcGetError(id);
         if (error != ALC_NO_ERROR) {
-            STMS_PUSH_ERROR("[** ALC ERROR **] {}", error);
+            STMS_ERROR("[** ALC ERROR **] {}", error);
             return true;
         } else {
             return false;

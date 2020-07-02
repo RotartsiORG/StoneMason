@@ -197,7 +197,7 @@ namespace stms {
         STMS_GLC(glPixelStorei(GL_UNPACK_ALIGNMENT, 1)); // Should this be set back to 4 after we're done?
 
         if (FT_Load_Char(face, glyph, FT_LOAD_RENDER)) {
-            STMS_PUSH_ERROR("Failed to load glyph {}! It will be ignored!", static_cast<char>(glyph));
+            STMS_ERROR("Failed to load glyph {}! It will be ignored!", static_cast<char>(glyph));
             STMS_GLC(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
             return false;
         }
@@ -241,7 +241,7 @@ namespace stms {
 
     void GLFTFace::attachFile(const char *filename) {
         if (FT_Attach_File(face, filename)) {
-            STMS_PUSH_ERROR("Failed to attach '{}' to face!", filename);
+            STMS_ERROR("Failed to attach '{}' to face!", filename);
         }
     }
 }
