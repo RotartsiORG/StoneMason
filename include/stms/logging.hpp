@@ -57,10 +57,10 @@ namespace stms {
     };
 
     struct LogRecord {
-        LogRecord(LogLevel lvl, std::time_t time, const char *file, unsigned line);
+        LogRecord(LogLevel lvl, std::chrono::system_clock::time_point time, const char *file, unsigned line);
 
         LogLevel level = eInvalid;
-        std::time_t time;
+        std::chrono::system_clock::time_point time;
 
         const char *file = "";
         unsigned line{};
@@ -88,77 +88,92 @@ namespace stms {
         return consuming;
     }
 
-    static void consumeLogs() {
-        getConsumingFlag() = true;
+    inline static const char *logLevelToString(const LogLevel &lvl) {
+        switch (lvl) {
+            case (eTrace):
+                return "\u001b[37mtrace\u001b[0m   "; // white
+            case (eDebug):
+                return "\u001b[36mdebug\u001b[0m   "; // cyan
+            case (eInfo):
+                return "\u001b[34minfo\u001b[0m    "; // blue
+            case (eWarn):
+                return "\u001b[1m\u001b[33mWARNING\u001b[0m "; // bold yellow
+            case (eError):
+                return "\u001b[1m\u001b[31mERROR\u001b[0m   "; // bold red
+            case (eFatal):
+                return "\u001b[1m\u001b[4m\u001b[31m*FATAL*\u001b[0m  "; // bold underlined red
+            default:
+                return "!!! INVALID LOG LEVEL !!!";
+        }
+    }
 
-        bool empty = true;
-
-        consumeAgain:
+    static void consumeLogs()  {
 
         getLogQueueMtx().lock();
-        empty = getLogQueue().empty();
+
+        bool empty = getLogQueue().empty();
         if (!empty) {
             LogRecord top = std::move(getLogQueue().front());
             getLogQueue().pop();
+
             getLogQueueMtx().unlock();
 
             // formatting error: is `top.msg.data()` properly null-terminated?
-            fmt::print("[{:%T %p %Z}] [{}:{}] [{}]: {}\n", *std::localtime(&top.time), top.file, top.line, top.level, top.msg.data());
+            fmt::memory_buffer logMsg;
 
-            goto consumeAgain; // hopefully this compiles to better code than a while loop.
+            time_t localtimeReady = std::chrono::system_clock::to_time_t(top.time);
+
+            auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(top.time);
+            auto ms = std::chrono::duration_cast<std::chrono::nanoseconds>(top.time - seconds);
+
+            format_to(logMsg, "[{:%T}.{:^12}] [{:^64}:{:<4}] [{:<8}]: {}\n", *std::localtime(&localtimeReady), ms.count(),
+                      top.file, top.line, logLevelToString(top.level), to_string(top.msg));
+
+            std::cout << to_string(logMsg); // don't flush!
+
+            // TODO: Hooks should hook on here
+
+            // Recurse. No need to check/set the consume flag as they are only modified on exit/enter.
+            // This is better than just looping bc it breaks the consume task up into multiple submits
+            // to the thread pool!
+            if (getLogThreadPool() != nullptr) {
+                getLogThreadPool()->submitTask(consumeLogs);
+            } else {
+                consumeLogs();
+            }
         } else {
+            getConsumingFlag() = false;
+
             getLogQueueMtx().unlock();
         }
-
-        getConsumingFlag() = false;
     }
-
 
     template <typename... Args>
     void insertLog(LogLevel lvl, unsigned line, const char *file, const char *fmtStr, const Args & ... args) {
-        {
-            std::lock_guard<std::mutex> lg(getLogQueueMtx());
 
-            getLogQueue().emplace(
-                    LogRecord{lvl, std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()), file, line});
+        getLogQueueMtx().lock();
 
-            format_to(getLogQueue().back().msg, fmtStr, args...);
-        }
+        getLogQueue().emplace(LogRecord{lvl, std::chrono::system_clock::now(), file, line});
+
+        format_to(getLogQueue().back().msg, fmtStr, args...);
 
         if (getLogThreadPool() != nullptr && !getConsumingFlag()) {
+            getConsumingFlag() = true;
+
+            getLogQueueMtx().unlock();
+
             getLogThreadPool()->submitTask(consumeLogs);
         } else if (!getConsumingFlag()) {
+            getConsumingFlag() = true;
+
+            getLogQueueMtx().unlock();
+
             consumeLogs(); // no async? just do it here.
+        } else {
+            getLogQueueMtx().unlock();
         }
     }
 }
-
-//template <>
-//struct fmt::formatter<stms::LogLevel> {
-//    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-//
-//    template <typename FormatContext>
-//    auto format(const stms::LogLevel& d, FormatContext& ctx) {
-//        switch (d) {
-//            case (stms::eTrace): {
-//                return format_to(ctx.out(), "trace");
-//            } case (stms::eDebug): {
-//                return format_to(ctx.out(), "debug");
-//            } case (stms::eInfo): {
-//                return format_to(ctx.out(), "info");
-//            } case (stms::eWarn): {
-//                return format_to(ctx.out(), "WARNING");
-//            } case (stms::eError): {
-//                return format_to(ctx.out(), "!ERROR!");
-//            } case (stms::eFatal): {
-//                return format_to(ctx.out(), "*FATAL*");
-//            }
-//            default: {
-//                return format_to(ctx.out(), "!!INVALID LEVEL!!");
-//            }
-//        }
-//    }
-//};
 
 
 #endif //__STONEMASON_LOGGING_HPP

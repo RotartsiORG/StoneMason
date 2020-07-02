@@ -19,11 +19,13 @@ namespace stms {
     }
 
 #else
+
     void initLogging() {};
 
     void setLogPool(ThreadPool *pool) {};
 #endif
 
-    LogRecord::LogRecord(LogLevel lvl, std::time_t time, const char *file, unsigned int line) : level(lvl), time(time), file(file), line(line) {}
+    LogRecord::LogRecord(LogLevel lvl, std::chrono::system_clock::time_point time, const char *file, unsigned int line)
+                            : level(lvl), time(time), file(file), line(line) {}
 }
 
