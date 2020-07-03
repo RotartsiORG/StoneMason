@@ -11,6 +11,7 @@
     </sourceRoots>
     <excludeRoots>
       <file path="$PROJECT_DIR$/build" />
+      <file path="$PROJECT_DIR$/cov-int" />
       <file path="$PROJECT_DIR$/dep" />
       <file path="$PROJECT_DIR$/tests/build" />
     </excludeRoots>

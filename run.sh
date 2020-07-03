@@ -16,4 +16,4 @@ $CMK_EXE --build . -j 8
 
 cd .. || exit
 
-./build/tests/stms_tests
+#./build/tests/stms_tests

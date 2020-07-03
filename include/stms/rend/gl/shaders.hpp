@@ -8,6 +8,7 @@
 #define __STONEMASON_GL_SHADERS_HPP
 
 #define GLEW_STATIC 1
+#define GLFW_INCLUDE_NONE
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 

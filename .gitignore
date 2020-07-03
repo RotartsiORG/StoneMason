@@ -37,3 +37,7 @@ cmake-build-debug
 stms_logs
 Doxyfile
 latest.log
+
+imgui.ini
+cov-int
+myproject.tgz

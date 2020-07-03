@@ -5,12 +5,19 @@
 #include "stms/rend/gl/gl.hpp"
 
 #include "stms/logging.hpp"
+#include "stms/rend/gl/imgui.hpp"
 
 namespace stms {
     bool glInfoDumped = true;
     GLint majorGlVersion = -1;
 
+    static void glfwErrCb(int code, const char* description) {
+        STMS_ERROR("GLFW ERROR {}: {}", code, description);
+    }
+
     void initGl() {
+        glfwSetErrorCallback(glfwErrCb);
+
         if (!glfwInit()) {
             STMS_ERROR("GLFW initialization failed! OpenGL is unusable! Expect a crash!");
         }

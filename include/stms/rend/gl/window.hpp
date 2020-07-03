@@ -9,15 +9,31 @@
 
 #include "gl.hpp"
 
+#include <glm/glm.hpp>
+
+#include "stms/rend/gl/imgui.hpp"
+
 #include <unordered_map>
 
 namespace stms {
+
+    enum GLClearBits {
+        eColor = GL_COLOR_BUFFER_BIT,
+        eDepth = GL_DEPTH_BUFFER_BIT,
+        eStencil = GL_STENCIL_BUFFER_BIT
+    };
+
+    enum GLFeatures {
+        eCulling = GL_CULL_FACE,
+        eBlending = GL_BLEND,
+        eDepthTest = GL_DEPTH_TEST,
+        eStencilTest = GL_STENCIL_TEST
+    };
 
     class GLWindow {
     private:
         GLFWwindow *win = nullptr;
     public:
-        GLWindow() = default;
         GLWindow(int width, int height, const char *title="StoneMason window");
         virtual ~GLWindow();
 
@@ -29,10 +45,10 @@ namespace stms {
             glfwSwapBuffers(win);
         }
 
-        inline void lazyFlip() {
-            glfwPollEvents();
-            glfwSwapBuffers(win);
-            STMS_GLC(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)); // Stencil buffer is omitted.
+        inline glm::ivec2 getSize() {
+            glm::ivec2 ret;
+            glfwGetWindowSize(win, &ret.x, &ret.y);
+            return ret;
         }
 
         GLWindow(const GLWindow &rhs) = delete;
@@ -46,6 +62,16 @@ namespace stms {
         GLWindow &operator=(GLWindow &&rhs) noexcept;
     };
 
+    void newImGuiFrame();
+
+    void renderImGui();
+
+    // some direct pointers to raw opengl calls
+    // TODO: Depth & stencil testing configuration
+    extern void(*enableGl)(unsigned);
+    extern void(*disableGl)(unsigned);
+    extern void(*clearGl)(unsigned);
+    extern void(*viewportGl)(int, int, int, int);
     extern void(*pollEvents)();
 }
 

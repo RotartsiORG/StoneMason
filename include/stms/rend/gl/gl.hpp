@@ -10,6 +10,7 @@
 #define STMS_GLC(glCall) (glCall); ::stms::flushGlErrs(#glCall);
 
 #define GLEW_STATIC 1
+#define GLFW_INCLUDE_NONE
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 

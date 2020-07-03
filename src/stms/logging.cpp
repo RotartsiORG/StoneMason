@@ -5,7 +5,7 @@
 #include "stms/logging.hpp"
 
 #include <chrono>
-#include <experimental/filesystem>
+#include <sys/stat.h>
 
 namespace stms {
 
@@ -67,9 +67,7 @@ namespace stms {
                                          "", ctimeStr);
 
         if (logToUniqueFile) {
-            if (!std::experimental::filesystem::exists(logsDir)) {
-                std::experimental::filesystem::create_directories(logsDir);
-            }
+            mkdir(logsDir, 0777);
 
             ctimeStr = "/" + ctimeStr + ".log";
             ctimeStr = logsDir + ctimeStr;

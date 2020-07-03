@@ -10,9 +10,19 @@
 
 namespace stms {
 
+    void(*enableGl)(unsigned) = &glEnable;
+    void(*disableGl)(unsigned) = &glDisable;
     void(*pollEvents)() = &glfwPollEvents;
+    void(*clearGl)(unsigned) = &glClear;
+    void(*viewportGl)(int, int, int, int) = &glViewport;
 
     GLWindow::GLWindow(int width, int height, const char *title) {
+        // compat with mac osx :|
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
         win = glfwCreateWindow(width, height, title, nullptr, nullptr);
         if (!win) {
             STMS_ERROR("GLFW window creation failed! This window is unusable!");
@@ -25,6 +35,15 @@ namespace stms {
         if (err != GLEW_OK) {
             STMS_ERROR("GLEW failed to load OpenGL implementation! OpenGL for this window is unusable! Expect a crash!");
         }
+
+        // enable blending & depth testing, but not face culling (but do configure it)
+        // as that could make everyone confused :(
+        glEnable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
 
         // In newer versions of opengl, we can do `glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion)`, but it will
         // not work with opengl < 3
@@ -45,9 +64,41 @@ namespace stms {
         if (majorGlVersion < 2) {
             STMS_WARN("Your OpenGL version is outdated and unsupported! Expect crashes and/or bugs!");
         }
+
+        // Setup Dear ImGui context
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+        // Setup Dear ImGui style
+        ImGui::StyleColorsDark();
+        //ImGui::StyleColorsClassic();
+
+        // Setup Platform/Renderer bindings
+        ImGui_ImplGlfw_InitForOpenGL(win, true);
+        ImGui_ImplOpenGL3_Init("#version 150"); // fingers crossed this works
     }
 
     GLWindow::~GLWindow() {
+        // Cleanup
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+
         glfwDestroyWindow(win);
+    }
+
+    void newImGuiFrame() {
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    void renderImGui() {
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 }

@@ -39,10 +39,6 @@ int main() {
         float speed = 0.125;
         glm::vec3 camEuler = {0, 0, 0};
 
-        glEnable(GL_DEPTH_TEST);
-        glDisable(GL_CULL_FACE);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 //        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -153,13 +149,15 @@ int main() {
 
         stms::GLFrameBuffer frameBuf = stms::GLFrameBuffer(txtSize.x, txtSize.y);
 
-        int width, height;
+        glm::ivec2 size;
         stms::TPSTimer tpsTimer;
         tpsTimer.tick();
         while (!win.shouldClose()) {
+            stms::newImGuiFrame();
+
             frameBuf.bind();
-            glEnable(GL_DEPTH_TEST);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            stms::enableGl(stms::eDepthTest);
+            stms::clearGl(stms::eDepth | stms::eColor);
 
             tpsTimer.tick();
             toRend = U"FPS: ";
@@ -171,7 +169,7 @@ int main() {
             toRend.append(fpsStr.begin(), fpsStr.end());
             tpsTimer.wait(60);
 
-            glm::mat4 proj = glm::ortho(0.0f, (float) width, 0.0f, (float) height);
+            glm::mat4 proj = glm::ortho(0.0f, (float) size.x, 0.0f, (float) size.y);
 
             grassTex.bind();
             shaders.bind();
@@ -182,11 +180,16 @@ int main() {
             gnu_unifont.render(toRend, proj * fontMat, {1.0, 1.0, 0, 1.0});
 
             stms::GLFrameBuffer::bindDefault();
-            glViewport(0, 0, width, height);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glDisable(GL_DEPTH_TEST);
+            stms::viewportGl(0, 0, size.x, size.y);
+            stms::clearGl(stms::eColor);
+            stms::disableGl(stms::eDepthTest);
 
             stms::GLTexRenderer::renderTexture(&frameBuf.tex);
+            ImGui::Begin("test");
+            ImGui::Text("test");
+            ImGui::End();
+
+            stms::renderImGui();
             stms::flushGlErrs("something");
 
 
@@ -229,18 +232,17 @@ int main() {
                 glfwSetInputMode(win.getRawPtr(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
 
-            glfwGetWindowSize(win.getRawPtr(), &width, &height);
-            cpuMvp = cam.buildPersp((float) width / (float) height); // screw it i'm using c style casts c++ func casts are retarded
+            size = win.getSize();
+            cpuMvp = cam.buildPersp((float) size.x / (float) size.y); // screw it i'm using c style casts c++ func casts are retarded
             cpuMvp *= cam.buildMatV();
 
-            frameBuf = stms::GLFrameBuffer(width, height);
+            frameBuf = stms::GLFrameBuffer(size.x, size.y);
 
             shaders.bind();
             mvp.setMat4(cpuMvp);
 
-
-            glfwPollEvents();
-            glfwSwapBuffers(win.getRawPtr());
+            stms::pollEvents();
+            win.flip();
         }
 
         stms::flushGlErrs("Terminate");
