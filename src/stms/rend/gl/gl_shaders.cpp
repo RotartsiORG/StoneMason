@@ -5,7 +5,7 @@
 #include "stms/config.hpp"
 
 #ifdef STMS_ENABLE_OPENGL
-#include "stms/rend/gl/shaders.hpp"
+#include "stms/rend/gl/gl_shaders.hpp"
 
 #include "stms/logging.hpp"
 #include "stms/stms.hpp"

@@ -22,7 +22,7 @@
 #include "stms/logging.hpp"
 
 // Am I sure this is a good idea? no...
-#include "buffers.hpp"
+#include "gl_buffers.hpp"
 
 namespace stms {
     enum GLShaderStage {

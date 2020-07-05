@@ -4,7 +4,7 @@
 #include "stms/config.hpp"
 #ifdef STMS_ENABLE_OPENGL
 
-#include "stms/rend/gl/glft.hpp"
+#include "stms/rend/gl/gl_freetype.hpp"
 
 #include <utility>
 #include "stms/rend/gl/gl.hpp"

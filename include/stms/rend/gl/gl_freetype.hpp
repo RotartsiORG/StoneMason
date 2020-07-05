@@ -14,8 +14,8 @@
 
 #include <unordered_map>
 
-#include "shaders.hpp"
-#include "buffers.hpp"
+#include "gl_shaders.hpp"
+#include "gl_buffers.hpp"
 
 namespace stms {
 

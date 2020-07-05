@@ -15,8 +15,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "stms/rend/gl/buffers.hpp"
-#include "shaders.hpp"
+#include "stms/rend/gl/gl_buffers.hpp"
+#include "gl_shaders.hpp"
+#include <unordered_set>
 
 namespace stms {
     typedef Assimp::Importer GLModelImporter;

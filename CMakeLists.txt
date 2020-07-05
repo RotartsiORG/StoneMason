@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13.5)
 
 SET(CMAKE_CXX_STANDARD 17)
 
-set(STMS_VERSION 0.0.1)
+set(STMS_VERSION 0.0.0)
 set(STMS_COMPILE_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 

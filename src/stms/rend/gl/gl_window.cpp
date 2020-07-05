@@ -5,7 +5,7 @@
 #include "stms/config.hpp"
 #ifdef STMS_ENABLE_OPENGL
 
-#include "stms/rend/gl/window.hpp"
+#include "stms/rend/gl/gl_window.hpp"
 
 #include "stms/rend/gl/gl.hpp"
 #include "stms/logging.hpp"
@@ -14,12 +14,19 @@ namespace stms {
 
     void(*enableGl)(unsigned) = &glEnable;
     void(*disableGl)(unsigned) = &glDisable;
-    void(*pollEvents)() = &glfwPollEvents;
     void(*clearGl)(unsigned) = &glClear;
     void(*viewportGl)(int, int, int, int) = &glViewport;
 
     GLWindow::GLWindow(int width, int height, const char *title) {
+        if (glInitialized) {
+            STMS_ERROR("Failed to create window '{}': Only 1 OpenGL window is permitted!", title);
+            return;
+        }
+
+        glInitialized = true;
+
         // compat with mac osx :|
+        glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -52,16 +59,13 @@ namespace stms {
         auto vers = STMS_GLC(glGetString(GL_VERSION));
         majorGlVersion = std::stoi(std::string(reinterpret_cast<const char *>(vers)));
 
-        if (glInfoDumped) {
-            glInfoDumped = false;
-            auto vendor = STMS_GLC(glGetString(GL_VENDOR));
-            auto gpu = STMS_GLC(glGetString(GL_RENDERER));
-            auto glsl = STMS_GLC(glGetString(GL_SHADING_LANGUAGE_VERSION));
+        auto vendor = STMS_GLC(glGetString(GL_VENDOR));
+        auto gpu = STMS_GLC(glGetString(GL_RENDERER));
+        auto glsl = STMS_GLC(glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-            STMS_INFO("Initialized OpenGL {} with GLEW {}", vers, glewGetString(GLEW_VERSION));
-            STMS_INFO("OpenGL vendor is {} with renderer {}", vendor, gpu);
-            STMS_INFO("GLSL version is {} and got major version {}", glsl, majorGlVersion);
-        }
+        STMS_INFO("Initialized OpenGL {} with GLEW {}", vers, glewGetString(GLEW_VERSION));
+        STMS_INFO("OpenGL vendor is {} with renderer {}", vendor, gpu);
+        STMS_INFO("GLSL version is {} and got major version {}", glsl, majorGlVersion);
 
         if (majorGlVersion < 2) {
             STMS_WARN("Your OpenGL version is outdated and unsupported! Expect crashes and/or bugs!");
@@ -88,8 +92,6 @@ namespace stms {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-
-        glfwDestroyWindow(win);
     }
 
     void newImGuiFrame() {

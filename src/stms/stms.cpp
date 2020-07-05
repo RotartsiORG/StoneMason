@@ -13,9 +13,7 @@
 #include "stms/curl.hpp"
 
 #include "stms/config.hpp"
-#ifdef STMS_ENABLE_OPENGL
-#    include "stms/rend/gl/gl.hpp"
-#endif
+#include "stms/rend/window.hpp"
 
 namespace stms {
     bool _stms_STMSInitializer::hasRun = false;
@@ -148,18 +146,14 @@ namespace stms {
 
         stms::initOpenSsl();
 
-#ifdef STMS_ENABLE_OPENGL
-        stms::initGl();
-#endif
+        stms::initGlfw();
 
         stms::initCurl();
     }
 
     _stms_STMSInitializer::~_stms_STMSInitializer() noexcept {
 
-#ifdef STMS_ENABLE_OPENGL
-        stms::quitGl();
-#endif
+        stms::quitGlfw();
 
         stms::quitOpenSsl();
 

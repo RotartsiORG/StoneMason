@@ -7,23 +7,11 @@
 #include "stms/rend/gl/gl.hpp"
 
 #include "stms/logging.hpp"
-#include "stms/rend/gl/imgui.hpp"
+#include "stms/rend/gl/gl_ImGui.hpp"
 
 namespace stms {
-    bool glInfoDumped = true;
+    bool glInitialized = false;
     GLint majorGlVersion = -1;
-
-    static void glfwErrCb(int code, const char* description) {
-        STMS_ERROR("GLFW ERROR {}: {}", code, description);
-    }
-
-    void initGl() {
-        glfwSetErrorCallback(glfwErrCb);
-
-        if (!glfwInit()) {
-            STMS_ERROR("GLFW initialization failed! OpenGL is unusable! Expect a crash!");
-        }
-    }
 
     void flushGlErrs(const std::string &log) {
         GLenum err = glGetError();
@@ -31,10 +19,6 @@ namespace stms {
             STMS_ERROR("[* OGL ERR `{}` *]: {}", log, err);
             err = glGetError();
         }
-    }
-
-    void quitGl() {
-        glfwTerminate();
     }
 }
 

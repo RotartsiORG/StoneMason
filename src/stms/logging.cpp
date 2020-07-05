@@ -80,13 +80,13 @@ namespace stms {
             });
         }
 
-
-
         for (const auto &func : getLogHooks()) {
             // it is safe to pass in nullptr bc the only hooks registered so far should be our hooks,
             // and our hooks don't touch the LogRecord *
             func(nullptr, &header);
         }
+
+        STMS_INFO("Initialized StoneMason {} (compiled on {} {})", versionString, __DATE__, __TIME__);
     };
 
 #else

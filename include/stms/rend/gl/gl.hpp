@@ -21,12 +21,8 @@
 #include <string>
 
 namespace stms {
-    extern bool glInfoDumped;
+    extern bool glInitialized;
     extern GLint majorGlVersion;
-
-    void initGl();
-
-    void quitGl();
 
     void flushGlErrs(const std::string &log);
 

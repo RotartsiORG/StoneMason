@@ -6,11 +6,11 @@
 //
 
 #include "stms/stms.hpp"
-#include "stms/rend/gl/window.hpp"
-#include "stms/rend/gl/buffers.hpp"
-#include "stms/rend/gl/shaders.hpp"
+#include "stms/rend/gl/gl_window.hpp"
+#include "stms/rend/gl/gl_buffers.hpp"
+#include "stms/rend/gl/gl_shaders.hpp"
 #include "stms/camera.hpp"
-#include "stms/rend/gl/glft.hpp"
+#include "stms/rend/gl/gl_freetype.hpp"
 
 #include <fstream>
 #include <stms/logging.hpp>

@@ -12,10 +12,9 @@
 
 #include "gl.hpp"
 
-#include <glm/glm.hpp>
+#include "stms/rend/gl/gl_ImGui.hpp"
 
-#include "stms/rend/gl/imgui.hpp"
-
+#include "stms/rend/window.hpp"
 #include <unordered_map>
 
 namespace stms {
@@ -33,34 +32,19 @@ namespace stms {
         eStencilTest = GL_STENCIL_TEST
     };
 
-    class GLWindow {
-    private:
-        GLFWwindow *win = nullptr;
+    class GLWindow : public GenericWindow {
     public:
         GLWindow(int width, int height, const char *title="StoneMason window");
-        virtual ~GLWindow();
-
-        inline bool shouldClose() {
-            return glfwWindowShouldClose(win);
-        }
+        ~GLWindow() override;
 
         inline void flip() {
             glfwSwapBuffers(win);
         }
 
-        inline glm::ivec2 getSize() {
-            glm::ivec2 ret;
-            glfwGetWindowSize(win, &ret.x, &ret.y);
-            return ret;
-        }
-
         GLWindow(const GLWindow &rhs) = delete;
         GLWindow &operator=(const GLWindow &rhs) = delete;
 
-        inline GLFWwindow *getRawPtr() {
-            return win;
-        }
-
+        // TODO: implement
         GLWindow(GLWindow &&rhs) noexcept;
         GLWindow &operator=(GLWindow &&rhs) noexcept;
     };
@@ -75,7 +59,6 @@ namespace stms {
     extern void(*disableGl)(unsigned);
     extern void(*clearGl)(unsigned);
     extern void(*viewportGl)(int, int, int, int);
-    extern void(*pollEvents)();
 }
 
 #endif

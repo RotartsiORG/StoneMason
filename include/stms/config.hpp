@@ -22,11 +22,13 @@
 #undef STMS_NO_OPENSSL // TODO: Implement
 
 namespace stms {
-    constexpr char versionString[] = "0.0.1";
+    constexpr char versionString[] = "0.0.0-dev2020.07.05";
 
-    constexpr int versionMajor = 0;
-    constexpr int versionMinor = 0;
-    constexpr int versionMicro = 1;
+    constexpr unsigned fullVersionNum = 0; // increment this every commit
+
+    constexpr short versionMajor = 0;
+    constexpr short versionMinor = 0;
+    constexpr short versionMicro = 0;
 
     constexpr unsigned threadPoolWorkerDelayMs = 16; // 62 Hz
 
