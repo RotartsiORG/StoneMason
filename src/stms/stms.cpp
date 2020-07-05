@@ -8,12 +8,14 @@
 #include "openssl/rand.h"
 #include "stms/net/ssl.hpp"
 
-#include "stms/rend/gl/gl.hpp"
-
 #include "stms/logging.hpp"
-#include "stms/audio.hpp"
 
 #include "stms/curl.hpp"
+
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+#    include "stms/rend/gl/gl.hpp"
+#endif
 
 namespace stms {
     bool _stms_STMSInitializer::hasRun = false;
@@ -146,13 +148,18 @@ namespace stms {
 
         stms::initOpenSsl();
 
+#ifdef STMS_ENABLE_OPENGL
         stms::initGl();
+#endif
 
         stms::initCurl();
     }
 
     _stms_STMSInitializer::~_stms_STMSInitializer() noexcept {
+
+#ifdef STMS_ENABLE_OPENGL
         stms::quitGl();
+#endif
 
         stms::quitOpenSsl();
 

@@ -7,6 +7,9 @@
 #ifndef __STONEMASON_GL_SHADERS_HPP
 #define __STONEMASON_GL_SHADERS_HPP
 
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+
 #define GLEW_STATIC 1
 #define GLFW_INCLUDE_NONE
 #include "GL/glew.h"
@@ -264,6 +267,8 @@ namespace stms {
                             * glm::translate(glm::vec3{-1, 1, 0}) * glm::scale(glm::vec3(2, 2, 0)));
     };
 }
+
+#endif
 
 
 #endif //__STONEMASON_SHADERS_HPP

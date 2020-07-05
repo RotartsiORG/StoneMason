@@ -14,9 +14,10 @@ target_compile_options(stms_dtls_serv PUBLIC ${STMS_COMPILE_FLAGS})
 target_include_directories(stms_dtls_serv PUBLIC ../include)
 target_link_libraries(stms_dtls_serv stms_shared)
 
-
-project(stms_ogl_demo LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples for StoneMason")
-add_executable(stms_ogl_demo ogl_demo.cpp)
-target_compile_options(stms_ogl_demo PUBLIC ${STMS_COMPILE_FLAGS})
-target_include_directories(stms_ogl_demo PUBLIC ../include)
-target_link_libraries(stms_ogl_demo stms_shared) # for some reason linking fails with g++ when we use a static lib, but works fine with clang
+if (STMS_ENABLE_OPENGL)
+    project(stms_ogl_demo LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples for StoneMason")
+    add_executable(stms_ogl_demo ogl_demo.cpp)
+    target_compile_options(stms_ogl_demo PUBLIC ${STMS_COMPILE_FLAGS})
+    target_include_directories(stms_ogl_demo PUBLIC ../include)
+    target_link_libraries(stms_ogl_demo stms_shared) # for some reason linking fails with g++ when we use a static lib, but works fine with clang
+endif()

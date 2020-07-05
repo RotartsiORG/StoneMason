@@ -2,11 +2,13 @@
 // Created by grant on 5/24/20.
 //
 
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+
 #include "stms/rend/gl/window.hpp"
 
 #include "stms/rend/gl/gl.hpp"
 #include "stms/logging.hpp"
-#include "stms/config.hpp"
 
 namespace stms {
 
@@ -102,3 +104,4 @@ namespace stms {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 }
+#endif

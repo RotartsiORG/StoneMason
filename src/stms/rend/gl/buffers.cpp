@@ -2,6 +2,9 @@
 // Created by grant on 5/24/20.
 //
 
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+
 #include "stms/rend/gl/buffers.hpp"
 
 #include "stms/rend/gl/gl.hpp"
@@ -164,3 +167,5 @@ namespace stms {
 
     GLIndexBuffer::GLIndexBuffer() : _stms_GLBuffer() {}
 }
+
+#endif

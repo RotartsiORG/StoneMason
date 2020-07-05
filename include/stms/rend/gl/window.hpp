@@ -7,6 +7,9 @@
 #ifndef __STONEMASON_GL_WINDOW_HPP
 #define __STONEMASON_GL_WINDOW_HPP
 
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+
 #include "gl.hpp"
 
 #include <glm/glm.hpp>
@@ -75,5 +78,6 @@ namespace stms {
     extern void(*pollEvents)();
 }
 
+#endif
 
 #endif //__STONEMASON_GL_WINDOW_HPP

@@ -7,6 +7,9 @@
 #ifndef STONEMASON_GL_GLFT_HPP
 #define STONEMASON_GL_GLFT_HPP
 
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+
 #include "stms/freetype.hpp"
 
 #include <unordered_map>
@@ -93,5 +96,7 @@ namespace stms {
         }
     };
 }
+
+#endif
 
 #endif //STONEMASON_GL_GLFT_HPP

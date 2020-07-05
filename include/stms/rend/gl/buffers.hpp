@@ -2,8 +2,13 @@
 // Created by grant on 5/24/20.
 //
 
+#pragma once
+
 #ifndef __STONEMASON_GL_BUFFERS_HPP
 #define __STONEMASON_GL_BUFFERS_HPP
+
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
 
 #include "gl.hpp"
 
@@ -231,6 +236,8 @@ namespace stms {
                 std::vector<VertexAttribute> attribs;
             };
 
+            // should this be heap-allocated? (we would save 16 bytes by doing so,
+            // but then we would pay for heap-allocation and added complexity and possible segfaults)
             std::vector<VertexBufferLayout> vboLyos;
 
             static GLuint enabledIndices;
@@ -311,5 +318,7 @@ namespace stms {
         }
     };
 }
+
+#endif
 
 #endif //__STONEMASON_GL_BUFFERS_HPP

@@ -1,6 +1,8 @@
 //
 // Created by grant on 6/19/20.
 //
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
 
 #include "stms/rend/gl/glft.hpp"
 
@@ -245,3 +247,4 @@ namespace stms {
         }
     }
 }
+#endif

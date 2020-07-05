@@ -8,6 +8,15 @@
 
 #define STMS_ENABLE_LOGGING
 
+/**
+ * Builds StoneMason with OpenGL support. The corresponding option in CMakeLists.txt must also be set.
+ */
+#undef STMS_ENABLE_OPENGL
+/**
+ * Builds StoneMason with Vulkan support. The corresponding option in CMakeLists.txt must also be set.
+ */
+#define STMS_ENABLE_VULKAN
+
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
 #undef STMS_NO_OPENSSL // TODO: Implement

@@ -7,6 +7,10 @@
 #ifndef __STONEMASON_GL_GL_HPP
 #define __STONEMASON_GL_GL_HPP
 
+#include "stms/config.hpp"
+#ifdef STMS_ENABLE_OPENGL
+
+
 #define STMS_GLC(glCall) (glCall); ::stms::flushGlErrs(#glCall);
 
 #define GLEW_STATIC 1
@@ -28,5 +32,6 @@ namespace stms {
 
 }
 
+#endif
 
 #endif //STONEMASON_GL_GL_HPP

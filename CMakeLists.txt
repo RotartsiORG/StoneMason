@@ -15,6 +15,9 @@ option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by defaul
 option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols for GDB" ON)
 option(STMS_OPTIMIZE "Builds STMS with -O3" ON)
 
+option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" OFF) # option in config.hpp must also be set
+option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON) # option in config.hpp must also be set
+
 if (STMS_OPTIMIZE)
     message("-- Compiling with -O3")
     add_compile_options(-O3)
@@ -39,12 +42,9 @@ if (APPLE)
     set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
 endif()
 
-find_package(GLEW REQUIRED)
-find_package(OpenAL REQUIRED)
-find_package(Vulkan REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(OpenGL REQUIRED)
 find_package(CURL REQUIRED)
+find_package(OpenAL REQUIRED)
 
 set(GLFW_VULKAN_STATIC OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -55,6 +55,8 @@ add_subdirectory(dep/glfw)
 add_subdirectory(dep/freetype2)
 
 #add_subdirectory(dep/bullet3)
+
+add_subdirectory(dep/assimp)
 
 add_subdirectory(dep/fmt)
 
@@ -70,20 +72,36 @@ add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
 target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui)
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui)
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui dep/assimp/include)
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui dep/assimp/include)
 
 target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
 target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
 
-target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
-target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
+target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl assimp freetype)
+target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl assimp freetype)
 
-target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
-target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
 
-target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
-target_link_libraries(stms_static PUBLIC Vulkan::Vulkan OpenGL::GL GLEW::glew_s freetype)
+if (STMS_ENABLE_OPENGL)
+    find_package(GLEW REQUIRED)
+    find_package(OpenGL REQUIRED)
+
+    target_include_directories(stms_shared PUBLIC ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
+    target_include_directories(stms_static PUBLIC ${OPENGL_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
+
+    target_link_libraries(stms_shared PUBLIC OpenGL::GL GLEW::glew_s)
+    target_link_libraries(stms_static PUBLIC OpenGL::GL GLEW::glew_s)
+endif()
+
+if (STMS_ENABLE_VULKAN)
+    find_package(Vulkan REQUIRED)
+
+    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})
+    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})
+
+    target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan)
+    target_link_libraries(stms_static PUBLIC Vulkan::Vulkan)
+endif()
 
 # TODO: Remove later. Here bc otherwise clion won't properly see our CMake project.
 set(STMS_BUILD_TESTS ON CACHE BOOL "" FORCE)
