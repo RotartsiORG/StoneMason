@@ -22,9 +22,9 @@
 #undef STMS_NO_OPENSSL // TODO: Implement
 
 namespace stms {
-    constexpr char versionString[] = "0.0.0-dev2020.07.05";
+    constexpr char versionString[] = "0.0.0-dev2020.07.06";
 
-    constexpr unsigned fullVersionNum = 0; // increment this every commit
+    constexpr unsigned fullVersionNum = 1; // increment this every commit
 
     constexpr short versionMajor = 0;
     constexpr short versionMinor = 0;

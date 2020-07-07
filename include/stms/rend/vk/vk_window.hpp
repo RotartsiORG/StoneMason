@@ -22,6 +22,12 @@
 #include <stms/logging.hpp>
 
 namespace stms {
+    struct VKGPU {
+        vk::PhysicalDevice gpu;
+        uint32_t graphicsIndex{};
+        uint32_t presentIndex{};
+    };
+
     class VKWindow : public GenericWindow {
     public:
         VKWindow(int width, int height, const char *title="StoneMason Window (VULKAN)");
@@ -35,7 +41,8 @@ namespace stms {
     };
 
     static std::unordered_set<std::string> &getForbiddenLayers() {
-        static auto forbidden = std::unordered_set<std::string>({"VK_LAYER_LUNARG_vktrace"});
+        static auto forbidden = std::unordered_set<std::string>({"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump",
+                                                                 "VK_LAYER_LUNARG_demo_layer"});
         return forbidden;
     }
 
@@ -44,6 +51,10 @@ namespace stms {
         vk::Instance inst;
         vk::DebugUtilsMessengerEXT debugMessenger;
         std::unordered_set<std::string> enabledExts;
+
+        std::vector<const char *> layers;
+
+        friend class VKDevice;
 
     public:
         template <std::size_t numNeedExt>
@@ -75,10 +86,24 @@ namespace stms {
             return enabledExts.find(ext) != enabledExts.end();
         }
 
+        // In the future, the client would be allowed to pass in suitability parameters
+        // to decide which devices are suitable.
+        std::vector<VKGPU> buildDeviceList();
+
         virtual ~VKInstance();
     };
 
+    class VKDevice {
+    private:
+        vk::Device device;
+        vk::Queue graphics;
+        vk::Queue present;
 
+    public:
+        // TODO: Required/Requested features & extensions
+        VKDevice(VKInstance *inst, VKGPU dev, const vk::PhysicalDeviceFeatures& feats = {});
+        virtual ~VKDevice();
+    };
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
             VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -86,7 +111,10 @@ namespace stms {
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
             void* pUserData) {
 
-        STMS_WARN("VK VALIDATION {}: {}", pCallbackData->pMessageIdName, pCallbackData->pMessage);
+        // Ignore loader messages bc they are just noise
+        if (std::strcmp(pCallbackData->pMessageIdName, "Loader Message") != 0) {
+            STMS_WARN("VK VALIDATION {}: {}", pCallbackData->pMessageIdName, pCallbackData->pMessage);
+        }
 
         return VK_FALSE;
     }
@@ -100,37 +128,26 @@ namespace stms {
         std::vector<const char *> exts(details.requiredExts.begin(), details.requiredExts.end());
 
         uint32_t glfwExtCount = 0;
-        const char** glfwExts;
-
-        glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
+        const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
         exts.insert(exts.end(), glfwExts, glfwExts + glfwExtCount);
 
+        // TODO: If there is an extension in `wantedExts` that isn't available, that is never logged!
         std::vector<vk::ExtensionProperties> extProps = vk::enumerateInstanceExtensionProperties();
         for (const auto &prop : extProps) {
             if (details.wantedExts.find(std::string(prop.extensionName)) != details.wantedExts.end()) {
-                STMS_INFO("Enabled Vulkan extension {}", prop.extensionName);
                 exts.push_back(prop.extensionName);
-            } else {
-                // not necessarily disabled, as it could be in details.requiredExts.
-                STMS_INFO("Vulkan extension {} is available.", prop.extensionName);
             }
         }
 
-
-        std::vector<const char *> layers;
         std::vector<vk::LayerProperties> layerProps;
         if (details.validate) {
-            exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
             STMS_INFO("Vulkan validation layers are enabled!");
+            exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             layerProps = vk::enumerateInstanceLayerProperties();
-
             for (const auto &lyo : layerProps) {
                 if (getForbiddenLayers().find(std::string(lyo.layerName)) == getForbiddenLayers().end()) {
-                    STMS_INFO("Enabling validation layer {} ('{}')", lyo.layerName, lyo.description);
+                    STMS_INFO("Enabling validation layer: \t {:<32} \t {}", lyo.layerName, lyo.description);
                     layers.emplace_back(lyo.layerName);
-                } else {
-                    STMS_INFO("IGNORING validation layer {} ('{}')", lyo.layerName, lyo.description);
                 }
             }
         } else {
@@ -138,6 +155,7 @@ namespace stms {
         }
 
         for (const auto &ext : exts) {
+            STMS_INFO("Enabled Vulkan extension: \t {}", ext);
             enabledExts.emplace(std::string(ext));
         }
 
@@ -166,7 +184,7 @@ namespace stms {
 
                 func(inst, &rawCi, nullptr, &rawMessenger);
             } else {
-                STMS_INFO("Failed to load 'vkCreateDebugUtilsMessengerEXT' despite extension being present!");
+                STMS_ERROR("Failed to load 'vkCreateDebugUtilsMessengerEXT' despite extension being present!");
             }
 
             ci.pNext = &validationCbInfo;
