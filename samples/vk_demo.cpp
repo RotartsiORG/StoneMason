@@ -8,12 +8,11 @@
 int main() {
     stms::initAll();
 
-    stms::VKWindow win(640, 480, "StoneMason Vulkan Demo");
     stms::VKInstance inst(stms::VKInstance::ConstructionDetails<0>{"VK Demo", 0, 0, 0, {}, {}, true});
+    stms::VKWindow win(&inst, 640, 480, "StoneMason Vulkan Demo");
 
-    auto gpus = inst.buildDeviceList();
-    auto name = gpus[0].gpu.getProperties().deviceName; // temp obj destroyed but it werks and i don't care enough!
-    STMS_INFO("GOT GPU {}", name);
+    auto gpus = inst.buildDeviceList(&win);
+    stms::VKDevice gpu(&inst, gpus[0], {});
 
     while (!win.shouldClose()) {
         stms::pollEvents();

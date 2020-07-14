@@ -23,14 +23,17 @@ namespace stms {
         } else {
             vk::PhysicalDeviceMemoryProperties memProps = dev.getMemoryProperties();
 
-            // 128 GB advantage for discrete GPUs.
-            auto initScore = props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 1024 * 1024 * 1024 * 128 : 0;
+//            size_t ret = std::accumulate(memProps.memoryHeaps, memProps.memoryHeaps + memProps.memoryHeapCount, initScore,
+//                    [](size_t init, const vk::MemoryHeap& memHeap) {
+//                STMS_INFO("Heap Size: {}", memHeap.size);
+//                return init + memHeap.size;
+//            });
 
-            size_t ret = std::accumulate(memProps.memoryHeaps, memProps.memoryHeaps + memProps.memoryHeapCount, initScore,
-                    [](size_t init, const vk::MemoryHeap& memHeap) {
-                STMS_INFO("Heap Size: {}", memHeap.size);
-                return init + memHeap.size;
-            });
+            // 128 GB advantage for discrete GPUs.
+            size_t ret =  props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 1024 * 1024 * 1024 * 128 : 0;
+            for (uint32_t i = 0; i < memProps.memoryHeapCount; i++) {
+                ret += memProps.memoryHeaps[i].size;
+            }
 
             STMS_INFO("Device {} has {} of VRAM", props.deviceName, ret);
 
@@ -39,7 +42,17 @@ namespace stms {
         }
     }
 
-    VKWindow::VKWindow(int width, int height, const char *title) {
+    static bool devExtensionsSuitable(vk::PhysicalDevice dev) {
+        auto supportedExts = dev.enumerateDeviceExtensionProperties();
+        for (const auto &ext : supportedExts) {
+            if (std::strcmp(ext.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    VKWindow::VKWindow(VKInstance *inst, int width, int height, const char *title) : parent(inst) {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // no opengl api
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // TODO: swapchain recreation.
@@ -48,6 +61,16 @@ namespace stms {
         if (!win) {
             STMS_ERROR("Failed to create vulkan window {}! Expect a crash!", title);
         }
+
+        VkSurfaceKHR rawSurf = VK_NULL_HANDLE;
+        if (glfwCreateWindowSurface(inst->inst, win, nullptr, &rawSurf) != VK_SUCCESS) {
+            STMS_ERROR("Failed to create surface for window {}! Vulkan is unusable!", title);
+        }
+        surface = vk::SurfaceKHR(rawSurf);
+    }
+
+    VKWindow::~VKWindow() {
+        parent->inst.destroy(surface);
     }
 
     VKInstance::~VKInstance() {
@@ -62,20 +85,38 @@ namespace stms {
         inst.destroy();
     }
 
-    std::vector<VKGPU> VKInstance::buildDeviceList() {
+    std::vector<VKGPU> VKInstance::buildDeviceList(VKWindow *win) {
         std::vector<vk::PhysicalDevice> devs = inst.enumeratePhysicalDevices();
 
         std::vector<VKGPU> ret;
         ret.reserve(devs.size());
 
         for (const auto &d : devs) {
+            auto props = d.getProperties();
+
+            if (!devExtensionsSuitable(d)) {
+                STMS_WARN("Skipping card {} because it doesn't support the swapchain extension!", props.deviceName);
+                continue; // Doesn't support swap-chain ext
+            }
+
+            if (d.getSurfacePresentModesKHR(win->surface).empty() || d.getSurfaceFormatsKHR(win->surface).empty()) {
+                STMS_WARN("Skipping card {} because its present modes and surface formats are inadequate!", props.deviceName);
+                continue; // Swap chain is inadequate
+            }
+
             VKGPU toInsert{};
             toInsert.gpu = d;
 
             auto queues = d.getQueueFamilyProperties();
             bool graphicsFound = false;
+            bool presentFound = false;
             uint32_t i = 0;
             for (const auto &q : queues) {
+                if (d.getSurfaceSupportKHR(i, win->surface)) {
+                    toInsert.presentIndex = i;
+                    presentFound = true;
+                }
+
                 if (q.queueFlags & vk::QueueFlagBits::eGraphics) {
                     graphicsFound = true;
                     toInsert.graphicsIndex = i;
@@ -85,8 +126,10 @@ namespace stms {
                 i++;
             }
 
-            if (graphicsFound) {
+            if (graphicsFound && presentFound) {
                 ret.emplace_back(toInsert);
+            } else {
+                STMS_WARN("Skipping card {} because its queues are inadequate.", props.deviceName);
             }
         }
 
@@ -109,12 +152,16 @@ namespace stms {
     VKDevice::VKDevice(VKInstance *inst, VKGPU dev, const vk::PhysicalDeviceFeatures& feats) {
         float prio = 1.0f;
 
-        dev.gpu.enumerateDeviceExtensionProperties();
+        auto deviceExts = std::vector<const char *>({VK_KHR_SWAPCHAIN_EXTENSION_NAME});
 
-        vk::DeviceQueueCreateInfo graphicsCi{{}, dev.graphicsIndex, 1, &prio};
-        vk::DeviceCreateInfo devCi{{}, 1, &graphicsCi, static_cast<uint32_t>(inst->layers.size()), inst->layers.data(), 0, nullptr, &feats};
+        vk::DeviceQueueCreateInfo queues[] = {{{}, dev.presentIndex, 1, &prio}, {{}, dev.graphicsIndex, 1, &prio}};
+        vk::DeviceCreateInfo devCi{{}, 2, queues, static_cast<uint32_t>(inst->layers.size()), inst->layers.data(),
+                                   static_cast<uint32_t>(deviceExts.size()), deviceExts.data(), &feats};
 
         device = dev.gpu.createDevice(devCi);
+
+        device.getQueue(dev.graphicsIndex, 0, &graphics);
+        device.getQueue(dev.presentIndex, 0, &present);
     }
 
     VKDevice::~VKDevice() {

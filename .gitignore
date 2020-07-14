@@ -41,3 +41,5 @@ latest.log
 imgui.ini
 cov-int
 myproject.tgz
+
+*.foz

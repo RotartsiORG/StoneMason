@@ -28,23 +28,14 @@ namespace stms {
         uint32_t presentIndex{};
     };
 
-    class VKWindow : public GenericWindow {
-    public:
-        VKWindow(int width, int height, const char *title="StoneMason Window (VULKAN)");
-        ~VKWindow() override = default;
-
-        VKWindow(const VKWindow &rhs) = delete;
-        VKWindow &operator=(const VKWindow &rhs) = delete;
-
-        VKWindow(VKWindow &&rhs) noexcept;
-        VKWindow &operator=(VKWindow &&rhs) noexcept;
-    };
-
     static std::unordered_set<std::string> &getForbiddenLayers() {
-        static auto forbidden = std::unordered_set<std::string>({"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump",
-                                                                 "VK_LAYER_LUNARG_demo_layer"});
+        static auto forbidden = std::unordered_set<std::string>(
+                {"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump", "VK_LAYER_LUNARG_demo_layer",
+                 "VK_LAYER_LUNARG_monitor"});
         return forbidden;
     }
+
+    class VKWindow;
 
     class VKInstance {
     private:
@@ -55,6 +46,7 @@ namespace stms {
         std::vector<const char *> layers;
 
         friend class VKDevice;
+        friend class VKWindow;
 
     public:
         template <std::size_t numNeedExt>
@@ -88,9 +80,27 @@ namespace stms {
 
         // In the future, the client would be allowed to pass in suitability parameters
         // to decide which devices are suitable.
-        std::vector<VKGPU> buildDeviceList();
+        std::vector<VKGPU> buildDeviceList(VKWindow *win);
 
         virtual ~VKInstance();
+    };
+
+    class VKWindow : public GenericWindow {
+    private:
+        vk::SurfaceKHR surface;
+        VKInstance *parent;
+
+        friend class VKInstance;
+
+    public:
+        VKWindow(VKInstance *inst, int width, int height, const char *title="StoneMason Window (VULKAN)");
+        ~VKWindow() override;
+
+        VKWindow(const VKWindow &rhs) = delete;
+        VKWindow &operator=(const VKWindow &rhs) = delete;
+
+        VKWindow(VKWindow &&rhs) noexcept;
+        VKWindow &operator=(VKWindow &&rhs) noexcept;
     };
 
     class VKDevice {
@@ -100,7 +110,7 @@ namespace stms {
         vk::Queue present;
 
     public:
-        // TODO: Required/Requested features & extensions
+        // TODO: Required/Requested features & extensions (custom queues too?)
         VKDevice(VKInstance *inst, VKGPU dev, const vk::PhysicalDeviceFeatures& feats = {});
         virtual ~VKDevice();
     };
