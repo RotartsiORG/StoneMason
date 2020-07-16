@@ -13,12 +13,12 @@
 #include "glm/gtx/transform.hpp"
 
 static constexpr char vertSrc[] = R"(
-#version 120
+#version 330 core
 
-attribute vec2 pos;
-attribute vec2 inTexCoords;
+layout (location = 0) in vec2 pos;
+layout (location = 1) in vec2 inTexCoords;
 
-varying vec2 vTexCoords;
+out vec2 vTexCoords;
 
 uniform mat4 userTrans;
 uniform mat4 txtTrans;
@@ -31,15 +31,16 @@ void main() {
 )";
 
 static constexpr char fragSrc[] = R"(
-#version 120
+#version 330 core
 
-varying vec2 vTexCoords;
+in vec2 vTexCoords;
+out vec4 fragColor;
 
 uniform vec4 color;
 uniform sampler2D tex;
 
 void main() {
-    gl_FragColor = vec4(color.rgb, texture2D(tex, vTexCoords).r * color.a);
+    fragColor = vec4(color.rgb, texture(tex, vTexCoords).r * color.a);
 }
 
 )";

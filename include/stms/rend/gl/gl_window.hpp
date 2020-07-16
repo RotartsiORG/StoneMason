@@ -55,10 +55,19 @@ namespace stms {
 
     // some direct pointers to raw opengl calls
     // TODO: Depth & stencil testing configuration
-    extern void(*enableGl)(unsigned);
-    extern void(*disableGl)(unsigned);
-    extern void(*clearGl)(unsigned);
-    extern void(*viewportGl)(int, int, int, int);
+    inline void enableGl(unsigned feat) {
+        STMS_GLC(glEnable(feat));
+    };
+    inline void disableGl(unsigned feat) {
+        STMS_GLC(glDisable(feat));
+    };
+    inline void clearGl(unsigned bufferBits) {
+        STMS_GLC(glClear(bufferBits));
+    };
+
+    inline void viewportGl(int x, int y, int w, int h) {
+        STMS_GLC(glViewport(x, y, w, h));
+    };
 }
 
 #endif

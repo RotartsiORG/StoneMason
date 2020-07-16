@@ -15,26 +15,26 @@
 
 
 constexpr char texRendFragSrc[] = R"(
-#version 120
+#version 330 core
 
-varying vec2 vTexCoords;
+in vec2 vTexCoords;
+out vec4 fragColor;
 
 uniform sampler2D slot0_tex;
 
 void main() {
-    gl_FragColor = texture2D(slot0_tex, vTexCoords);
-   // gl_FragColor = vec4(0, 1, 0, 1);
+    fragColor = texture(slot0_tex, vTexCoords);
 }
 
 )";
 
 constexpr char texRendVertSrc[] = R"(
-#version 120
+#version 330 core
 
-attribute vec2 pos;
-attribute vec2 inTexCoords;
+layout (location = 0) in vec2 pos;
+layout (location = 1) in vec2 inTexCoords;
 
-varying vec2 vTexCoords;
+out vec2 vTexCoords;
 
 uniform mat4 mvp;
 

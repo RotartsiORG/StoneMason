@@ -11,7 +11,7 @@
 /**
  * Builds StoneMason with OpenGL support. The corresponding option in CMakeLists.txt must also be set.
  */
-#undef STMS_ENABLE_OPENGL
+#define STMS_ENABLE_OPENGL
 /**
  * Builds StoneMason with Vulkan support. The corresponding option in CMakeLists.txt must also be set.
  */

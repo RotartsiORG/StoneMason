@@ -15,6 +15,8 @@ target_include_directories(stms_dtls_serv PUBLIC ../include)
 target_link_libraries(stms_dtls_serv stms_static)
 
 if (STMS_ENABLE_OPENGL)
+    message("-- OpenGL demos enabled for STMS")
+
     project(stms_ogl_demo LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples for StoneMason")
     add_executable(stms_ogl_demo ogl_demo.cpp)
     target_compile_options(stms_ogl_demo PUBLIC ${STMS_COMPILE_FLAGS})
@@ -23,6 +25,8 @@ if (STMS_ENABLE_OPENGL)
 endif()
 
 if (STMS_ENABLE_VULKAN)
+    message("-- Vulkan demos enabled for STMS")
+
     project(stms_vk_demo LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples for StoneMason")
     add_executable(stms_vk_demo vk_demo.cpp)
     target_compile_options(stms_vk_demo PUBLIC ${STMS_COMPILE_FLAGS})

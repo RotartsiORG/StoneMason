@@ -18,6 +18,7 @@
 #include "stms/rend/gl/gl_buffers.hpp"
 #include "gl_shaders.hpp"
 #include <unordered_set>
+#include <string>
 
 namespace stms {
     typedef Assimp::Importer GLModelImporter;
@@ -45,7 +46,7 @@ namespace stms {
         };
 
         std::vector<Mesh> meshes;
-        std::unordered_map<std::string, GLTexture> textures;
+        //std::unordered_map<std::string, GLTexture> textures;
 
         Node root;
 

@@ -12,11 +12,6 @@
 
 namespace stms {
 
-    void(*enableGl)(unsigned) = &glEnable;
-    void(*disableGl)(unsigned) = &glDisable;
-    void(*clearGl)(unsigned) = &glClear;
-    void(*viewportGl)(int, int, int, int) = &glViewport;
-
     GLWindow::GLWindow(int width, int height, const char *title) {
         if (glInitialized) {
             STMS_ERROR("Failed to create window '{}': Only 1 OpenGL window is permitted!", title);
@@ -84,7 +79,7 @@ namespace stms {
 
         // Setup Platform/Renderer bindings
         ImGui_ImplGlfw_InitForOpenGL(win, true);
-        ImGui_ImplOpenGL3_Init("#version 150"); // fingers crossed this works
+        ImGui_ImplOpenGL3_Init("#version 330 core"); // fingers crossed this works
     }
 
     GLWindow::~GLWindow() {

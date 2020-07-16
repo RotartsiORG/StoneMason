@@ -13,9 +13,9 @@ option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
 option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" ON)
 option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
 option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols for GDB" ON)
-option(STMS_OPTIMIZE "Builds STMS with -O3" ON)
+option(STMS_OPTIMIZE "Builds STMS with -O3" OFF)
 
-option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" OFF) # option in config.hpp must also be set
+option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" ON) # option in config.hpp must also be set
 option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON) # option in config.hpp must also be set
 
 if (STMS_OPTIMIZE)
@@ -83,6 +83,8 @@ target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL
 
 
 if (STMS_ENABLE_OPENGL)
+    message("-- OpenGL support enabled for STMS")
+
     find_package(GLEW REQUIRED)
     find_package(OpenGL REQUIRED)
 
@@ -94,6 +96,8 @@ if (STMS_ENABLE_OPENGL)
 endif()
 
 if (STMS_ENABLE_VULKAN)
+    message("-- Vulkan support enabled for STMS")
+
     find_package(Vulkan REQUIRED)
 
     target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})

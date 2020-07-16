@@ -65,7 +65,7 @@ namespace stms {
     }
 
     GLVertexArray::VertexArrayImplOGL3::VertexArrayImplOGL3() {
-        STMS_GLC(glCreateVertexArrays(1, &id));
+        STMS_GLC(glGenVertexArrays(1, &id));
     }
 
     GLVertexArray::VertexArrayImplOGL3::~VertexArrayImplOGL3() {

@@ -154,8 +154,13 @@ namespace stms {
 
         auto deviceExts = std::vector<const char *>({VK_KHR_SWAPCHAIN_EXTENSION_NAME});
 
-        vk::DeviceQueueCreateInfo queues[] = {{{}, dev.presentIndex, 1, &prio}, {{}, dev.graphicsIndex, 1, &prio}};
-        vk::DeviceCreateInfo devCi{{}, 2, queues, static_cast<uint32_t>(inst->layers.size()), inst->layers.data(),
+        std::vector<vk::DeviceQueueCreateInfo> queues = {{{}, dev.graphicsIndex, 1, &prio}};
+        if (dev.presentIndex != dev.graphicsIndex) {
+            queues.emplace_back(vk::DeviceQueueCreateInfo{{}, dev.presentIndex, 1, &prio});
+        }
+
+        vk::DeviceCreateInfo devCi{{}, static_cast<uint32_t>(queues.size()), queues.data(),
+                                   static_cast<uint32_t>(inst->layers.size()), inst->layers.data(),
                                    static_cast<uint32_t>(deviceExts.size()), deviceExts.data(), &feats};
 
         device = dev.gpu.createDevice(devCi);

@@ -12,6 +12,7 @@
 
 
 #define STMS_GLC(glCall) (glCall); ::stms::flushGlErrs(#glCall);
+//#define STMS_GLC(glCall) (glCall);
 
 #define GLEW_STATIC 1
 #define GLFW_INCLUDE_NONE

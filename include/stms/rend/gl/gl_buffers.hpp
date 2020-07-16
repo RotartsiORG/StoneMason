@@ -60,7 +60,7 @@ namespace stms {
 
     public:
         _stms_GLBuffer() {
-            STMS_GLC(glCreateBuffers(1, &id));
+            STMS_GLC(glGenBuffers(1, &id));
         }
 
         virtual ~_stms_GLBuffer() {
@@ -68,12 +68,12 @@ namespace stms {
         }
 
         _stms_GLBuffer(const void *data, GLsizeiptr size, GLBufferMode mode = eDrawStatic)  : usage(mode) {
-            STMS_GLC(glCreateBuffers(1, &id));
+            STMS_GLC(glGenBuffers(1, &id));
             write(data, size);
         }
 
         explicit _stms_GLBuffer(GLBufferMode mode)  : usage(mode) {
-            STMS_GLC(glCreateBuffers(1, &id));
+            STMS_GLC(glGenBuffers(1, &id));
         };
 
         _stms_GLBuffer(const _stms_GLBuffer<bufType> &rhs) = delete;

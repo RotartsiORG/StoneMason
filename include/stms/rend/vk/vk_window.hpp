@@ -120,11 +120,15 @@ namespace stms {
             VkDebugUtilsMessageTypeFlagsEXT messageType,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
             void* pUserData) {
-
-        // Ignore loader messages bc they are just noise
-        if (std::strcmp(pCallbackData->pMessageIdName, "Loader Message") != 0) {
-            STMS_WARN("VK VALIDATION {}: {}", pCallbackData->pMessageIdName, pCallbackData->pMessage);
+	
+        if (pCallbackData->pMessageIdName != nullptr) {
+            // Ignore loader messages bc they are just noise
+            if (std::strcmp(pCallbackData->pMessageIdName, "Loader Message") == 0) {
+                return VK_FALSE;
+            }
         }
+
+        STMS_WARN("{}", pCallbackData->pMessage);
 
         return VK_FALSE;
     }
@@ -133,7 +137,7 @@ namespace stms {
     VKInstance::VKInstance(const VKInstance::ConstructionDetails<numReq> &details) {
         vk::ApplicationInfo appInfo{details.appName, static_cast<uint32_t>(VK_MAKE_VERSION(details.appMajor, details.appMinor, details.appMicro)),
                                     "StoneMason Engine", static_cast<uint32_t>(VK_MAKE_VERSION(versionMajor, versionMinor, versionMicro)),
-                                    VK_VERSION_1_0};
+                                    VK_API_VERSION_1_0};
 
         std::vector<const char *> exts(details.requiredExts.begin(), details.requiredExts.end());
 

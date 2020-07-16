@@ -32,7 +32,11 @@ int main() {
     {
         stms::GLWindow win(640, 480);
         glfwSetInputMode(win.getRawPtr(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwSetInputMode(win.getRawPtr(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE); // This is not always supported...
+        if (glfwRawMouseMotionSupported()) {
+            glfwSetInputMode(win.getRawPtr(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE); // This is not always supported...
+        } else {
+            STMS_WARN("Raw mouse input not supported! first person camera may be broken :/");
+        }
 
         double cursorX, cursorY;
         double mouseSensitivity = 1.0 / 256;
@@ -149,7 +153,7 @@ int main() {
 
         stms::GLFrameBuffer frameBuf = stms::GLFrameBuffer(txtSize.x, txtSize.y);
 
-        glm::ivec2 size;
+        glm::ivec2 size = win.getSize();
         stms::TPSTimer tpsTimer;
         tpsTimer.tick();
         while (!win.shouldClose()) {
