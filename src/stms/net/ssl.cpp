@@ -146,7 +146,7 @@ namespace stms {
         CONF_modules_unload(1);
     }
 
-    static int getPassword(char *dest, int size, int flag, void *pass) {
+    static int getPassword(char *dest, int size, int, void *pass) {
         auto *passStr = reinterpret_cast<std::string *>(pass);
         if (passStr->empty()) {
             dest[0] = '\0';
@@ -180,7 +180,7 @@ namespace stms {
     }
 
 
-    _stms_SSLBase::_stms_SSLBase(bool isServ, stms::ThreadPool *pool, bool isUdp) : isServ(isServ), isUdp(isUdp), pPool(pool) {
+    _stms_SSLBase::_stms_SSLBase(bool serv, stms::ThreadPool *pool, bool udp) : isServ(serv), isUdp(udp), pPool(pool) {
 
         if (isUdp) {
             pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());

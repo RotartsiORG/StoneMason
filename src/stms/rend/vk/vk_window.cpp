@@ -30,7 +30,7 @@ namespace stms {
 //            });
 
             // 128 GB advantage for discrete GPUs.
-            size_t ret =  props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 1024 * 1024 * 1024 * 128 : 0;
+            size_t ret =  props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 1024UL * 1024UL * 1024UL * 128UL : 0;
             for (uint32_t i = 0; i < memProps.memoryHeapCount; i++) {
                 ret += memProps.memoryHeaps[i].size;
             }
@@ -70,7 +70,17 @@ namespace stms {
     }
 
     VKWindow::~VKWindow() {
+        for (const auto &v : swapViews) {
+            swapParent->device.destroyImageView(v);
+        }
+
+        swapParent->device.destroySwapchainKHR(swap);
         parent->inst.destroy(surface);
+    }
+
+    void VKWindow::createSwapFrom(VKDevice *dev) {
+        swapParent = dev;
+        // todo: create swapcain and query images, create views (forcing 1 layer & no mipmap)
     }
 
     VKInstance::~VKInstance() {

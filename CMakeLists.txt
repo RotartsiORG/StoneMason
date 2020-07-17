@@ -1,9 +1,12 @@
+#NOTE: If you disable ASAN,  remove `-fsanitize=address` AND remove `asan` from the first `target_link_libraries` in
+# ALL targets (including samples & tests)
+
 cmake_minimum_required(VERSION 3.13.5)
 
 SET(CMAKE_CXX_STANDARD 17)
 
 set(STMS_VERSION 0.0.0)
-set(STMS_COMPILE_FLAGS -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-value -Wno-unused-parameter -std=c++17)
+set(STMS_COMPILE_FLAGS -Wall -Wextra -Wpedantic -Wshadow -fsanitize=address -Wno-unused-function -std=c++17) #asan
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
 add_compile_options(-fPIC)
@@ -12,7 +15,7 @@ add_link_options(-fPIC)
 option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
 option(STMS_GENERATE_DOCS "Generates the documentation for StoneMason using doxygen (off by default)" ON)
 option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
-option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols for GDB" ON)
+option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols for GDB" ON) # TODO: rename to just STMS_DEBUG
 option(STMS_OPTIMIZE "Builds STMS with -O3" OFF)
 
 option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" ON) # option in config.hpp must also be set
@@ -72,14 +75,20 @@ add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
 target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui dep/assimp/include)
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui dep/assimp/include)
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui
+                            dep/assimp/include)
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui
+                            dep/assimp/include)
 
-target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
-target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${CURL_INCLUDE_DIRS})
+target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR}
+                            ${CURL_INCLUDE_DIRS})
+target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR}
+                            ${CURL_INCLUDE_DIRS})
 
-target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl assimp freetype)
-target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl assimp freetype)
+target_link_libraries(stms_shared PUBLIC asan glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
+                        assimp freetype)
+target_link_libraries(stms_static PUBLIC asan glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
+                        assimp freetype)
 
 
 if (STMS_ENABLE_OPENGL)

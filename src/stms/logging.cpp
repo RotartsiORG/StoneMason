@@ -9,8 +9,8 @@
 
 namespace stms {
 
-    LogRecord::LogRecord(LogLevel lvl, std::chrono::system_clock::time_point time, const char *file, unsigned int line)
-                            : level(lvl), time(time), file(file), line(line) {}
+    LogRecord::LogRecord(LogLevel lvl, std::chrono::system_clock::time_point iTime, const char *iFile, unsigned int iLine)
+                            : level(lvl), time(iTime), file(iFile), line(iLine) {}
 
 #ifdef STMS_ENABLE_LOGGING
     static FILE *&getLatestLogFile() {
@@ -36,12 +36,12 @@ namespace stms {
     void initLogging() {
 
         if (logToStdout) {
-            getLogHooks().emplace_back([](LogRecord *rec, std::string *str) {
+            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
                 printf("%s\n", str->c_str()); // or just use cout?
             });
         }
 
-        getLogHooks().emplace_back([](LogRecord *rec, std::string *str) {
+        getLogHooks().emplace_back([](LogRecord *, std::string *str) {
             // now remove all text formatting (this is expensive).
             auto start = str->find('\u001b');
             while (start != std::string::npos) {
@@ -54,7 +54,7 @@ namespace stms {
         if (logToLatestLog) {
             getLatestLogFile() = std::fopen("./latest.log", "w");
 
-            getLogHooks().emplace_back([](LogRecord *rec, std::string *str) {
+            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getLatestLogFile());
                 std::fputc('\n', getLatestLogFile());
                 std::fflush(getLatestLogFile()); // This is expensive.
@@ -73,7 +73,7 @@ namespace stms {
             ctimeStr = logsDir + ctimeStr;
             getUniqueLogFile() = fopen(ctimeStr.c_str(), "w");
 
-            getLogHooks().emplace_back([](LogRecord *rec, std::string *str) {
+            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getUniqueLogFile());
                 std::fputc('\n', getUniqueLogFile());
                 std::fflush(getUniqueLogFile()); // This is expensive.
@@ -87,7 +87,7 @@ namespace stms {
         }
 
         STMS_INFO("Initialized StoneMason {} (compiled on {} {})", versionString, __DATE__, __TIME__);
-    };
+    }
 
 #else
     void initLogging() { /* no-op */ };

@@ -57,17 +57,17 @@ namespace stms {
     // TODO: Depth & stencil testing configuration
     inline void enableGl(unsigned feat) {
         STMS_GLC(glEnable(feat));
-    };
+    }
     inline void disableGl(unsigned feat) {
         STMS_GLC(glDisable(feat));
-    };
+    }
     inline void clearGl(unsigned bufferBits) {
         STMS_GLC(glClear(bufferBits));
-    };
+    }
 
     inline void viewportGl(int x, int y, int w, int h) {
         STMS_GLC(glViewport(x, y, w, h));
-    };
+    }
 }
 
 #endif

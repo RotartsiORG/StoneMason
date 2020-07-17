@@ -193,7 +193,7 @@ namespace stms {
             type = newType;
         };
 
-        inline void draw(GLDrawMode mode = eTriangles, GLint first = 0) {
+        inline void draw(GLDrawMode mode = eTriangles) {
             bind();
             STMS_GLC(glDrawElements(mode, numElements, type, nullptr));
         };

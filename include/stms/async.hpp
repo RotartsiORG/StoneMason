@@ -23,7 +23,7 @@ namespace stms {
         std::mutex workerMtx;
         std::mutex unfinishedTaskMtx;
 
-        unsigned short unfinishedTasks;
+        unsigned short unfinishedTasks = 0;
         std::queue<std::packaged_task<void (void)>> tasks;
         std::deque<std::thread> workers;
 

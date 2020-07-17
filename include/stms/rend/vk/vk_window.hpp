@@ -38,15 +38,12 @@ namespace stms {
     class VKWindow;
 
     class VKInstance {
-    private:
+    public:
         vk::Instance inst;
         vk::DebugUtilsMessengerEXT debugMessenger;
         std::unordered_set<std::string> enabledExts;
 
         std::vector<const char *> layers;
-
-        friend class VKDevice;
-        friend class VKWindow;
 
     public:
         template <std::size_t numNeedExt>
@@ -85,26 +82,8 @@ namespace stms {
         virtual ~VKInstance();
     };
 
-    class VKWindow : public GenericWindow {
-    private:
-        vk::SurfaceKHR surface;
-        VKInstance *parent;
-
-        friend class VKInstance;
-
-    public:
-        VKWindow(VKInstance *inst, int width, int height, const char *title="StoneMason Window (VULKAN)");
-        ~VKWindow() override;
-
-        VKWindow(const VKWindow &rhs) = delete;
-        VKWindow &operator=(const VKWindow &rhs) = delete;
-
-        VKWindow(VKWindow &&rhs) noexcept;
-        VKWindow &operator=(VKWindow &&rhs) noexcept;
-    };
-
     class VKDevice {
-    private:
+    public:
         vk::Device device;
         vk::Queue graphics;
         vk::Queue present;
@@ -115,12 +94,37 @@ namespace stms {
         virtual ~VKDevice();
     };
 
+    class VKWindow : public GenericWindow {
+    public:
+        vk::SurfaceKHR surface;
+        VKInstance *parent;
+
+        vk::SwapchainKHR swap;
+        VKDevice *swapParent;
+        std::vector<vk::Image> swapImgs;
+        std::vector<vk::ImageView> swapViews;
+
+        friend class VKInstance;
+
+    public:
+        VKWindow(VKInstance *inst, int width, int height, const char *title="StoneMason Window (VULKAN)");
+        ~VKWindow() override;
+
+        VKWindow(const VKWindow &rhs) = delete;
+        VKWindow &operator=(const VKWindow &rhs) = delete;
+
+        void createSwapFrom(VKDevice *dev);
+
+        VKWindow(VKWindow &&rhs) noexcept;
+        VKWindow &operator=(VKWindow &&rhs) noexcept;
+    };
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanDebugCallback(
-            VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-            VkDebugUtilsMessageTypeFlagsEXT messageType,
+            VkDebugUtilsMessageSeverityFlagBitsEXT,
+            VkDebugUtilsMessageTypeFlagsEXT,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-            void* pUserData) {
-	
+            void*) {
+
         if (pCallbackData->pMessageIdName != nullptr) {
             // Ignore loader messages bc they are just noise
             if (std::strcmp(pCallbackData->pMessageIdName, "Loader Message") == 0) {

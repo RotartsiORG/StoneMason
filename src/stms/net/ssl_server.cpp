@@ -207,7 +207,7 @@ namespace stms {
         doHandshake(cli, serv);
     }
 
-    SSLServer::SSLServer(stms::ThreadPool *pool, bool isUdp) : _stms_SSLBase(true, pool, isUdp) {
+    SSLServer::SSLServer(stms::ThreadPool *pool, bool udp) : _stms_SSLBase(true, pool, udp) {
         SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
         SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
     }
@@ -545,7 +545,7 @@ namespace stms {
         return DTLS_get_data_mtu(clients[cli]->pSsl);
     }
 
-    void SSLServer::waitEvents(int timeoutMs) {
+    void SSLServer::waitEvents(int toMs) {
         // sleep for a bit and wait for clients that connected in the previous tick to become noticed.
         std::this_thread::sleep_for(std::chrono::milliseconds(waitEventsSleepAmount));
 
@@ -570,7 +570,7 @@ namespace stms {
         servPollFd.fd = sock;
         toPoll.emplace_back(servPollFd);
 
-        poll(toPoll.data(), toPoll.size(), timeoutMs);
+        poll(toPoll.data(), toPoll.size(), toMs);
     }
 
     std::vector<std::string> SSLServer::getClientUuids() {

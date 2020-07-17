@@ -85,8 +85,8 @@ namespace stms {
         STMS_GLC(glBindVertexArray(0));
     }
 
-    GLVertexArray::VertexArrayImpl::VertexBufferLayout::VertexBufferLayout(GLVertexBuffer *vbo) {
-        this->vbo = vbo;
+    GLVertexArray::VertexArrayImpl::VertexBufferLayout::VertexBufferLayout(GLVertexBuffer *target) {
+        this->vbo = target;
     }
 
     void GLVertexArray::VertexArrayImplOGL2::build() { /* no-op */ }
