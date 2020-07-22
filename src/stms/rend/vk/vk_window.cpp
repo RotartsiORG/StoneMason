@@ -23,12 +23,6 @@ namespace stms {
         } else {
             vk::PhysicalDeviceMemoryProperties memProps = dev.getMemoryProperties();
 
-//            size_t ret = std::accumulate(memProps.memoryHeaps, memProps.memoryHeaps + memProps.memoryHeapCount, initScore,
-//                    [](size_t init, const vk::MemoryHeap& memHeap) {
-//                STMS_INFO("Heap Size: {}", memHeap.size);
-//                return init + memHeap.size;
-//            });
-
             // 128 GB advantage for discrete GPUs.
             size_t ret =  props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu ? 1024UL * 1024UL * 1024UL * 128UL : 0;
             for (uint32_t i = 0; i < memProps.memoryHeapCount; i++) {
@@ -52,7 +46,7 @@ namespace stms {
         return false;
     }
 
-    VKWindow::VKWindow(VKInstance *inst, int width, int height, const char *title) : parent(inst) {
+    VKWindow::VKWindow(VKDevice *d, int width, int height, const char *title) : parent(d) {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // no opengl api
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // TODO: swapchain recreation.
@@ -63,24 +57,47 @@ namespace stms {
         }
 
         VkSurfaceKHR rawSurf = VK_NULL_HANDLE;
-        if (glfwCreateWindowSurface(inst->inst, win, nullptr, &rawSurf) != VK_SUCCESS) {
+        if (glfwCreateWindowSurface(d->parent->inst, win, nullptr, &rawSurf) != VK_SUCCESS) {
             STMS_ERROR("Failed to create surface for window {}! Vulkan is unusable!", title);
         }
         surface = vk::SurfaceKHR(rawSurf);
+
+        // TODO: proper extent stuff & format & color space & img count selection!
+        uint32_t imgCount = 1;
+        vk::Format swapFmt = vk::Format::eB8G8R8A8Srgb;
+        vk::ColorSpaceKHR swapColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+        vk::Extent2D swapExtent;
+
+        bool queuesIdentical = d->phys.graphicsIndex == d->phys.presentIndex;
+        vk::SwapchainCreateInfoKHR swapCi{
+                {}, surface, imgCount, swapFmt, swapColorSpace, swapExtent, 1, vk::ImageUsageFlagBits::eColorAttachment,
+                queuesIdentical ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
+                queuesIdentical ? 1u : 2u, &d->phys.graphicsIndex, vk::SurfaceTransformFlagBitsKHR::eIdentity,
+                vk::CompositeAlphaFlagBitsKHR::eOpaque, vk::PresentModeKHR::eFifo, VK_TRUE, vk::SwapchainKHR{}
+        };
+
+        swap = d->device.createSwapchainKHR(swapCi);
+
+        swapImgs = d->device.getSwapchainImagesKHR(swap);
+
+        swapViews.reserve(swapImgs.size());
+        for (const auto &img : swapImgs) {
+            vk::ImageViewCreateInfo ci{
+                    {}, img, vk::ImageViewType::e2D, swapFmt, vk::ComponentMapping{},
+                    vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0u, 1u, 0u, 1u}
+            };
+
+            swapViews.emplace_back(d->device.createImageView(ci));
+        }
     }
 
     VKWindow::~VKWindow() {
         for (const auto &v : swapViews) {
-            swapParent->device.destroyImageView(v);
+            parent->device.destroyImageView(v);
         }
 
-        swapParent->device.destroySwapchainKHR(swap);
-        parent->inst.destroy(surface);
-    }
-
-    void VKWindow::createSwapFrom(VKDevice *dev) {
-        swapParent = dev;
-        // todo: create swapcain and query images, create views (forcing 1 layer & no mipmap)
+        parent->device.destroySwapchainKHR(swap);
+        parent->parent->inst.destroy(surface);
     }
 
     VKInstance::~VKInstance() {
@@ -95,7 +112,19 @@ namespace stms {
         inst.destroy();
     }
 
-    std::vector<VKGPU> VKInstance::buildDeviceList(VKWindow *win) {
+    std::vector<VKGPU> VKInstance::buildDeviceList() const {
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // no opengl api
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        GLFWwindow *win = glfwCreateWindow(8, 8, "Dummy Present Target", nullptr, nullptr);
+
+        VkSurfaceKHR rawSurf;
+        if (glfwCreateWindowSurface(inst, win, nullptr, &rawSurf) != VK_SUCCESS) {
+            STMS_ERROR("Failed to create dummy surface target! Returning empty vector from VKInstance::buildDeviceList()!");
+            return {};
+        }
+        auto surface = vk::SurfaceKHR(rawSurf);
+
         std::vector<vk::PhysicalDevice> devs = inst.enumeratePhysicalDevices();
 
         std::vector<VKGPU> ret;
@@ -109,7 +138,7 @@ namespace stms {
                 continue; // Doesn't support swap-chain ext
             }
 
-            if (d.getSurfacePresentModesKHR(win->surface).empty() || d.getSurfaceFormatsKHR(win->surface).empty()) {
+            if (d.getSurfacePresentModesKHR(surface).empty() || d.getSurfaceFormatsKHR(surface).empty()) {
                 STMS_WARN("Skipping card {} because its present modes and surface formats are inadequate!", props.deviceName);
                 continue; // Swap chain is inadequate
             }
@@ -122,7 +151,7 @@ namespace stms {
             bool presentFound = false;
             uint32_t i = 0;
             for (const auto &q : queues) {
-                if (d.getSurfaceSupportKHR(i, win->surface)) {
+                if (d.getSurfaceSupportKHR(i, surface)) {
                     toInsert.presentIndex = i;
                     presentFound = true;
                 }
@@ -143,6 +172,9 @@ namespace stms {
             }
         }
 
+        inst.destroySurfaceKHR(surface);
+        glfwDestroyWindow(win);
+
         std::unordered_map<size_t, size_t> sizeCache;
 
         auto func = [&](VKGPU i, VKGPU j) -> bool {
@@ -159,7 +191,7 @@ namespace stms {
         return ret;
     }
 
-    VKDevice::VKDevice(VKInstance *inst, VKGPU dev, const vk::PhysicalDeviceFeatures& feats) {
+    VKDevice::VKDevice(VKInstance *inst, VKGPU dev, const vk::PhysicalDeviceFeatures& feats) : parent(inst), phys(dev) {
         float prio = 1.0f;
 
         auto deviceExts = std::vector<const char *>({VK_KHR_SWAPCHAIN_EXTENSION_NAME});

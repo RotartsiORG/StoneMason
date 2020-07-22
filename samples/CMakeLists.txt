@@ -6,13 +6,13 @@ project(stms_dtls_cli LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples
 add_executable(stms_dtls_cli DTLS/client.cpp)
 target_compile_options(stms_dtls_cli PUBLIC ${STMS_COMPILE_FLAGS})
 target_include_directories(stms_dtls_cli PUBLIC ../include)
-target_link_libraries(stms_dtls_cli asan stms_static)
+target_link_libraries(stms_dtls_cli stms_static)
 
 project(stms_dtls_serv LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION "Samples for StoneMason")
 add_executable(stms_dtls_serv DTLS/server.cpp)
 target_compile_options(stms_dtls_serv PUBLIC ${STMS_COMPILE_FLAGS})
 target_include_directories(stms_dtls_serv PUBLIC ../include)
-target_link_libraries(stms_dtls_serv asan stms_static)
+target_link_libraries(stms_dtls_serv stms_static)
 
 if (STMS_ENABLE_OPENGL)
     message("-- OpenGL demos enabled for STMS")
@@ -23,7 +23,7 @@ if (STMS_ENABLE_OPENGL)
     target_include_directories(stms_ogl_demo PUBLIC ../include)
 
     # for some reason linking fails with g++ when we use a static lib, but works fine with clang
-    target_link_libraries(stms_ogl_demo asan stms_shared)
+    target_link_libraries(stms_ogl_demo stms_shared)
 endif()
 
 if (STMS_ENABLE_VULKAN)
@@ -35,5 +35,5 @@ if (STMS_ENABLE_VULKAN)
     target_include_directories(stms_vk_demo PUBLIC ../include)
 
     # for some reason linking fails with g++ when we use a static lib, but works fine with clang
-    target_link_libraries(stms_vk_demo asan stms_static)
+    target_link_libraries(stms_vk_demo stms_static)
 endif()

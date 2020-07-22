@@ -1,6 +1,6 @@
 //
 // Created by grant on 7/5/20.
-//
+// TODO: this file and vk_window.cpp need to be re-organized! these files are a mess!
 
 #pragma once
 
@@ -77,7 +77,7 @@ namespace stms {
 
         // In the future, the client would be allowed to pass in suitability parameters
         // to decide which devices are suitable.
-        std::vector<VKGPU> buildDeviceList(VKWindow *win);
+        std::vector<VKGPU> buildDeviceList() const;
 
         virtual ~VKInstance();
     };
@@ -88,6 +88,10 @@ namespace stms {
         vk::Queue graphics;
         vk::Queue present;
 
+        VKInstance *parent{};
+
+        VKGPU phys;
+
     public:
         // TODO: Required/Requested features & extensions (custom queues too?)
         VKDevice(VKInstance *inst, VKGPU dev, const vk::PhysicalDeviceFeatures& feats = {});
@@ -97,23 +101,20 @@ namespace stms {
     class VKWindow : public GenericWindow {
     public:
         vk::SurfaceKHR surface;
-        VKInstance *parent;
+        VKDevice *parent;
 
         vk::SwapchainKHR swap;
-        VKDevice *swapParent;
         std::vector<vk::Image> swapImgs;
         std::vector<vk::ImageView> swapViews;
 
         friend class VKInstance;
 
     public:
-        VKWindow(VKInstance *inst, int width, int height, const char *title="StoneMason Window (VULKAN)");
+        VKWindow(VKDevice *d, int width, int height, const char *title="StoneMason Window (VULKAN)");
         ~VKWindow() override;
 
         VKWindow(const VKWindow &rhs) = delete;
         VKWindow &operator=(const VKWindow &rhs) = delete;
-
-        void createSwapFrom(VKDevice *dev);
 
         VKWindow(VKWindow &&rhs) noexcept;
         VKWindow &operator=(VKWindow &&rhs) noexcept;
@@ -128,6 +129,7 @@ namespace stms {
         if (pCallbackData->pMessageIdName != nullptr) {
             // Ignore loader messages bc they are just noise
             if (std::strcmp(pCallbackData->pMessageIdName, "Loader Message") == 0) {
+                STMS_TRACE("{}", pCallbackData->pMessage);
                 return VK_FALSE;
             }
         }

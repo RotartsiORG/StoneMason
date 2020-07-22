@@ -1,12 +1,9 @@
-#NOTE: If you disable ASAN,  remove `-fsanitize=address` AND remove `asan` from the first `target_link_libraries` in
-# ALL targets (including samples & tests)
-
 cmake_minimum_required(VERSION 3.13.5)
 
 SET(CMAKE_CXX_STANDARD 17)
 
 set(STMS_VERSION 0.0.0)
-set(STMS_COMPILE_FLAGS -Wall -Wextra -Wpedantic -Wshadow -fsanitize=address -Wno-unused-function -std=c++17) #asan
+set(STMS_COMPILE_FLAGS -Wall -Wextra -Wpedantic -Wshadow -Wno-unused-function -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
 add_compile_options(-fPIC)
@@ -85,9 +82,9 @@ target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INC
 target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR}
                             ${CURL_INCLUDE_DIRS})
 
-target_link_libraries(stms_shared PUBLIC asan glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
+target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
                         assimp freetype)
-target_link_libraries(stms_static PUBLIC asan glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
+target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
                         assimp freetype)
 
 

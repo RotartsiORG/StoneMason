@@ -9,10 +9,10 @@ int main() {
     stms::initAll();
 
     stms::VKInstance inst(stms::VKInstance::ConstructionDetails<0>{"VK Demo", 0, 0, 0, {}, {}, true});
-    stms::VKWindow win(&inst, 640, 480, "StoneMason Vulkan Demo");
-
-    auto gpus = inst.buildDeviceList(&win);
+    auto gpus = inst.buildDeviceList();
     stms::VKDevice gpu(&inst, gpus[0], {});
+
+    stms::VKWindow win(&gpu, 640, 480, "StoneMason Vulkan Demo");
 
     while (!win.shouldClose()) {
         stms::pollEvents();

@@ -10,5 +10,5 @@ add_executable(stms_tests main.cpp)
 
 target_compile_options(stms_tests PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_link_libraries(stms_tests PUBLIC asan stms_static gtest_main)
+target_link_libraries(stms_tests PUBLIC stms_static gtest_main)
 target_include_directories(stms_tests PUBLIC . ../include ../dep/googletest/googletest/include)
