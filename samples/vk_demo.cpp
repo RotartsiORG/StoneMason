@@ -10,7 +10,7 @@ int main() {
 
     stms::VKInstance inst(stms::VKInstance::ConstructionDetails<0>{"VK Demo", 0, 0, 0, {}, {}, true});
     auto gpus = inst.buildDeviceList();
-    stms::VKDevice gpu(&inst, gpus[0], {});
+    stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails<0>({}, {}, {}, {}));
 
     stms::VKWindow win(&gpu, 640, 480, "StoneMason Vulkan Demo");
 

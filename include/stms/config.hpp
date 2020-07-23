@@ -20,9 +20,19 @@
 #undef STMS_NO_OPENSSL // TODO: Implement
 
 namespace stms {
-    constexpr char versionString[] = "0.0.0-dev2020.07.22";
+    constexpr char versionString[] = "0.0.0-dev2020.07.23";
+    constexpr unsigned fullVersionNum = 3; // increment this every commit
 
-    constexpr unsigned fullVersionNum = 2; // increment this every commit
+    /**
+     * This number represents the stability ("maturity") of this version. This will be subject to change.
+     *  16: development version
+     *  32: alpha
+     *  48: beta
+     *  64: release candidate
+     *  80: production
+     *  96: lts
+     */
+    constexpr unsigned maturity = 16;
 
     constexpr short versionMajor = 0;
     constexpr short versionMinor = 0;
