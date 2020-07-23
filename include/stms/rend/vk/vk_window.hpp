@@ -1,6 +1,6 @@
 //
 // Created by grant on 7/5/20.
-// TODO: this file and vk_window.cpp need to be re-organized! these files are a mess!
+//
 
 #pragma once
 

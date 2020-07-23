@@ -4,6 +4,8 @@
 
 #include "stms/rend/vk/vk_instance.hpp"
 
+#include <unordered_map>
+
 namespace stms {
     static bool devExtensionsSuitable(vk::PhysicalDevice dev) {
         auto supportedExts = dev.enumerateDeviceExtensionProperties();
