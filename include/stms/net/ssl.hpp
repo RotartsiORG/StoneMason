@@ -3,7 +3,6 @@
  * @brief This file provides basic functionality of OpenSSL server/client.
  *        Normally, you wouldn't have to touch this file. It is included by `stms/net/ssl_client.hpp` and
  *        `stms/net/ssl_server.hpp`. Including this file becomes redundant.
- *
  * Created by Grant Yang on 4/30/20.
  */
 

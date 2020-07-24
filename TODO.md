@@ -44,6 +44,8 @@
 4. curl.hpp
 5. timers.hpp
 6. net/ssl_server.hpp
+7. net/ssl_client.hpp
+8. camera.hpp
 
 - Also, update the stuff that isn't `brief`.
 

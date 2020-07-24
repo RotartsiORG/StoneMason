@@ -180,20 +180,24 @@ namespace stms {
         ALSource &operator=(ALSource &&rhs) noexcept;
     };
 
-    namespace ALListener {
-        inline void setPos(glm::vec3 pos) {
+    class ALListener {
+    public:
+        /// This class is a singleton, delete the default constructor and do not allow construction of this type.
+        ALListener() = delete;
+
+        inline static void setPos(glm::vec3 pos) {
             alListener3f(AL_POSITION, pos.x, pos.y, pos.z);
         }
 
-        inline void setOri(glm::vec3 forward, glm::vec3 up) {
+        inline static void setOri(glm::vec3 forward, glm::vec3 up) {
             float vec[6] = {forward.x, forward.y, forward.z, up.x, up.y, up.z};
             alListenerfv(AL_ORIENTATION, vec);
         }
 
-        inline void setVel(glm::vec3 vel) {
+        inline static void setVel(glm::vec3 vel) {
             alListener3f(AL_VELOCITY, vel.x, vel.y, vel.z);
         }
-    }
+    };
 
     // Returns true if there was an error handled
     ALenum handleAlError();

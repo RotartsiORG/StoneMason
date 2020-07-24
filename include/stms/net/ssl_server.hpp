@@ -53,7 +53,7 @@ namespace stms {
 
         ClientRepresentation() = default; //!< Default constructor
 
-        virtual ~ClientRepresentation(); //!< Virtual destructor
+        virtual ~ClientRepresentation(); //!< Virtual destructor: This will block until `SSL_shutdown` is complete
 
         ClientRepresentation &operator=(const ClientRepresentation &rhs) = delete; //!< Deleted copy assignment operator
 
@@ -72,7 +72,8 @@ namespace stms {
          */
         ClientRepresentation(ClientRepresentation &&rhs) noexcept;
 
-        void shutdownClient(); //!< Terminate the server-side connection to this client
+        /// Terminate the server-side connection to this client. This will block until `SSL_shutdown` completes.
+        void shutdownClient();
     };
 
     /// Internal impl detail. Don't touch
@@ -247,19 +248,20 @@ namespace stms {
 
         /**
          * @brief Send an message (in the form of an array of `uint8_t`s) to a client.
-         *
          * @param clientUuid UUIDv4 of the client to send this message to.
          * @param msg Array of unsigned chars to send to the client
          * @param msgLen Length of `msg` in bytes (octets)
-         * @param cpy If true, the contents of msg are copied. That way, msg can be destroyed after passing it into
-         *            send. Otherwise, we read from msg directly and assume it won't be gone.
-         * @return If `clientUuid` is invalid, 0 is returned. If there is an OpenSSL error, a value < 0 is returned.
+         * @param cpy If true, the contents of `msg` are copied. That way, `msg` can be destroyed after passing it into
+         *            `send()`. Otherwise, we read from msg directly and assume it won't be gone.
+         * @return A `std::future<int>` is returned that you can use to block until the `SSL_write` operation finishes.
+         *         If `clientUuid` is invalid, 0 is returned. If there is an OpenSSL error, a value < 0 is returned.
+         *         If `-114` is returned, send failed because the server is stopped. Call `start()` first!
          *         If `-1`, `-5`, or `-999` is returned, there was a fatal error and the connection to the client
          *         has been closed. If `-3` or `-2` is returned, you can retry immediately.
          *         If `-6` is returned, the client has closed their writing connection, so
-         *         do not attempt to read more data. If another negative value is returned, retry later.
-         *         Otherwise, if the operation completed successfully, a positive value containing the number
-         *         of bytes sent would be returned.
+         *         no more data will be read. If another negative value is returned, retry later.
+         *         **Otherwise, if the operation completed successfully, a positive value containing the number
+         *         of bytes sent would be returned.**
          */
         std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy = false);
 
@@ -272,11 +274,11 @@ namespace stms {
         bool tick();
 
         /**
-         * @brief Gets the PMTU of the connection the a specific client.
-         *        **ONLY USE ON DTLS CONNECTIONS**
+         * @brief Gets the PMTU of the connection the a specific client. See OpenSSL docs for `DTLS_get_data_mtu`
+         *        **ONLY RELEVANT ON DTLS CONNECTIONS**
          *
          * @param cli DTLS client to query the PMTU of
-         * @return The PMTU (See OpenSSL docs for `DTLS_get_data_mtu`)
+         * @return The PMTU in bytes, or 0 if `cli` doesn't exist or this isn't a DTLS connection (or otherwise fails).
          */
         size_t getMtu(const std::string &cli);
     };

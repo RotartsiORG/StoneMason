@@ -190,7 +190,13 @@ int main() {
 
             stms::GLTexRenderer::renderTexture(&frameBuf.tex);
             ImGui::Begin("test");
-            ImGui::Text("test");
+            ImGui::Text(R"(pos: [%f, %f, %f], euler: [%f, %f, %f])", cam.trans.pos.x, cam.trans.pos.y,
+                        cam.trans.pos.z, camEuler.x, camEuler.y, camEuler.z);
+            ImGui::Text("\n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f",
+                        cam.matV[0][0], cam.matV[0][1], cam.matV[0][2], cam.matV[0][3],
+                        cam.matV[1][0], cam.matV[1][1], cam.matV[1][2], cam.matV[1][3],
+                        cam.matV[2][0], cam.matV[2][1], cam.matV[2][2], cam.matV[2][3],
+                        cam.matV[3][0], cam.matV[3][1], cam.matV[3][2], cam.matV[3][3]);
             ImGui::End();
 
             stms::renderImGui();
@@ -206,26 +212,26 @@ int main() {
 
             clamp(&camEuler.x, -90 * (3.14159265 / 180), 90 * (3.14159265 / 180));
 
-            cam.setEuler(camEuler);
-            cam.buildVecs();
+            cam.trans.setEuler(camEuler);
+            cam.trans.buildVecs();
 
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_W) == GLFW_PRESS) {
-                cam.pos += cam.forward * speed;
+                cam.trans.pos += cam.trans.forward * speed;
             }
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_A) == GLFW_PRESS) {
-                cam.pos += -cam.right * speed;
+                cam.trans.pos += -cam.trans.right * speed;
             }
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_S) == GLFW_PRESS) {
-                cam.pos += -cam.forward * speed;
+                cam.trans.pos += -cam.trans.forward * speed;
             }
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_D) == GLFW_PRESS) {
-                cam.pos += cam.right * speed;
+                cam.trans.pos += cam.trans.right * speed;
             }
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_SPACE) == GLFW_PRESS) {
-                cam.pos.y += speed;
+                cam.trans.pos.y += speed;
             }
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-                cam.pos.y -= speed;
+                cam.trans.pos.y -= speed;
             }
 
             if (glfwGetKey(win.getRawPtr(), GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -237,8 +243,7 @@ int main() {
             }
 
             size = win.getSize();
-            cpuMvp = cam.buildPersp((float) size.x / (float) size.y); // screw it i'm using c style casts c++ func casts are retarded
-            cpuMvp *= cam.buildMatV();
+            cpuMvp = cam.buildPersp((float) size.x / (float) size.y) * cam.buildMatV();
 
             frameBuf = stms::GLFrameBuffer(size.x, size.y);
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+doxygen -d Preprocessor
 
 CMK_EXE="cmake"
 
@@ -15,7 +16,5 @@ cd build || exit
 $CMK_EXE --build . -j 8
 
 cd .. || exit
-
-doxygen -d Preprocessor
 
 ./build/tests/stms_tests
