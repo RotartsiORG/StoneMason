@@ -1,12 +1,14 @@
 /**
  * @file stms/async.hpp
  * @brief `ThreadPool`s for async task scheduling and execution.
+ * Created by grant on 12/30/19.
  */
 
 #pragma once
 
 #ifndef __STONEMASON_ASYNC_HPP
 #define __STONEMASON_ASYNC_HPP
+//!< Include guard
 
 #include <queue>
 #include <cinttypes>

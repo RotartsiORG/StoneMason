@@ -14,6 +14,7 @@
 1. Make SSLServer/Client code protocol agnostic (work with DTLS/UDP or TLS/TCP )
     - Add ability to kick any client based on uuid
 2. Raw server with no OpenSSL encryption with same interface.
+3. `disconnectCallback` with raw `sockaddr *` (`memcpy` it, read the docs for `disconnectCallback`)
 
 ### Audio
 1. Device Enumeration support (both playback and capture devices)
@@ -35,6 +36,16 @@
 ### Tests
 - Add unit tests for timers (Stopwatch & TPSTimer)
 - Operator overload tests for UUID & other types
+
+### Documentation Done
+1. net/ssl.hpp
+2. async.hpp
+3. config.hpp
+4. curl.hpp
+5. timers.hpp
+6. net/ssl_server.hpp
+
+- Also, update the stuff that isn't `brief`.
 
 
 ####Probably wont

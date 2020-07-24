@@ -604,7 +604,7 @@ namespace stms {
         }
 
         std::shared_ptr<ClientRepresentation> clientValue = clients[old];
-        clients.erase(old);
+        clients.erase(old); // this will not trigger the destructor as we saved a reference in `clientValue`
         clients[newUuid] = clientValue;
         return true;
     }
@@ -633,6 +633,10 @@ namespace stms {
                     if (shutdownRet == -2) {
                         if (!serv->blockUntilReady(sock, pSsl, POLLIN)) {
                             STMS_WARN("Reading timed out for SSL_shutdown!");
+                        }
+                    } else if (shutdownRet == -3) {
+                        if (!serv->blockUntilReady(sock, pSsl, POLLOUT)) {
+                            STMS_WARN("Writing timed out for SSL_shutdown!");
                         }
                     } else {
                         STMS_WARN("Skipping SSL_shutdown()!");

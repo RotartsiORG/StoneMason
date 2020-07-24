@@ -78,7 +78,7 @@ namespace stms {
         }
 
         /**
-         * Rotate the camera to look in a certain direction represented by a *normalized* vec3
+         * @brief  the camera to look in a certain direction represented by a *normalized* vec3
          * @param normDirection NORMALIZED direction vector. Use `glm::normalize`
          * @param lookUp Up vector
          */

@@ -1,12 +1,14 @@
 /**
  * @file stms/timers.hpp
  * @brief Provides timers `Stopwatch` and `TPSTimer`.
+ * Created by grant on 5/3/20.
  */
 
 #pragma once
 
 #ifndef __STONEMASON_TIMERS_HPP
 #define __STONEMASON_TIMERS_HPP
+//!< Include guard
 
 #include <chrono>
 #include "stms.hpp"
