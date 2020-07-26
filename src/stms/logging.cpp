@@ -36,12 +36,12 @@ namespace stms {
     void initLogging() {
 
         if (logToStdout) {
-            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
+            logHooks.emplace_back([](LogRecord *, std::string *str) {
                 printf("%s\n", str->c_str()); // or just use cout?
             });
         }
 
-        getLogHooks().emplace_back([](LogRecord *, std::string *str) {
+        logHooks.emplace_back([](LogRecord *, std::string *str) {
             // now remove all text formatting (this is expensive).
             auto start = str->find('\u001b');
             while (start != std::string::npos) {
@@ -54,7 +54,7 @@ namespace stms {
         if (logToLatestLog) {
             getLatestLogFile() = std::fopen("./latest.log", "w");
 
-            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
+            logHooks.emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getLatestLogFile());
                 std::fputc('\n', getLatestLogFile());
                 std::fflush(getLatestLogFile()); // This is expensive.
@@ -73,20 +73,93 @@ namespace stms {
             ctimeStr = logsDir + ctimeStr;
             getUniqueLogFile() = fopen(ctimeStr.c_str(), "w");
 
-            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
+            logHooks.emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getUniqueLogFile());
                 std::fputc('\n', getUniqueLogFile());
                 std::fflush(getUniqueLogFile()); // This is expensive.
             });
         }
 
-        for (const auto &func : getLogHooks()) {
+        for (const auto &func : logHooks) {
             // it is safe to pass in nullptr bc the only hooks registered so far should be our hooks,
             // and our hooks don't touch the LogRecord *
             func(nullptr, &header);
         }
 
         STMS_INFO("Initialized StoneMason {} (compiled on {} {})", versionString, __DATE__, __TIME__);
+    }
+
+    volatile bool logConsuming = false;
+    std::mutex logQMtx = std::mutex();
+    std::queue<LogRecord> logQueue = std::queue<LogRecord>(); // screw the non-catchable exceptions i hate my life
+    ThreadPool *logPool = nullptr;
+    std::vector<std::function<void(LogRecord *, std::string *)>> logHooks;
+
+    const char *logLevelToString(const LogLevel &lvl) {
+        switch (lvl) {
+            case (eTrace):
+                return "  \u001b[37mtrace\u001b[0m  "; // white
+            case (eDebug):
+                return "  \u001b[36mdebug\u001b[0m  "; // cyan
+            case (eInfo):
+                return "  \u001b[34minfo\u001b[0m   "; // blue
+            case (eWarn):
+                return " \u001b[1m\u001b[33mWARNING\u001b[0m "; // bold yellow
+            case (eError):
+                return "  \u001b[1m\u001b[31mERROR\u001b[0m  "; // bold red
+            case (eFatal):
+                return " \u001b[1m\u001b[4m\u001b[31m*FATAL*\u001b[0m "; // bold underlined red
+            default:
+                return "!!! INVALID LOG LEVEL !!!";
+        }
+    }
+
+    void consumeLogs() {
+
+        std::unique_lock<std::mutex> lg(logQMtx);
+
+        bool empty = logQueue.empty();
+        if (!empty) {
+            LogRecord top = std::move(logQueue.front());
+            logQueue.pop();
+
+            lg.unlock();
+
+            fmt::memory_buffer fileUrl;
+            fmt::format_to(fileUrl, "file://{}:{}", top.file, top.line);
+
+            time_t localtimeReady = std::chrono::system_clock::to_time_t(top.time);
+            auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(top.time);
+            auto ms = std::chrono::duration_cast<std::chrono::nanoseconds>(top.time - seconds);
+
+            fmt::memory_buffer logMsg;
+            fmt::format_to(logMsg, "[{0:%T}.{1:<12}] [{2:^72}] [{3:<8}]: {4}", *std::localtime(&localtimeReady),
+                           ms.count(), fmt::to_string(fileUrl), logLevelToString(top.level), fmt::to_string(top.msg));
+
+            std::string finalMsg = fmt::to_string(logMsg); // don't flush!
+
+            for (const auto &func : logHooks) {
+                func(&top, &finalMsg);
+            }
+
+            // Recurse. No need to check/set the consume flag as they are only modified on exit/enter.
+            // This is better than just looping bc it breaks the consume task up into multiple submits
+            // to the thread pool!
+            if (logPool != nullptr) {
+                logPool->submitTask(consumeLogs);
+
+                if (!logPool->isRunning()) {
+                    logPool->start();
+                    std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
+                }
+            } else {
+                consumeLogs();
+            }
+        } else {
+            logConsuming = false;
+
+            lg.unlock();
+        }
     }
 
 #else

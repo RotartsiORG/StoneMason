@@ -3,5 +3,6 @@
 //
 
 #include "gtest/gtest.h"
+#include "stms/log_test.cpp"
 #include "stms/async_test.cpp"
-#include "stms/log_audio_test.cpp"
+#include "stms/general.cpp"

@@ -14,16 +14,16 @@ namespace stms {
                 return;
             }
 
-            parent->taskQueueMtx.lock();
+            std::unique_lock<std::mutex> tlg(parent->taskQueueMtx);
             if (parent->tasks.empty()) {
-                parent->taskQueueMtx.unlock();
+                tlg.unlock();
                 std::this_thread::yield();
                 std::this_thread::sleep_for(std::chrono::milliseconds(parent->workerDelay));
                 continue;
             } else {
                 auto front = std::move(parent->tasks.front());
                 parent->tasks.pop();
-                parent->taskQueueMtx.unlock();
+                tlg.unlock();
 
                 front(); // execute the task UwU
 

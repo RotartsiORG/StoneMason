@@ -460,17 +460,17 @@ namespace stms {
         // lambda captures validated
         pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{passIn}, capLen{msgLen}, capCpy{cpy}]() {
 
-            clientsMtx.lock();
+            std::unique_lock<std::mutex> clg(clientsMtx);
 
             if (clients.find(capUuid) == clients.end()) {
-                clientsMtx.unlock();
+                clg.unlock();
                 STMS_ERROR("SSLServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid, msgLen);
                 prom->set_value(0);
                 return;
             }
 
             std::shared_ptr<ClientRepresentation> cli = clients[capUuid];
-            clientsMtx.unlock();
+            clg.unlock();
 
             int ret = -3;
 

@@ -44,17 +44,6 @@ namespace {
         stms::defaultAlDevice().handleError();
     }
 
-    TEST(Log, Log) {
-        stms::initAll();
-        STMS_TRACE("STMS_TRACE: Pi is {1}, and the answer to life is {0}, I'm running STMS {2}", 42, 3.14,
-                   stms::versionString);
-        STMS_DEBUG("STMS_DEBUG");
-        STMS_INFO("STMS_INFO");
-        STMS_WARN("STMS_WARN");
-        STMS_ERROR("STMS_ERROR");
-        STMS_FATAL("STMS_FATAL");
-    }
-
     TEST(UUID, Collisions) {
         for (int i = 0; i < 16; i++) {
             STMS_INFO("Sample UUID: {}", stms::genUUID4().buildStr());
