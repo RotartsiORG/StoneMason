@@ -3,6 +3,7 @@
 //
 
 #include "stms/logging.hpp"
+#ifdef STMS_ENABLE_LOGGING
 
 #include <chrono>
 #include <sys/stat.h>
@@ -12,7 +13,6 @@ namespace stms {
     LogRecord::LogRecord(LogLevel lvl, std::chrono::system_clock::time_point iTime, const char *iFile, unsigned int iLine)
                             : level(lvl), time(iTime), file(iFile), line(iLine) {}
 
-#ifdef STMS_ENABLE_LOGGING
     static FILE *&getLatestLogFile() {
         static FILE *fp = nullptr;
         return fp;
@@ -57,7 +57,7 @@ namespace stms {
             logHooks.emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getLatestLogFile());
                 std::fputc('\n', getLatestLogFile());
-                std::fflush(getLatestLogFile()); // This is expensive.
+                // Don't call fflush!
             });
         }
 
@@ -76,7 +76,7 @@ namespace stms {
             logHooks.emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getUniqueLogFile());
                 std::fputc('\n', getUniqueLogFile());
-                std::fflush(getUniqueLogFile()); // This is expensive.
+                // Don't call fflush!
             });
         }
 
@@ -161,10 +161,6 @@ namespace stms {
             lg.unlock();
         }
     }
-
-#else
-    void initLogging() { /* no-op */ };
-
-    void quitLogging() { /* no-op */ };
-#endif
 }
+
+#endif // STMS_ENABLE_LOGGING

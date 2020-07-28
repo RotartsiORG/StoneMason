@@ -32,7 +32,7 @@ namespace stms {
         SSL *pSsl{}; //!< OpenSSL `SSL` object for this client. Internal impl detail.
         bool doShutdown = false; //!< If true, `SSL_shutdown` is called in `onStop()`.
         bool isReading = false; //!< Flag for if data is currently being read with `SSL_read()`.
-        Stopwatch timeoutTimer{}; //!< `Stopwatch` for implementing connection timeouts. Only used for DTLS.
+        Stopwatch timeoutTimer{}; //!< `Stopwatch` for implementing connection timeouts.
 
         void onStart() override; //!< Hook called from `start()`. Internal impl detail.
         void onStop() override; //!< Hook called from `stop()`. Internal impl detail

@@ -395,7 +395,7 @@ namespace stms {
 
         recvTimeout = recvTimeout > minIoTimeout ? recvTimeout : minIoTimeout;
 
-        STMS_INFO("DTLS Recv timeout is set for {} ms", recvTimeout);
+        STMS_INFO("Recv timeout is set for {} ms", recvTimeout);
 
         if (poll(&cliPollFd, 1, recvTimeout) == 0) {
             STMS_WARN("poll() timed out!");
@@ -434,7 +434,7 @@ namespace stms {
             hints.ai_flags = AI_PASSIVE;
         }
 
-        STMS_INFO("DTLS {} to be hosted on {}:{}", isServ ? "server" : "client", addr, port);
+        STMS_INFO("DTLS/TLS {} to be hosted on {}:{}", isServ ? "server" : "client", addr, port);
         int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &pAddrCandidates);
         if (lookupStatus != 0) {
             STMS_WARN("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
@@ -450,28 +450,28 @@ namespace stms {
     void _stms_SSLBase::setCertAuth(const std::string &caCert, const std::string &caPath) {
         if (!SSL_CTX_load_verify_locations(pCtx, caCert.empty() ? nullptr : caCert.c_str(),
                                            caPath.empty() ? nullptr : caPath.c_str())) {
-            STMS_WARN("Failed to set the CA certs and paths for DTLS cli/server! Path='{}', cert='{}'", caPath, caCert);
+            STMS_WARN("Failed to set the CA certs and paths for DTLS/TLS cli/server! Path='{}', cert='{}'", caPath, caCert);
             handleSSLError();
         }
     }
 
     void _stms_SSLBase::setPrivateKey(const std::string &key) {
         if (!SSL_CTX_use_PrivateKey_file(pCtx, key.c_str(), SSL_FILETYPE_PEM)) {
-            STMS_WARN("Failed to set private key for DTLS cli/server (key='{}')", key);
+            STMS_WARN("Failed to set private key for DTLS/TLS cli/server (key='{}')", key);
             handleSSLError();
         }
     }
 
     void _stms_SSLBase::setPublicCert(const std::string &cert) {
         if (!SSL_CTX_use_certificate_chain_file(pCtx, cert.c_str())) {
-            STMS_WARN("Failed to set public cert chain for DTLS Server (cert='{}')", cert);
+            STMS_WARN("Failed to set public cert chain for DTLS/TLS Server (cert='{}')", cert);
             handleSSLError();
         }
     }
 
     bool _stms_SSLBase::verifyKeyMatchCert() {
         if (!SSL_CTX_check_private_key(pCtx)) {
-            STMS_WARN("Public cert and private key mismatch in DTLS client/server!");
+            STMS_WARN("Public cert and private key mismatch in DTLS/TLS client/server!");
             handleSSLError();
             return false;
         }

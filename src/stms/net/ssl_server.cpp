@@ -131,7 +131,7 @@ namespace stms {
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
         {
-            if (cli->dtls != nullptr) { cli->dtls->timeoutTimer.start(); }
+            cli->timeoutTimer.start();
             std::lock_guard<std::mutex> lg(serv->clientsMtx);
             serv->clients[uuid] = cli;
         }
@@ -345,13 +345,11 @@ namespace stms {
             if (SSL_get_shutdown(client.second->pSsl) & SSL_RECEIVED_SHUTDOWN) {
                 deadClients.push(client.first);
             } else {
-                if (isUdp) {
-                    if (client.second->dtls->timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
-                        DTLSv1_handle_timeout(client.second->pSsl);
-                        STMS_INFO("Client {} timed out! Dropping connection!", client.first);
-                        deadClients.push(client.first);
-                        continue;
-                    }
+                if (client.second->timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
+                    if (isUdp) { DTLSv1_handle_timeout(client.second->pSsl); }
+                    STMS_INFO("Client {} timed out! Dropping connection!", client.first);
+                    deadClients.push(client.first);
+                    continue;
                 }
 
                 // recvfrom can be used with both TCP & UDP (i hope i haven't been lied to by the man pages)
@@ -381,7 +379,7 @@ namespace stms {
                             readLen = handleSslGetErr(lambCli->pSsl, readLen);
 
                             if (readLen > 0) {
-                                if (isUdp) { lambCli->dtls->timeoutTimer.reset(); }
+                                lambCli->timeoutTimer.reset();
                                 recvCallback(lambUUid, lambCli->pSockAddr, recvBuf, readLen);
                                 retryRead = false;
                             } else if (readLen == -2) {
@@ -487,7 +485,7 @@ namespace stms {
 
                 if (ret > 0) {
                     capProm->set_value(ret);
-                    if (isUdp) { cli->dtls->timeoutTimer.reset(); }
+                    cli->timeoutTimer.reset();
                     return;
                 }
 
@@ -689,11 +687,13 @@ namespace stms {
 
         addrStr = rhs.addrStr;
         pSockAddr = rhs.pSockAddr;
+        sockAddrLen = rhs.sockAddrLen;
         pSsl = rhs.pSsl;
         sock = rhs.sock;
         doShutdown = rhs.doShutdown;
-        sockAddrLen = rhs.sockAddrLen;
         isReading = rhs.isReading;
+        timeoutTimer = rhs.timeoutTimer;
+        serv = rhs.serv;
 
         if (rhs.dtls != nullptr) {
             dtls = rhs.dtls;

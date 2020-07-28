@@ -39,7 +39,7 @@ namespace stms {
             SSL_set_fd(pSsl, sock);
         }
 
-        STMS_INFO("DTLS client about to preform handshake!");
+        STMS_INFO("DTLS/TLS client about to preform handshake!");
         bool doHandshake = true;
         int handshakeTimeouts = 0;
         while (doHandshake && handshakeTimeouts < maxTimeouts) {
@@ -51,12 +51,12 @@ namespace stms {
                 handshakeTimeouts = 0;
                 STMS_INFO("Client handshake successful!");
             } else if (handshakeRet == 0) {
-                STMS_INFO("DTLS client handshake failed! Cannot connect!");
+                STMS_INFO("DTLS/TLS client handshake failed! Cannot connect!");
                 handleSslGetErr(pSsl, handshakeRet);
                 running = false;
                 return;
             } else if (handshakeRet < 0) {
-                STMS_WARN("DTLS client handshake error!");
+                STMS_WARN("DTLS/TLS client handshake error!");
                 handshakeRet = handleSslGetErr(pSsl, handshakeRet);
                 if (handshakeRet == -5 || handshakeRet == -1 || handshakeRet == -999 ||
                         handshakeRet == -6) {
@@ -106,7 +106,7 @@ namespace stms {
         STMS_INFO("Connected using compression {} and expansion {}",
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
-        if (isUdp) { timeoutTimer.start(); }
+        timeoutTimer.start();
     }
 
     bool SSLClient::tick() {
@@ -120,14 +120,12 @@ namespace stms {
             return false;
         }
 
-        if (isUdp) {
-            if (timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
-                timeoutTimer.reset();
-                DTLSv1_handle_timeout(pSsl);
-                STMS_INFO("Connection to server timed out! Dropping connection!");
-                stop();
-                return false;
-            }
+        if (timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
+            timeoutTimer.reset();
+            if (isUdp) { DTLSv1_handle_timeout(pSsl); }
+            STMS_INFO("Connection to server timed out! Dropping connection!");
+            stop();
+            return false;
         }
 
         if (recvfrom(sock, nullptr, 0, MSG_PEEK, nullptr, nullptr) == -1
@@ -155,7 +153,7 @@ namespace stms {
                     readLen = handleSslGetErr(pSsl, readLen);
 
                     if (readLen > 0) {
-                        if (isUdp) { timeoutTimer.reset(); }
+                        timeoutTimer.reset();
                         recvCallback(recvBuf, readLen);
                         retryRead = false;
                     } else if (readLen == -2) {
@@ -259,6 +257,7 @@ namespace stms {
                 ret = handleSslGetErr(pSsl, ret);
 
                 if (ret > 0) {
+                    timeoutTimer.reset();
                     capProm->set_value(ret);
                     return;
                 }

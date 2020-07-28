@@ -39,11 +39,13 @@ namespace stms {
         bool doShutdown = true; //!< If true, `SSL_shutdown` is called on `pSsl` when this object is destroyed.
         bool isReading = false; //!< Flag for if a `SSL_read` is in progress.
 
+        /// A `Stopwatch` for checking if the connection timed out (ie `timeoutMs` milliseconds passed without response)
+        stms::Stopwatch timeoutTimer;
+
         /// Struct containing the parts of a `ClientRepresentation` relevant for DTLS connections
         struct DTLSSpecific {
             BIO_ADDR *pBioAddr = nullptr; //!< `pSockAddr` represented as a OpenSSL `BIO_ADDR`
             BIO *pBio = nullptr; //!< OpenSSL `BIO` object bound to this client
-            stms::Stopwatch timeoutTimer; //!< A `Stopwatch` for checking if the connection timed out
         };
 
         /// Member containing all DTLS-specific fields. For non-dtls connections, this is always `nullptr`.

@@ -17,11 +17,11 @@ namespace {
             stms::initAll();
             this->pool = new stms::ThreadPool();
             this->pool->start(8);
-            stms::setLogPool(this->pool);
+            stms::logPool = this->pool;
         }
 
         void TearDown() override {
-            stms::setLogPool(nullptr);
+            stms::logPool = nullptr;
             this->pool->waitIdle();
             this->pool->stop();
             delete this->pool;
