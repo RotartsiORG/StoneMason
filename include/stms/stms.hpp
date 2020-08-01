@@ -61,7 +61,7 @@ namespace stms {
 
     float floatRand(float min, float max);
 
-    class _stms_STMSInitializer { // TODO: Add destructor (quit routine)
+    class _stms_STMSInitializer {
 
     public:
         static bool hasRun;

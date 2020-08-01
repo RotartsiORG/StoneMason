@@ -87,6 +87,7 @@ namespace stms {
     /// A SSL/TLS server. Can be TCP (TLS) or UDP (DTLS)
     class SSLServer : public _stms_SSLBase {
     private:
+        // TODO: Should we use `UUID` instead of `std::string`?
         std::unordered_map<std::string, std::shared_ptr<ClientRepresentation>> clients; //!< Table of connected clients.
         std::queue<std::string> deadClients; //!< Queue of clients to be deleted in `tick`
         std::mutex clientsMtx; //!< Mutex for syncing modification of the client table

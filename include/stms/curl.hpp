@@ -57,6 +57,22 @@ namespace stms {
 
         virtual ~CURLHandle(); //!< virtual destructor
 
+        CURLHandle &operator=(const CURLHandle &rhs) = delete; //!< Deleted copy assignment operator
+        CURLHandle(const CURLHandle &rhs) = delete; //!< Deleted copy constructor
+
+        /**
+         * @brief Move copy operator. NOTE: This operator MAY NOT be used when a `perform()` task is active.
+         * @param rhs Right Hand Side of the `std::move`
+         * @return A reference to this object
+         */
+        CURLHandle &operator=(CURLHandle &&rhs) noexcept;
+
+        /**
+         * @brief Move copy constructor. NOTE: This constructor MAY NOT be used when a `perform()` task is active.
+         * @param rhs Right Hand Side of the `std::move`
+         */
+        CURLHandle(CURLHandle &&rhs) noexcept;
+
         /**
          * @brief Set the target URL we will connect to
          * @param cUrl URL to connect to

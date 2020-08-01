@@ -27,13 +27,45 @@ namespace stms {
         }
         surface = vk::SurfaceKHR(rawSurf);
 
-        // TODO: proper extent stuff & format & color space & img count selection!
-        uint32_t imgCount = 1;
-        vk::Format swapFmt = vk::Format::eB8G8R8A8Srgb;
-        vk::ColorSpaceKHR swapColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+        auto caps = d->phys.gpu.getSurfaceCapabilitiesKHR(surface);
         vk::Extent2D swapExtent;
 
+        if (caps.currentExtent.width != UINT32_MAX) {
+            swapExtent = caps.currentExtent;
+        } else {
+            swapExtent = vk::Extent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+
+            swapExtent.width = std::max(caps.minImageExtent.width, std::min(caps.maxImageExtent.width, swapExtent.width));
+            swapExtent.height = std::max(caps.minImageExtent.height, std::min(caps.maxImageExtent.height, swapExtent.height));
+        }
+        STMS_INFO("Swap extent is {}x{}", swapExtent.width, swapExtent.height);
+
+        uint32_t imgCount = std::min(caps.minImageCount + 1, caps.maxImageCount);
+        STMS_INFO("Swap image count will be {} (max={}, min={})", imgCount, caps.maxImageCount, caps.minImageCount);
+
+        vk::Format swapFmt = vk::Format::eB8G8R8A8Srgb;
+        vk::ColorSpaceKHR swapColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+        auto fmts = d->phys.gpu.getSurfaceFormatsKHR(surface);
+        for (const auto& i : fmts) {
+            if (i.format == vk::Format::eB8G8R8A8Srgb && i.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+                STMS_INFO("Optimal format for swapchain supported! (non-linear SRGB, 4 channel RGBA)");
+                goto skipSetFirst; // i'm sorry
+            }
+        }
+
+        swapFmt = fmts[0].format;
+        swapColorSpace = fmts[0].colorSpace;
+        STMS_INFO("Settled for swap format of colorspace={}, format={}", swapColorSpace, swapFmt);
+
+        skipSetFirst:
+
         bool queuesIdentical = d->phys.graphicsIndex == d->phys.presentIndex;
+        if (queuesIdentical) {
+            STMS_INFO("Using exclusive queue sharing mode as present and graphics queues are identical");
+        } else {
+            STMS_INFO("Using shared sharing mode as present and graphics queues are discrete");
+        }
+
         vk::SwapchainCreateInfoKHR swapCi{
                 {}, surface, imgCount, swapFmt, swapColorSpace, swapExtent, 1, vk::ImageUsageFlagBits::eColorAttachment,
                 queuesIdentical ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,

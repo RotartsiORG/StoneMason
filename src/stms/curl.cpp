@@ -65,5 +65,31 @@ namespace stms {
 
         return prom->get_future();
     }
+
+    CURLHandle &CURLHandle::operator=(CURLHandle &&rhs) noexcept {
+        if (&rhs == this || rhs.handle == handle) {
+            return *this;
+        }
+
+        std::lock_guard<std::mutex> rlg(rhs.resultMtx);
+        std::lock_guard<std::mutex> tlg(resultMtx);
+        result = std::move(rhs.result);
+
+        downloadSoFar = rhs.downloadTotal;
+        downloadTotal = rhs.downloadTotal;
+
+        uploadSoFar = rhs.uploadSoFar;
+        uploadTotal = rhs.uploadTotal;
+
+        pool = rhs.pool;
+        handle = rhs.handle;
+        url = std::move(rhs.url);
+
+        return *this;
+    }
+
+    CURLHandle::CURLHandle(CURLHandle &&rhs) noexcept : handle(nullptr) {
+        *this = std::move(rhs);
+    }
 }
 

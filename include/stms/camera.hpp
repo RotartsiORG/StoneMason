@@ -82,6 +82,9 @@ namespace stms {
             buildMatM();
             buildVecs();
         }
+
+        TransformInfo &operator=(const TransformInfo &rhs) = default; //!< Default copy assignment operator
+        TransformInfo(const TransformInfo &rhs) = default; //!< Default copy constructor
     };
 
     /// Class for manipulating and constructing view and projection matrices. Similar to `TransformInfo`.
@@ -96,6 +99,9 @@ namespace stms {
 
         Camera() = default; //!< Default constructor
         virtual ~Camera() = default; //!< Default virtual destructor
+
+        Camera(const Camera &rhs) = default; //!< Default copy constructor
+        Camera &operator=(const Camera &rhs) = default; //!< Default copy assignment operator
 
         /**
          * @brief Set a new field of view for the camera (`stms::Camera::fov`)
