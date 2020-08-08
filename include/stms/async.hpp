@@ -29,6 +29,9 @@ namespace stms {
         std::mutex workerMtx; //!< Mutex to lock for accessing `workers`. Internal implementation detail.
         std::mutex unfinishedTaskMtx; //!< Mutex to lock for accessing `unfinishedTasks`. Internal impl detail.
 
+        std::condition_variable taskQueueCv; //!< Condition variable for blocking workers until there are jobs.
+        std::condition_variable unfinishedTasksCv; //!< Condition variable used for blocking in `waitIdle()`.
+
         unsigned short unfinishedTasks = 0; //!< Number of tasks that are incomplete.
         std::queue<std::packaged_task<void (void)>> tasks; //!< Queue of tasks to execute
         std::deque<std::thread> workers; //!< A list of worker threads.
@@ -41,12 +44,6 @@ namespace stms {
         void destroy(); //!< Destroy the thread pool. The functionality of the destructor needs to be invoked elsewhere.
 
     public:
-        /**
-         * @brief The number of milliseconds the workers should sleep for before checking for a task. If set too low,
-         *        worker threads may throttle the CPU. If set too high, then the workers would waste time idling.
-         */
-        unsigned workerDelay = threadPoolWorkerDelayMs;
-
         /// Deleted copy constructor
         ThreadPool &operator=(const ThreadPool &rhs) = delete;
 
@@ -119,6 +116,7 @@ namespace stms {
             return unfinishedTasks;
         }
 
+        // TODO: Add a timeout? It's simple; just use std::condition_variable::wait_for instead of wait()
         void waitIdle(); //!< Block until all tasks are finished
 
         /**

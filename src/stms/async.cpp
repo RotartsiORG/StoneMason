@@ -15,12 +15,12 @@ namespace stms {
             }
 
             std::unique_lock<std::mutex> tlg(parent->taskQueueMtx);
-            if (parent->tasks.empty()) {
-                tlg.unlock();
-                std::this_thread::yield();
-                std::this_thread::sleep_for(std::chrono::milliseconds(parent->workerDelay));
-                continue;
-            } else {
+            // Block until there are tasks to consume or we are requested to stop
+            parent->taskQueueCv.wait(tlg, [&]() {
+                return (!parent->tasks.empty()) || index == parent->stopRequest || (!parent->running);
+            });
+
+            if (!parent->tasks.empty()) {
                 auto front = std::move(parent->tasks.front());
                 parent->tasks.pop();
                 tlg.unlock();
@@ -29,19 +29,20 @@ namespace stms {
 
                 std::lock_guard<std::mutex> lg(parent->unfinishedTaskMtx);
                 parent->unfinishedTasks--;
+                parent->unfinishedTasksCv.notify_all();
             }
         }
     }
 
 
     void ThreadPool::destroy() {
+        if (!tasks.empty()) {
+            STMS_WARN("ThreadPool destroyed with unfinished tasks! {} tasks will never be executed!", tasks.size());
+        }
+
         if (this->running) {
             STMS_WARN("ThreadPool destroyed while running! Stopping it now (with block=true)");
             stop(true);
-        }
-
-        if (!tasks.empty()) {
-            STMS_WARN("ThreadPool destroyed with unfinished tasks! {} tasks will never be executed!", tasks.size());
         }
     }
 
@@ -74,9 +75,9 @@ namespace stms {
         }
 
         this->running = false;
+        taskQueueCv.notify_all(); // Notify all workers that we are stopped!
 
         bool workersEmpty;
-
         {
             std::lock_guard<std::mutex> lg(this->workerMtx);
             workersEmpty = this->workers.empty();
@@ -112,6 +113,7 @@ namespace stms {
 
         std::lock_guard<std::mutex> lg(this->taskQueueMtx);
         this->tasks.emplace(std::move(task));
+        taskQueueCv.notify_one();
 
         return future;
     }
@@ -140,10 +142,13 @@ namespace stms {
             std::lock_guard<std::mutex> lg(this->workerMtx);
             back = std::move(this->workers.back());
             this->stopRequest = this->workers.size(); // Request the last worker to stop.
+            taskQueueCv.notify_all(); // Notify this worker that we requested it to stop
+
             this->workers.pop_back();
             if (this->workers.empty()) {
                 STMS_WARN("The last thread was popped from ThreadPool! Stopping the pool!");
                 this->running = false;
+                taskQueueCv.notify_all(); // Notify all workers that we've stopped
             }
         }
 
@@ -159,6 +164,10 @@ namespace stms {
             return *this;
         }
 
+        if (this->isRunning()) {
+            STMS_WARN("ThreadPool moved when it is still running! This may cause worker threads to crash!");
+        }
+
         this->destroy();
 
         // Hopefully locking ALL mutexes during the move is enough to prevent aforementioned race conditions.
@@ -171,9 +180,9 @@ namespace stms {
         std::lock_guard<std::mutex> rhsTaskCountLg(rhs.unfinishedTaskMtx);
 
         // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
+        // Likewise, we cannot move the condition variables so we just quietly leave it be
         this->stopRequest = rhs.stopRequest;
         this->running = rhs.running;
-        this->workerDelay = rhs.workerDelay;
         this->tasks = std::move(rhs.tasks);
         this->workers = std::move(rhs.workers);
         this->unfinishedTasks = rhs.unfinishedTasks;
@@ -190,9 +199,11 @@ namespace stms {
     }
 
     void ThreadPool::waitIdle() {
-        while (unfinishedTasks > 0) {
-            std::this_thread::yield();
-            std::this_thread::sleep_for(std::chrono::milliseconds(workerDelay));
+        if (unfinishedTasks == 0) {
+            return;
         }
+
+        std::unique_lock<std::mutex> lg(unfinishedTaskMtx);
+        unfinishedTasksCv.wait(lg, [&]() { return unfinishedTasks == 0; });
     }
 }

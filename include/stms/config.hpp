@@ -43,9 +43,6 @@ namespace stms {
     constexpr short versionMinor = 0; //!< Minor number (x.X.x)
     constexpr short versionMicro = 0; //!< Micro/Patch number (x.x.X)
 
-    /// Number of milliseconds thread pool worker threads wait before checking for a new task. Default=16 (62 Hz)
-    constexpr unsigned threadPoolWorkerDelayMs = 16;
-
     constexpr bool logToLatestLog = true; //!< If true, write log output to `latest.log`
     constexpr bool logToUniqueFile = false; //!< If true, write log output to `<logsDir>/<datetime>.log`
     constexpr bool logToStdout = true; //!< If true, write log output to stdout
