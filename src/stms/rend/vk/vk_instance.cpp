@@ -3,6 +3,7 @@
 //
 
 #include "stms/rend/vk/vk_instance.hpp"
+#ifdef STMS_ENABLE_VULKAN
 
 #include <unordered_map>
 
@@ -132,3 +133,5 @@ namespace stms {
         return ret;
     }
 }
+
+#endif

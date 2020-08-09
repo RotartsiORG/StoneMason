@@ -30,11 +30,13 @@ addons:
       - curl-openssl
       - curl
       - doxygen
+      - ninja
       - graphviz
       - dos2unix
   apt:
     packages:
       - libglew-dev
+      - ninja-build
       - libglew2.0
       - glew-utils
       - libopenal-dev
@@ -50,6 +52,7 @@ addons:
       - openssl
       - dos2unix
       - git
+      - lcov
       - wget
   snaps:
     - name: cmake
@@ -76,13 +79,19 @@ install: # we apt purge libharfbuzz-dev because cmake grabs 1.7 despite the min 
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cd /Volumes/vulkansdk-macos-1.2.141.2; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then source setup-env.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo python install_vulkan.py; fi
+  - cd $STMS_WD/dep/shaderc
+  - ./utils/git-sync-deps
+  - ./utils/add_copyright.py
+  - cd third_party/glslang
+  - git clone https://github.com/google/googletest.git External/googletest
+  - ./update_glslang_sources.py
   - cd $STMS_WD
 script:
   - mkdir build
-  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -DGLEW_VERBOSE=ON -DCMAKE_BUILD_TYPE=Release -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake -GNinja -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -DGLEW_VERBOSE=ON -DCMAKE_BUILD_TYPE=Debug -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=OFF -Bbuild -S.; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export PATH="/usr/local/Cellar/openssl@1.1/1.1.1g/bin:$PATH"; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export OPENSSL_ROOT_DIR="/usr/local/Cellar/openssl@1.1/1.1.1g"; fi
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake -Wdev -Wdeprecated -DGLEW_VERBOSE=ON -DCMAKE_BUILD_TYPE=Release -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake -GNinja -Wdev -Wdeprecated -DGLEW_VERBOSE=ON -DCMAKE_BUILD_TYPE=Debug -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=OFF -Bbuild -S.; fi
   - cd build || exit
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake --build . -j 8; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake --build . -j 8; fi

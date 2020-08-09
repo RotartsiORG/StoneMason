@@ -19,7 +19,7 @@ option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON) # option in conf
 
 if (STMS_OPTIMIZE)
     message("-- Compiling with -O3")
-    add_compile_options(-O3)
+    add_compile_options(-O3 -s) # -o3 and strip
 endif()
 
 if (STMS_DEBUG_SYMBOLS)
@@ -31,7 +31,6 @@ project(stms_shared LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DES
 project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
 
 set(GLEW_USE_STATIC_LIBS ON CACHE BOOL "" FORCE)
-set(GLEW_VERBOSE ON CACHE BOOL "" FORCE)
 
 if (APPLE)
     # This is a bug in CMake that causes it to prefer the system version over
@@ -105,17 +104,24 @@ if (STMS_ENABLE_VULKAN)
 
     find_package(Vulkan REQUIRED)
 
-    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})
-    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})
+    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include)
+    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include)
 
     target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan)
     target_link_libraries(stms_static PUBLIC Vulkan::Vulkan)
-endif()
 
-# TODO: Remove later. Here bc otherwise clion won't properly see our CMake project.
-set(STMS_BUILD_TESTS ON CACHE BOOL "" FORCE)
-set(STMS_GENERATE_DOCS ON CACHE BOOL "" FORCE)
-set(STMS_BUILD_SAMPLES ON CACHE BOOL "" FORCE)
+
+    set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
+    set(ENABLE_CTEST OFF CACHE BOOL "" FORCE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+
+    set(ENABLE_HLSL ON CACHE BOOL "" FORCE)
+    add_subdirectory(dep/shaderc)
+
+    target_link_libraries(stms_shared PRIVATE shaderc)
+    target_link_libraries(stms_static PRIVATE shaderc)
+endif()
 
 if (STMS_BUILD_TESTS)
     message("-- STMS tests enabled")

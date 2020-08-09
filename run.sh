@@ -10,7 +10,7 @@ export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 
 mkdir build
-$CMK_EXE -Wdev -Wdeprecated -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
+$CMK_EXE -GNinja -Wdev -Wdeprecated -DCMAKE_BUILD_TYPE=Debug -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
 
 cd build || exit
 $CMK_EXE --build . -j 8

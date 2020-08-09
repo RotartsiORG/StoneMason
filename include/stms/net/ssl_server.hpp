@@ -31,7 +31,7 @@ namespace stms {
 
     /// Struct containing all the client's data. Internal impl detail, don't touch.
     struct ClientRepresentation {
-        std::string addrStr{}; //!< Client's address as a <host>:<port> string
+        std::string addrStr{}; //!< Client's address as a ${host}:${port} string
         sockaddr *pSockAddr = nullptr; //!< Client's address. Is a `reinterpret_cast`ed `sockaddr_in` or `sockaddr_in6`
         socklen_t sockAddrLen{}; //!< Size of `pSockAddr`.
         SSL *pSsl = nullptr; //!< OpenSSL `SSL` object

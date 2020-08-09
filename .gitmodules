@@ -31,3 +31,6 @@
 [submodule "dep/vma"]
 	path = dep/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "dep/shaderc"]
+	path = dep/shaderc
+	url = https://github.com/google/shaderc

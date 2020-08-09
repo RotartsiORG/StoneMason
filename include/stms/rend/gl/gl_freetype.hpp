@@ -64,7 +64,7 @@ namespace stms {
          *
          * @param str Text to render
          * @param customShader Shader to use
-         * @param cb Rendering callback called each time a character is rendered. It must return a `glm::ivec2`
+         * @param rendCb Rendering callback called each time a character is rendered. It must return a `glm::ivec2`
          *          that signifies by how much the pen should be moved (in addition to advances & kerning).
          *          If unsure, just return `{0, 0}`. The `U32String` parameter is the string currently being rendered,
          *          and the `unsigned` parameter is the character currently being rendered

@@ -9,6 +9,7 @@
 1. Download StoneMason and make sure that the submodules are cloned.
     - Method 1: Use `git clone --recursive https://www.github.com/RotartsiORG/StoneMason`
     - Method 2: If you already cloned the project, just run `git submodule init` followed by `git submodule update`
+2. Run `setupShaderc.sh` because shaderc is stupid.
 2. Ensure that OpenAL is installed and findable by CMake.
 3. Ensure that the Vulkan SDK is installed and findable by CMake.
     - Download it from https://vulkan.lunarg.com/
