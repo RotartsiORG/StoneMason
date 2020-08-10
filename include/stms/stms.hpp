@@ -40,7 +40,7 @@ namespace stms {
         uint8_t clockSeqLow{};
         uint8_t node[6]{};
 
-        std::string buildStr();
+        [[nodiscard]] std::string buildStr() const;
 
         UUID() = default;
 
@@ -102,5 +102,20 @@ namespace stms {
     }
 
 }
+
+// https://www.boost.org/doc/libs/1_73_0/boost/container_hash/hash.hpp
+static size_t boostHashCombine(size_t lhs, size_t rhs) {
+    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6UL) + (lhs >> 2UL));
+}
+
+namespace std {
+    template<> struct hash<stms::UUID> {
+        std::size_t operator()(stms::UUID const& s) const noexcept {
+            auto *lowerHalf = reinterpret_cast<const uint64_t *>(&s);
+            return boostHashCombine(*lowerHalf, *(lowerHalf + 1));
+        }
+    };
+}
+
 
 #endif //__STONEMASON_UTIL_HPP

@@ -3,11 +3,11 @@ doxygen -d Preprocessor
 
 CMK_EXE="cmake"
 
-#export CC=/usr/bin/clang
-#export CXX=/usr/bin/clang++
+export CC=/usr/bin/clang
+export CXX=/usr/bin/clang++
 
-export CC=/usr/bin/gcc
-export CXX=/usr/bin/g++
+#export CC=/usr/bin/gcc
+#export CXX=/usr/bin/g++
 
 mkdir build
 $CMK_EXE -GNinja -Wdev -Wdeprecated -DCMAKE_BUILD_TYPE=Debug -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.

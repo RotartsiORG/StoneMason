@@ -109,7 +109,7 @@ namespace stms {
             BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
         }
 
-        std::string uuid = stms::genUUID4().buildStr();
+        UUID uuid{eUuid4};
 
         char certName[certAndCipherLen];
         char cipherName[certAndCipherLen];
@@ -123,11 +123,12 @@ namespace stms {
         const char *compression = SSL_COMP_get_name(SSL_get_current_compression(cli->pSsl));
         const char *expansion = SSL_COMP_get_name(SSL_get_current_expansion(cli->pSsl));
 
+        std::string uuidStr = uuid.buildStr();
         STMS_INFO("Client (addr='{}', uuid='{}') connected: {}",
-                  cli->addrStr, uuid, SSL_state_string_long(cli->pSsl));
-        STMS_INFO("Client (addr='{}', uuid='{}') has cert of {}", cli->addrStr, uuid, certName);
-        STMS_INFO("Client (addr='{}', uuid='{}') is using cipher {}", cli->addrStr, uuid, cipherName);
-        STMS_INFO("Client (addr='{}', uuid='{}') is using compression {} and expansion {}", cli->addrStr, uuid,
+                  cli->addrStr, uuidStr, SSL_state_string_long(cli->pSsl));
+        STMS_INFO("Client (addr='{}', uuid='{}') has cert of {}", cli->addrStr, uuidStr, certName);
+        STMS_INFO("Client (addr='{}', uuid='{}') is using cipher {}", cli->addrStr, uuidStr, cipherName);
+        STMS_INFO("Client (addr='{}', uuid='{}') is using compression {} and expansion {}", cli->addrStr, uuidStr,
                   compression == nullptr ? "NULL" : compression,
                   expansion == nullptr ? "NULL" : expansion);
         {
@@ -227,10 +228,15 @@ namespace stms {
     void SSLServer::onStop() {
         std::lock_guard<std::mutex> lg(clientsMtx);
         for (auto &pair : clients) {
-            // Lambda captures validated
-            pPool->submitTask([&, capUuid = std::string(pair.first),
-                                      capStr = std::string(pair.second->addrStr), this]() {
-                disconnectCallback(capUuid, capStr);
+            auto *addrCpy = new sockaddr_storage{};
+            std::copy(reinterpret_cast<uint8_t *>(pair.second->pSockAddr),
+                      reinterpret_cast<uint8_t *>(pair.second->pSockAddr) + pair.second->sockAddrLen,
+                      reinterpret_cast<uint8_t *>(addrCpy));
+
+            pPool->submitTask([&, capUuid = UUID{pair.first},
+                                      capAddr{addrCpy}, this]() {
+                disconnectCallback(capUuid, reinterpret_cast<sockaddr *>(addrCpy));
+                delete capAddr;
             });
         }
         clients.clear();
@@ -292,6 +298,7 @@ namespace stms {
             // We use accept() instead of SSL_stateless as we are using TCP and source IPs are already validated
             // in the tcp handshake. https://www.openssl.org/docs/man1.1.1/man3/SSL_stateless.html
             cli->sock = accept(sock, reinterpret_cast<sockaddr *>(&storage), &cli->sockAddrLen);
+            // accept() sets the size of `sockAddrLen`
 
             if (cli->sock < 1) {
                 // if errno is one of these, then there's simply no client
@@ -347,7 +354,7 @@ namespace stms {
             } else {
                 if (client.second->timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
                     if (isUdp) { DTLSv1_handle_timeout(client.second->pSsl); }
-                    STMS_INFO("Client {} timed out! Dropping connection!", client.first);
+                    STMS_INFO("Client {} timed out! Dropping connection!", client.first.buildStr());
                     deadClients.push(client.first);
                     continue;
                 }
@@ -362,17 +369,12 @@ namespace stms {
                     client.second->isReading = true;
                     // lambda captures validated
                     pPool->submitTask([&, lambCli = std::shared_ptr<ClientRepresentation>(client.second),
-                                              lambUUid = std::string(client.first)]() {
+                                              lambUUid = UUID{client.first}]() {
 
                         bool retryRead = true;
                         int readTimeouts = 0;
                         while (retryRead && readTimeouts < maxTimeouts) {
                             readTimeouts++;
-
-                            if (!blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN)) {
-                                STMS_WARN("SSL_read() timed out!");
-                                continue;
-                            }
 
                             uint8_t recvBuf[maxRecvLen];
                             int readLen = SSL_read(lambCli->pSsl, recvBuf, maxRecvLen);
@@ -382,24 +384,28 @@ namespace stms {
                                 lambCli->timeoutTimer.reset();
                                 recvCallback(lambUUid, lambCli->pSockAddr, recvBuf, readLen);
                                 retryRead = false;
-                            } else if (readLen == -2) {
-                                STMS_INFO("SSL_read() returned WANT_READ. Retrying next loop.");
-                                retryRead = false;
                             } else if (readLen == -1 || readLen == -5 || readLen == -6) {
-                                STMS_WARN("Connection to client {} closed forcefully!", lambUUid);
+                                STMS_WARN("Connection to client {} closed forcefully!", lambUUid.buildStr());
                                 lambCli->doShutdown = false;
 
                                 std::lock_guard<std::mutex> lgSub(clientsMtx);
                                 deadClients.push(lambUUid);
                                 retryRead = false;
                             } else if (readLen == -999) {
-                                STMS_WARN("Client {} kicked for: Unknown error", lambUUid);
+                                STMS_WARN("Client {} kicked for: Unknown error", lambUUid.buildStr());
 
                                 std::lock_guard<std::mutex> lgSub(clientsMtx);
                                 deadClients.push(lambUUid);
                                 retryRead = false;
+                            } else if (readLen == -3) {
+                                STMS_INFO("SSL_read() returned WANT_WRITE. Blocking then retrying!");
+                                blockUntilReady(lambCli->sock, lambCli->pSsl, POLLOUT);
+                            } else if (readLen == -2) {
+                                STMS_INFO("SSL_read() returned WANT_READ. Blocking then retrying!");
+                                blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN);
                             } else {
-                                STMS_WARN("Client {} SSL_read failed for the reason above! Retrying!", lambUUid);
+                                // SSL_WANT_READ case is also handled here
+                                STMS_WARN("Client {} SSL_read failed for the reason above! Retrying!", lambUUid.buildStr());
                                 // Retry.
                             }
                         }
@@ -417,7 +423,7 @@ namespace stms {
 
         // We use the same mutex to protect deadClients & clients. Transition to 2 separate mutexes.
         while (!deadClients.empty()) {
-            std::string cliUuid = deadClients.front();
+            UUID cliUuid = deadClients.front();
             deadClients.pop();
 
             if (clients.find(cliUuid) == clients.end()) {
@@ -425,20 +431,28 @@ namespace stms {
                 continue;
             }
 
+            std::shared_ptr<ClientRepresentation> cliObj = clients[cliUuid];
+
+            auto *addrCpy = new sockaddr_storage{};
+            std::copy(reinterpret_cast<uint8_t *>(cliObj->pSockAddr),
+                      reinterpret_cast<uint8_t *>(cliObj->pSockAddr) + cliObj->sockAddrLen,
+                      reinterpret_cast<uint8_t *>(addrCpy));
+
             // lambda captures validated
-            pPool->submitTask([&, capUuid = std::string(cliUuid),
-                                      capStr = std::string(clients[cliUuid]->addrStr), this]() {
-                disconnectCallback(capUuid, capStr);
+            pPool->submitTask([&, capUuid = UUID(cliUuid),
+                                      capAddr{addrCpy}, this]() {
+                disconnectCallback(capUuid, reinterpret_cast<sockaddr *>(capAddr));
+                delete addrCpy;
             });
 
-            STMS_INFO("Client {} at {} disconnected!", cliUuid, clients[cliUuid]->addrStr);
+            STMS_INFO("Client {} at {} disconnected!", cliUuid.buildStr(), cliObj->addrStr);
             clients.erase(cliUuid);
         }
 
         return running;
     }
 
-    std::future<int> SSLServer::send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy) {
+    std::future<int> SSLServer::send(const UUID &clientUuid, const uint8_t *const msg, int msgLen, bool cpy) {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
             STMS_ERROR("SSLServer::send() called when stopped! Dropping {} bytes!", msgLen);
@@ -462,7 +476,7 @@ namespace stms {
 
             if (clients.find(capUuid) == clients.end()) {
                 clg.unlock();
-                STMS_ERROR("SSLServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid, msgLen);
+                STMS_ERROR("SSLServer::send() called with invalid client uuid '{}'. Dropping {} bytes!", capUuid.buildStr(), msgLen);
                 prom->set_value(0);
                 return;
             }
@@ -475,10 +489,6 @@ namespace stms {
             int sendTimeouts = 0;
             while (ret == -3 && sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
-                if (!blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
-                    STMS_WARN("SSL_write() timed out!");
-                    continue;
-                }
 
                 ret = SSL_write(cli->pSsl, capMsg, capLen);
                 ret = handleSslGetErr(cli->pSsl, ret);
@@ -487,12 +497,8 @@ namespace stms {
                     capProm->set_value(ret);
                     cli->timeoutTimer.reset();
                     return;
-                }
-
-                if (ret == -3) {
-                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
                 } else if (ret == -1 || ret == -5 || ret == -6) {
-                    STMS_WARN("Connection to client {} at {} closed forcefully!", capUuid, cli->addrStr);
+                    STMS_WARN("Connection to client {} at {} closed forcefully!", capUuid.buildStr(), cli->addrStr);
                     cli->doShutdown = false;
 
                     std::lock_guard<std::mutex> lg(clientsMtx);
@@ -500,12 +506,18 @@ namespace stms {
                     capProm->set_value(ret);
                     return;
                 } else if (ret == -999) {
-                    STMS_WARN("Kicking client {} at {} for: Unknown error", capUuid, cli->addrStr);
+                    STMS_WARN("Kicking client {} at {} for: Unknown error", capUuid.buildStr(), cli->addrStr);
 
                     std::lock_guard<std::mutex> lg(clientsMtx);
                     deadClients.push(capUuid);
                     capProm->set_value(ret);
                     return;
+                } else if (ret == -3) {
+                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+                    blockUntilReady(cli->sock, cli->pSsl, POLLOUT);
+                } else if (ret == -2) {
+                    STMS_WARN("send() failed with WANT_READ! Retrying!");
+                    blockUntilReady(cli->sock, cli->pSsl, POLLIN);
                 } else if (ret < 1) {
                     STMS_WARN("SSL_write failed for the reason above! Retrying!");
                 }
@@ -528,7 +540,7 @@ namespace stms {
         return prom->get_future();
     }
 
-    size_t SSLServer::getMtu(const std::string &cli) {
+    size_t SSLServer::getMtu(const UUID &cli) {
         if (!isUdp) {
             STMS_WARN("SSLServer::getMtu() called when the server is TLS not DTLS! Ignoring invocation...");
             return 0;
@@ -536,7 +548,7 @@ namespace stms {
 
         std::lock_guard<std::mutex> lg(clientsMtx);
         if (clients.find(cli) == clients.end()) {
-            STMS_ERROR("SSLServer::getMtu called with invalid client uuid '{}'!", cli);
+            STMS_ERROR("SSLServer::getMtu called with invalid client uuid '{}'!", cli.buildStr());
             return 0;
         }
 
@@ -559,7 +571,7 @@ namespace stms {
                 cliPollFd.fd = clients[c]->sock;
                 toPoll.push_back(cliPollFd);
             } else {
-                STMS_WARN("Client {} doesn't exist! `clients` was modified after we polled it!", c);
+                STMS_WARN("Client {} doesn't exist! `clients` was modified after we polled it!", c.buildStr());
             }
         }
 
@@ -571,8 +583,8 @@ namespace stms {
         poll(toPoll.data(), toPoll.size(), toMs);
     }
 
-    std::vector<std::string> SSLServer::getClientUuids() {
-        std::vector<std::string> ret;
+    std::vector<UUID> SSLServer::getClientUuids() {
+        std::vector<UUID> ret;
 
         std::lock_guard<std::mutex> lg(clientsMtx);
         ret.reserve(clients.size());
@@ -583,21 +595,20 @@ namespace stms {
         return ret;
     }
 
-    std::string SSLServer::refreshUuid(const std::string &client) {
+    UUID SSLServer::refreshUuid(const UUID &client) {
         UUID newUuid(eUuid4);
-        std::string newStr = newUuid.buildStr();
 
-        if (!setNewUuid(client, newStr)) {
-            return ""; // `client` is invalid! return empty.
+        if (!setNewUuid(client, newUuid)) {
+            return UUID{}; // return empty uuid as the client doesnt exist
         }
 
-        return newStr;
+        return newUuid;
     }
 
-    bool SSLServer::setNewUuid(const std::string &old, const std::string &newUuid) {
+    bool SSLServer::setNewUuid(const UUID &old, const UUID &newUuid) {
         std::lock_guard<std::mutex> lg(clientsMtx);
         if (clients.find(old) == clients.end()) {
-            STMS_WARN("Requested uuid edit {} -> {} failed: Client non-existent.", old, newUuid);
+            STMS_WARN("Requested uuid edit {} -> {} failed: Client non-existent.", old.buildStr(), newUuid.buildStr());
             return false;
         }
 
@@ -607,7 +618,7 @@ namespace stms {
         return true;
     }
 
-    void SSLServer::kickClient(const std::string &cliId) {
+    void SSLServer::kickClient(const UUID &cliId) {
         std::lock_guard<std::mutex> lg(clientsMtx);
         deadClients.emplace(cliId);
     }

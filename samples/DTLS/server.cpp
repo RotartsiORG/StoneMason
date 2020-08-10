@@ -19,17 +19,17 @@ int main() {
     serv.setPrivateKey("./res/ssl/serv-priv-key.pem");
     serv.verifyKeyMatchCert();
 
-    serv.setRecvCallback([&](const std::string &cliuuid, const sockaddr *const sockaddr, uint8_t *buf, int size) {
+    serv.setRecvCallback([&](const stms::UUID &cliuuid, const sockaddr *const sockaddr, uint8_t *buf, int size) {
         buf[size] = '\0';
-        STMS_WARN("ECHOING '{}' ({} BYTES) TO CLIENT {} AT {}", reinterpret_cast<char *>(buf), size, cliuuid,
+        STMS_WARN("ECHOING '{}' ({} BYTES) TO CLIENT {} AT {}", reinterpret_cast<char *>(buf), size, cliuuid.buildStr(),
                   stms::getAddrStr(sockaddr));
         serv.send(cliuuid, buf, size);
     });
-    serv.setConnectCallback([](const std::string &uuid, const sockaddr *const addr) {
-        STMS_WARN("CONNECT: UUID={}, ADDR={}", uuid, stms::getAddrStr(addr));
+    serv.setConnectCallback([](const stms::UUID &uuid, const sockaddr *const addr) {
+        STMS_WARN("CONNECT: UUID={}, ADDR={}", uuid.buildStr(), stms::getAddrStr(addr));
     });
-    serv.setDisconnectCallback([&](const std::string &uuid, const std::string &addr) {
-        STMS_WARN("DISCONNECT: UUID={} ADDR={}", uuid, addr);
+    serv.setDisconnectCallback([&](const stms::UUID &uuid, const sockaddr *const &addr) {
+        STMS_WARN("DISCONNECT: UUID={} ADDR={}", uuid.buildStr(), stms::getAddrStr(addr));
     });
 
     serv.start();

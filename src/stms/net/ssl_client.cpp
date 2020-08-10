@@ -143,11 +143,6 @@ namespace stms {
                 while (retryRead && readTimeouts < maxTimeouts) {
                     readTimeouts++;
 
-                    if (!blockUntilReady(sock, pSsl, POLLIN)) {
-                        STMS_WARN("SSL_read() timed out!");
-                        continue;
-                    }
-
                     uint8_t recvBuf[maxRecvLen];
                     int readLen = SSL_read(pSsl, recvBuf, maxRecvLen);
                     readLen = handleSslGetErr(pSsl, readLen);
@@ -155,9 +150,6 @@ namespace stms {
                     if (readLen > 0) {
                         timeoutTimer.reset();
                         recvCallback(recvBuf, readLen);
-                        retryRead = false;
-                    } else if (readLen == -2) {
-                        STMS_INFO("SSL_read() returned WANT_READ. Will retry next loop.");
                         retryRead = false;
                     } else if (readLen == -1 || readLen == -5 || readLen == -6) {
                         STMS_WARN("Connection to server closed forcefully!");
@@ -170,6 +162,12 @@ namespace stms {
 
                         stop();
                         retryRead = false;
+                    } else if (readLen == -2) {
+                        STMS_INFO("SSL_read() returned WANT_READ. Retrying!");
+                        blockUntilReady(sock, pSsl, POLLIN);
+                    } else if (readLen == -3) {
+                        STMS_INFO("SSL_read() returned WANT_WRITE. Retrying!");
+                        blockUntilReady(sock, pSsl, POLLOUT);
                     } else {
                         STMS_WARN("Server SSL_read failed for the reason above! Retrying!");
                         // Retry.
@@ -248,10 +246,6 @@ namespace stms {
             int sendTimeouts = 0;
             while (ret == -3 && sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
-                if (!blockUntilReady(sock, pSsl, POLLOUT)) {
-                    STMS_WARN("SSL_write() timed out!");
-                    continue;
-                }
 
                 ret = SSL_write(pSsl, capMsg, capLen);
                 ret = handleSslGetErr(pSsl, ret);
@@ -260,10 +254,6 @@ namespace stms {
                     timeoutTimer.reset();
                     capProm->set_value(ret);
                     return;
-                }
-
-                if (ret == -3) {
-                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
                 } else if (ret == -1 || ret == -5 || ret == -6) {
                     STMS_WARN("Connection to server at {} closed forcefully!", addrStr);
                     doShutdown = false;
@@ -277,6 +267,12 @@ namespace stms {
                     stop();
                     capProm->set_value(ret);
                     return;
+                } else if (ret == -3) {
+                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+                    blockUntilReady(sock, pSsl, POLLOUT);
+                } else if (ret == -2) {
+                    STMS_WARN("send() failed with WANT_READ! Retrying!");
+                    blockUntilReady(sock, pSsl, POLLIN);
                 } else if (ret < 1) {
                     STMS_WARN("SSL_write failed for the reason above! Retrying!");
                 }

@@ -31,6 +31,7 @@ namespace stms {
 
     /// Struct containing all the client's data. Internal impl detail, don't touch.
     struct ClientRepresentation {
+        // TODO: Should a mutex be introduced to sync IO to this? (OpenSSL SSL object especially)
         std::string addrStr{}; //!< Client's address as a ${host}:${port} string
         sockaddr *pSockAddr = nullptr; //!< Client's address. Is a `reinterpret_cast`ed `sockaddr_in` or `sockaddr_in6`
         socklen_t sockAddrLen{}; //!< Size of `pSockAddr`.
@@ -87,14 +88,13 @@ namespace stms {
     /// A SSL/TLS server. Can be TCP (TLS) or UDP (DTLS)
     class SSLServer : public _stms_SSLBase {
     private:
-        // TODO: Should we use `UUID` instead of `std::string`?
-        std::unordered_map<std::string, std::shared_ptr<ClientRepresentation>> clients; //!< Table of connected clients.
-        std::queue<std::string> deadClients; //!< Queue of clients to be deleted in `tick`
+        std::unordered_map<UUID, std::shared_ptr<ClientRepresentation>> clients; //!< Table of connected clients.
+        std::queue<UUID> deadClients; //!< Queue of clients to be deleted in `tick`
         std::mutex clientsMtx; //!< Mutex for syncing modification of the client table
 
         /**
          * @brief This is the callback that is called asynchronously for each packet the server receives from a client.
-         *        The first argument (`const std::string &`) is the UUID of the client that sent the packet.
+         *        The first argument (`const UUID &`) is the UUID of the client that sent the packet.
          *        The second argument (`const sockaddr *const`) is the address of the client that sent the packet.
          *        The third argument (`uint8_t *`) is a pointer to the actual data that was sent.
          *        The fourth argument (`int`) is the length in bytes of the data sent.
@@ -104,39 +104,33 @@ namespace stms {
          *        never `nullptr`. The 3rd arg is always a valid `uint8_t *`, never `nullptr`. The 4th arg is always
          *        a positive `int` that is greater than 0.
          */
-        std::function<void(const std::string &, const sockaddr *const, uint8_t *, int)> recvCallback = [](
-                const std::string &, const sockaddr *const, uint8_t *, int) {};
+        std::function<void(const UUID &, const sockaddr *const, uint8_t *, int)> recvCallback = [](
+                const UUID &, const sockaddr *const, uint8_t *, int) {};
 
         /**
          * @brief This is the callback that is called asynchronously for each client that connects to the server.
-         *        The first argument (`const std::string &`) is the UUID of the newly connected client.
+         *        The first argument (`const UUID &`) is the UUID of the newly connected client.
          *        The second argument (`const sockaddr *const`) is the address of the newly connected client.
          *
          *        When this function is called, it is guaranteed that the 1st arg is a valid client UUID (unless
          *        the user altered it using `refreshUuid` or `setNewUuid`). The 2nd arg is always a valid `sockaddr *`,
          *        never `nullptr`.
          */
-        std::function<void(const std::string &, const sockaddr *const)> connectCallback = [](const std::string &,
+        std::function<void(const UUID &, const sockaddr *const)> connectCallback = [](const UUID &,
                                                                                              const sockaddr *const) {};
 
 
         /**
          * @brief This is the callback function that is called asynchronously when a client disconnects from the server.
-         *        The first argument (`const std::string &`) is the UUID of the client that disconnected.
-         *        The second argument (`const std::string &`) is always the `<host>:<port>` address string of
-         *        the client that disconnected.
+         *        The first argument (`const UUID &`) is the UUID of the client that disconnected.
+         *        The second argument (`const sockaddr *const`) is always the address of the client that disconnected
          *
          *        When this function is called, it is guaranteed that the 1st arg is a valid client UUID (unless
-         *        the user altered it using `refreshUuid` or `setNewUuid`).
-         *
-         *        In this function, the second argument is the address string instead of the raw `const sockaddr *const`
-         *        since the client in question is being destroyed or has already been destroyed (this is asynchronous).
-         *        Then, by the time this function is called, the `sockaddr *` may have already been freed! This can be
-         *        solved with a `memcpy`, and the second arg **MAY** be changed to a `sockaddr *` in the future.
+         *        the user altered it using `refreshUuid` or `setNewUuid.
          *
          */
-        std::function<void(const std::string &, const std::string &)> disconnectCallback = [](const std::string &,
-                                                                                              const std::string &) {};
+        std::function<void(const UUID &, const sockaddr *const)> disconnectCallback = [](const UUID &,
+                                                                                              const sockaddr *const) {};
 
         /// Internal implementation detail. Don't touch
         friend void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
@@ -181,7 +175,7 @@ namespace stms {
          * @param newCb The new callback to replace the old one
          */
         inline void
-        setRecvCallback(const std::function<void(const std::string &, const sockaddr *const, uint8_t *, int)> &newCb) {
+        setRecvCallback(const std::function<void(const UUID &, const sockaddr *const, uint8_t *, int)> &newCb) {
             recvCallback = newCb;
         }
 
@@ -189,7 +183,7 @@ namespace stms {
          * @brief Set the new `disconnectCallback`. See documentation for `stms::SSLServer::disconnectCallback`
          * @param newCb The new callback to replace the old one
          */
-        inline void setConnectCallback(const std::function<void(const std::string &,
+        inline void setConnectCallback(const std::function<void(const UUID &,
                                                                 const sockaddr *const)> &newCb) {
             connectCallback = newCb;
         }
@@ -198,8 +192,8 @@ namespace stms {
          * @brief Set the new `connectCallback`. See documentation for `stms::SSLServer::connectCallback`
          * @param newCb The new callback to replace the old one
          */
-        inline void setDisconnectCallback(const std::function<void(const std::string &,
-                                                                   const std::string &)> &newCb) {
+        inline void setDisconnectCallback(const std::function<void(const UUID &,
+                                                                   const sockaddr *const)> &newCb) {
             disconnectCallback = newCb;
         }
 
@@ -207,24 +201,23 @@ namespace stms {
          * @brief Replace the client's UUID with a newly generated UUIDv4
          * @param client Client UUID to replace
          * @return Newly generated UUID that it was replaced with. **NOTE: If no client with the uuid `client` exists,
-         *         an empty string is returned**
+         *         a UUID filled with 0s is returned
          */
-        std::string refreshUuid(const std::string &client);
+        UUID refreshUuid(const UUID &client);
 
         /**
          * @brief Replace a client's uuid with a new one.
          * @param old Old UUID to replace
-         * @param newUuid New UUID to replace it with. **NOTE: This can actually be any string and not strictly a
-         *                UUID string**
+         * @param newUuid New UUID to replace it with.
          * @return True if a client had uuid `old` and the uuid was updated. False of no client with UUID `old` exists.
          */
-        bool setNewUuid(const std::string &old, const std::string &newUuid);
+        bool setNewUuid(const UUID &old, const UUID &newUuid);
 
         /**
          * @brief Generate a list of all the currently connected clients. O(n).
          * @return A `std::vector` containing all the uuids of the currently connected clients.
          */
-        std::vector<std::string> getClientUuids();
+        std::vector<UUID> getClientUuids();
 
         /**
          * @brief Get the number of currently connected clients
@@ -247,11 +240,11 @@ namespace stms {
          *        As a result, the next call to `tick` WILL block until `SSL_shutdown` completes.**
          * @param cliId The uuid of the client to kick
          */
-        void kickClient(const std::string &cliId);
+        void kickClient(const UUID &cliId);
 
         /**
          * @brief Send an message (in the form of an array of `uint8_t`s) to a client.
-         * @param clientUuid UUIDv4 of the client to send this message to.
+         * @param clientUuid UUID of the client to send this message to.
          * @param msg Array of unsigned chars to send to the client
          * @param msgLen Length of `msg` in bytes (octets)
          * @param cpy If true, the contents of `msg` are copied. That way, `msg` can be destroyed after passing it into
@@ -266,7 +259,7 @@ namespace stms {
          *         **Otherwise, if the operation completed successfully, a positive value containing the number
          *         of bytes sent would be returned.**
          */
-        std::future<int> send(const std::string &clientUuid, const uint8_t *const msg, int msgLen, bool cpy = false);
+        std::future<int> send(const UUID &clientUuid, const uint8_t *const msg, int msgLen, bool cpy = false);
 
         /**
          * @brief Accept incoming client connections & receive data asynchronously. To be called at a regular interval.
@@ -283,7 +276,7 @@ namespace stms {
          * @param cli DTLS client to query the PMTU of
          * @return The PMTU in bytes, or 0 if `cli` doesn't exist or this isn't a DTLS connection (or otherwise fails).
          */
-        size_t getMtu(const std::string &cli);
+        size_t getMtu(const UUID &cli);
     };
 }
 

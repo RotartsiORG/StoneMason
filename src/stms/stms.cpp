@@ -71,7 +71,7 @@ namespace stms {
         return ret;
     }
 
-    std::string UUID::buildStr() {
+    std::string UUID::buildStr() const {
         std::string ret;
         ret.reserve(36);
 
@@ -96,7 +96,7 @@ namespace stms {
     }
 
     UUID &UUID::operator=(const UUID &rhs) {
-        if (this == &rhs) {
+        if (this == &rhs || rhs == *this) {
             return *this;
         }
 
@@ -161,18 +161,4 @@ namespace stms {
 
         stms::quitLogging();
     }
-}
-
-// https://www.boost.org/doc/libs/1_73_0/boost/container_hash/hash.hpp
-static size_t boostHashCombine(size_t lhs, size_t rhs) {
-    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6UL) + (lhs >> 2UL));
-}
-
-namespace std {
-    template<> struct hash<stms::UUID> {
-        std::size_t operator()(stms::UUID const& s) const noexcept {
-            auto *lowerHalf = reinterpret_cast<const uint64_t *>(&s);
-            return boostHashCombine(*lowerHalf, *(lowerHalf + 1));
-        }
-    };
 }
