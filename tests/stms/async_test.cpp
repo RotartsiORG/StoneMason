@@ -2,6 +2,8 @@
 // Created by grant on 1/2/20.
 //
 
+#include <utility>
+
 #include "gtest/gtest.h"
 #include "stms/async.hpp"
 #include "stms/logging.hpp"
@@ -14,11 +16,12 @@ namespace {
         std::string *pStr;
         std::mutex *pStrMtx;
         std::string identifier;
+
+        WorkArgs(unsigned w, std::string *s, std::mutex *m, std::string i) : wait(w), pStr(s), pStrMtx(m), identifier(std::move(i)) {}
     };
 
     bool operator==(const WorkArgs &lhs, const WorkArgs &rhs) {
-        return (lhs.wait == rhs.wait) && (lhs.pStr == rhs.pStr) && (lhs.pStrMtx == rhs.pStrMtx) &&
-               (lhs.identifier == rhs.identifier);
+        return (lhs.identifier == rhs.identifier);
     }
 
     std::ostream &operator<<(std::ostream &out, const WorkArgs &f) {
@@ -58,7 +61,7 @@ namespace {
             workArgs.clear();
             for (unsigned i = 0; i < numTasks; i++) {
                 std::string id = std::to_string(i);
-                WorkArgs workArg = {1000, &order, &orderMtx, id};
+                WorkArgs workArg = WorkArgs{1000, &order, &orderMtx, id};
                 workArgs.emplace_back(workArg);
                 expecteOrder += (id + ", ");
             }
@@ -76,13 +79,17 @@ namespace {
         }
 
         void stopPool() {
-            pool->waitIdle(1000);
+            pool->waitIdle(0);
 
             EXPECT_TRUE(pool->isRunning());
             pool->stop(true);
             EXPECT_FALSE(pool->isRunning());
 
             for (int i = 0; i < numTasks; i++) {
+                STMS_INFO("CMP i={}", i);
+                std::cout << "reulsts = " << *results.at(i) << std::endl;
+                std::cout << "workArgs = " << workArgs.at(i) << std::endl;
+
                 EXPECT_EQ(*results.at(i), workArgs.at(i));
             }
 
@@ -104,7 +111,7 @@ namespace {
     }
 
     TEST_F(ThreadPoolTests, MoveWhileRunningTest) {
-        startPool();;
+        startPool();
         *pool = std::move(*pool);
         stms::ThreadPool temp = std::move(*pool);
         *pool = std::move(temp);

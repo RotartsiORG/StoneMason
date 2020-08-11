@@ -17,18 +17,12 @@ namespace stms {
             std::unique_lock<std::mutex> tlg(parent->taskQueueMtx);
             // Block until there are tasks to consume or we are requested to stop
             if (parent->tasks.empty()) {
-                auto rawnow = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
-                std::cout << "Worker thread " << index << " starting to block!" << std::endl;
-
+                std::cout << "Worker " << index << " block\n";
                 parent->taskQueueCv.wait_for(tlg, std::chrono::milliseconds(threadPoolConvarTimeoutMs), [&]() {
                     return (!parent->tasks.empty()) || index == parent->stopRequest || (!parent->running);
                 });
-
-                auto end = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
-                std::cout << end.time_since_epoch().count() - rawnow.time_since_epoch().count() << "ms later: Worker thread " << index << " unblocked!" << std::endl;
-            }
-
-            if (!parent->tasks.empty()) {
+                std::cout << "Worker " << index << " unblock\n";
+            } else if (!parent->tasks.empty()) {
                 auto front = std::move(parent->tasks.front());
                 parent->tasks.pop();
                 tlg.unlock();
@@ -38,6 +32,7 @@ namespace stms {
                 std::lock_guard<std::mutex> lg(parent->unfinishedTaskMtx);
                 parent->unfinishedTasks--;
                 parent->unfinishedTasksCv.notify_all();
+                std::cout << "UnfinishedTasks = " << parent->unfinishedTasks << ", notified all!" << std::endl;
             }
         }
     }
@@ -50,6 +45,7 @@ namespace stms {
 
         if (this->running) {
             STMS_WARN("ThreadPool destroyed while running! Stopping it now (with block=true)");
+            waitIdle(1000);
             stop(true);
         }
     }
@@ -61,7 +57,7 @@ namespace stms {
         }
 
         if (threads == 0) {
-            threads = (unsigned) (std::thread::hardware_concurrency() * 1); // Choose a good multiplier
+            threads = (unsigned) (std::thread::hardware_concurrency() - 1); // subtract 1 bc of the main thread :D
             if (threads == 0) { // If that's STILL 0, default to 8 threads.
                 threads = 8;
             }
@@ -172,8 +168,9 @@ namespace stms {
             return *this;
         }
 
-        if (this->isRunning()) {
-            STMS_WARN("ThreadPool moved when it is still running! This may cause worker threads to crash!");
+        if (this->isRunning() || rhs.isRunning()) {
+            STMS_ERROR("Attempted to move running ThreadPool! Ignoring operator=!!!");
+            return *this;
         }
 
         this->destroy();
@@ -207,19 +204,18 @@ namespace stms {
     }
 
     void ThreadPool::waitIdle(unsigned timeout) {
+        std::unique_lock<std::mutex> lg(unfinishedTaskMtx);
         if (unfinishedTasks == 0) {
             return;
         }
 
-        std::unique_lock<std::mutex> lg(unfinishedTaskMtx);
-
-        STMS_DEBUG("waitIdle() starting to block");
+        STMS_INFO("WaitIdle block");
         auto predicate = [&]() { return unfinishedTasks == 0; };
         if (timeout == 0) {
             unfinishedTasksCv.wait(lg, predicate);
         } else {
             unfinishedTasksCv.wait_for(lg, std::chrono::milliseconds(timeout), predicate);
         }
-        STMS_DEBUG("waitIdle() unblocked");
+        STMS_INFO("WaitIdle unblock");
     }
 }

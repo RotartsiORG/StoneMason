@@ -10,7 +10,7 @@ export CXX=/usr/bin/clang++
 #export CXX=/usr/bin/g++
 
 mkdir build
-$CMK_EXE -GNinja -Wdev -Wdeprecated -DCMAKE_BUILD_TYPE=Debug -DSTMS_BUILD_TESTS=ON -DSTMS_BUILD_SAMPLES=ON -Bbuild -S.
+$CMK_EXE -GNinja -Wdev -Wdeprecated -Bbuild -S.
 
 cd build || exit
 $CMK_EXE --build . -j 8

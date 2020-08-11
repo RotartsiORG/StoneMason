@@ -9,23 +9,15 @@ set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 add_compile_options(-fPIC)
 add_link_options(-fPIC)
 
+add_compile_options(-fsanitize=address -O1 -fno-omit-frame-pointer -g)
+add_link_options(-fsanitize=address -O1 -fno-omit-frame-pointer -g)
+
 option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
 option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
-option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols for GDB" ON) # TODO: rename to just STMS_DEBUG
-option(STMS_OPTIMIZE "Builds STMS with -O3" OFF)
+#option(STMS_OPTIMIZE "Builds STMS with -O3" ON)
 
 option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" ON) # option in config.hpp must also be set
 option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON) # option in config.hpp must also be set
-
-if (STMS_OPTIMIZE)
-    message("-- Compiling with -O3")
-    add_compile_options(-O3 -s) # -o3 and strip
-endif()
-
-if (STMS_DEBUG_SYMBOLS)
-    message("-- Debug symbols for GDB on")
-    add_compile_options(-g3 -ggdb)
-endif()
 
 project(stms_shared LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
 project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
