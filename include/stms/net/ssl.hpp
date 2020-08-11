@@ -19,8 +19,16 @@
 
 #include <sys/socket.h>
 #include <sys/poll.h>
+#include "stms/stms.hpp"
 
 namespace stms {
+
+    class SSLException : public InternalException {};
+    class SSLWantWriteException : public InternalException {};
+    class SSLWantReadException : public InternalException {};
+
+    class SSLFatalException : public InternalException {};
+
     /// @brief This is `secretCookieLen` of random data to be used for DTLS stateless cookie exchanges
     ///        (for protection against DDoS attacks).
     extern uint8_t secretCookie[secretCookieLen];

@@ -54,42 +54,28 @@ namespace stms {
     }
 
     static void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *serv) {
-
-        bool doHandshake = true;
         int handshakeTimeouts = 0;
-        while (doHandshake && handshakeTimeouts < serv->maxTimeouts) {
+        while (handshakeTimeouts < serv->maxTimeouts) {
             handshakeTimeouts++;
-            int handshakeStatus = SSL_accept(cli->pSsl);
-            if (handshakeStatus == 1) {
-                doHandshake = false;
-            }
-            if (handshakeStatus == 0) {
-                STMS_INFO("Handshake failed with non-fatal error. Retrying.");
-            }
-            if (handshakeStatus < 0) {
-                STMS_WARN("DTLS/TLS Handshake error!");
-                handshakeStatus = handleSslGetErr(cli->pSsl, handshakeStatus);
-                flushSSLErrors();
-                if (handshakeStatus == -5 || handshakeStatus == -1 || handshakeStatus == -999 ||
-                    handshakeStatus == -6) {
-                    STMS_WARN("Dropping connection to client because of SSL_accept() error!");
-                    return;
-                }
+            try {
+                int ret = handleSslGetErr(cli->pSsl, SSL_accept(cli->pSsl));
 
-                if (handshakeStatus == -3) { // Want write
-                    STMS_INFO("WANT_WRITE returned from SSL_accept! Blocking until write-ready...");
-                    if (!serv->blockUntilReady(cli->sock, cli->pSsl, POLLOUT)) {
-                        STMS_WARN("SSL_accpet() WANT_WRITE timed out!");
-                        continue;
-                    }
-                } else if (handshakeStatus == -2) { // Want read
-                    STMS_INFO("WANT_READ returned from SSL_accept! Blocking until read-ready...");
-                    if (!serv->blockUntilReady(cli->sock, cli->pSsl, POLLIN)) {
-                        STMS_INFO("SSL_accpet() WANT_READ timed out!");
-                        continue;
-                    }
+                if (ret == 1) {
+                    handshakeTimeouts = 0;
+                    STMS_INFO("Handshake completed successfully with cli at {}", cli->addrStr);
+                    break;
                 }
-                STMS_WARN("Retrying SSL_accept!");
+            } catch (SSLWantReadException &) {
+                STMS_INFO("WANT_READ returned from SSL_accept! Blocking until read-ready and retrying.");
+                serv->blockUntilReady(cli->sock, cli->pSsl, POLLIN);
+            } catch (SSLWantWriteException &) {
+                STMS_INFO("WANT_WRITE returned from SSL_accept! Blocking until write-ready and retrying.");
+                serv->blockUntilReady(cli->sock, cli->pSsl, POLLOUT);
+            } catch (SSLFatalException &) {
+                STMS_WARN("Dropping connection to client because of fatal SSL_accept() error!");
+                return;
+            } catch (SSLException &) {
+                STMS_WARN("Non-fatal Handshake error! Retrying!");
             }
         }
 
@@ -250,7 +236,6 @@ namespace stms {
 
         std::shared_ptr<ClientRepresentation> cli = std::make_shared<ClientRepresentation>();
         cli->serv = this;
-        cli->doShutdown = false;
 
         if (isUdp) {
             cli->dtls = new ClientRepresentation::DTLSSpecific{};
@@ -371,42 +356,35 @@ namespace stms {
                     pPool->submitTask([&, lambCli = std::shared_ptr<ClientRepresentation>(client.second),
                                               lambUUid = UUID{client.first}]() {
 
-                        bool retryRead = true;
                         int readTimeouts = 0;
-                        while (retryRead && readTimeouts < maxTimeouts) {
+                        while (readTimeouts < maxTimeouts) {
                             readTimeouts++;
 
-                            uint8_t recvBuf[maxRecvLen];
-                            int readLen = SSL_read(lambCli->pSsl, recvBuf, maxRecvLen);
-                            readLen = handleSslGetErr(lambCli->pSsl, readLen);
+                            try {
+                                uint8_t recvBuf[maxRecvLen];
+                                int readLen = handleSslGetErr(lambCli->pSsl, SSL_read(lambCli->pSsl, recvBuf, maxRecvLen));
 
-                            if (readLen > 0) {
-                                lambCli->timeoutTimer.reset();
-                                recvCallback(lambUUid, lambCli->pSockAddr, recvBuf, readLen);
-                                retryRead = false;
-                            } else if (readLen == -1 || readLen == -5 || readLen == -6) {
-                                STMS_WARN("Connection to client {} closed forcefully!", lambUUid.buildStr());
+                                if (readLen > 0) {
+                                    readTimeouts = 0;
+                                    lambCli->timeoutTimer.reset();
+                                    recvCallback(lambUUid, lambCli->pSockAddr, recvBuf, readLen);
+                                    break;
+                                }
+                            } catch (SSLWantWriteException &) {
+                                STMS_INFO("SSL_read() returned WANT_WRITE. Blocking then retrying!");
+                                blockUntilReady(lambCli->sock, lambCli->pSsl, POLLOUT);
+                            } catch (SSLWantReadException &) {
+                                STMS_INFO("SSL_read() returned WANT_READ. Blocking then retrying!");
+                                blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN);
+                            } catch (SSLFatalException &) {
+                                STMS_WARN("Fatal SSL_read() exception occurred! Disconnecting client {}", lambUUid.buildStr());
                                 lambCli->doShutdown = false;
 
                                 std::lock_guard<std::mutex> lgSub(clientsMtx);
                                 deadClients.push(lambUUid);
-                                retryRead = false;
-                            } else if (readLen == -999) {
-                                STMS_WARN("Client {} kicked for: Unknown error", lambUUid.buildStr());
-
-                                std::lock_guard<std::mutex> lgSub(clientsMtx);
-                                deadClients.push(lambUUid);
-                                retryRead = false;
-                            } else if (readLen == -3) {
-                                STMS_INFO("SSL_read() returned WANT_WRITE. Blocking then retrying!");
-                                blockUntilReady(lambCli->sock, lambCli->pSsl, POLLOUT);
-                            } else if (readLen == -2) {
-                                STMS_INFO("SSL_read() returned WANT_READ. Blocking then retrying!");
-                                blockUntilReady(lambCli->sock, lambCli->pSsl, POLLIN);
-                            } else {
-                                // SSL_WANT_READ case is also handled here
+                                break;
+                            } catch (SSLException &) {
                                 STMS_WARN("Client {} SSL_read failed for the reason above! Retrying!", lambUUid.buildStr());
-                                // Retry.
                             }
                         }
 
@@ -456,7 +434,7 @@ namespace stms {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
             STMS_ERROR("SSLServer::send() called when stopped! Dropping {} bytes!", msgLen);
-            prom->set_value(-114);
+            prom->set_value(-1);
             return prom->get_future();
         }
 
@@ -484,44 +462,36 @@ namespace stms {
             std::shared_ptr<ClientRepresentation> cli = clients[capUuid];
             clg.unlock();
 
-            int ret = -3;
-
             int sendTimeouts = 0;
-            while (ret == -3 && sendTimeouts < maxTimeouts) {
+            while (sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
 
-                ret = SSL_write(cli->pSsl, capMsg, capLen);
-                ret = handleSslGetErr(cli->pSsl, ret);
+                try {
+                    int ret = handleSslGetErr(cli->pSsl, SSL_write(cli->pSsl, capMsg, capLen));
 
-                if (ret > 0) {
-                    capProm->set_value(ret);
-                    cli->timeoutTimer.reset();
-                    return;
-                } else if (ret == -1 || ret == -5 || ret == -6) {
-                    STMS_WARN("Connection to client {} at {} closed forcefully!", capUuid.buildStr(), cli->addrStr);
+                    if (ret > 0) {
+                        sendTimeouts = 0;
+                        capProm->set_value(ret);
+                        cli->timeoutTimer.reset();
+                        break;
+                    }
+                } catch (SSLWantReadException &) {
+                    STMS_WARN("send() failed with WANT_READ! Retrying!");
+                    blockUntilReady(cli->sock, cli->pSsl, POLLIN);
+                } catch (SSLWantWriteException &) {
+                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+                    blockUntilReady(cli->sock, cli->pSsl, POLLOUT);
+                } catch (SSLFatalException &) {
+                    STMS_WARN("Connection to client {} at {} closed forcefully! (Fatal SSL_read() error!)", capUuid.buildStr(), cli->addrStr);
                     cli->doShutdown = false;
 
                     std::lock_guard<std::mutex> lg(clientsMtx);
                     deadClients.push(capUuid);
-                    capProm->set_value(ret);
-                    return;
-                } else if (ret == -999) {
-                    STMS_WARN("Kicking client {} at {} for: Unknown error", capUuid.buildStr(), cli->addrStr);
-
-                    std::lock_guard<std::mutex> lg(clientsMtx);
-                    deadClients.push(capUuid);
-                    capProm->set_value(ret);
-                    return;
-                } else if (ret == -3) {
-                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
-                    blockUntilReady(cli->sock, cli->pSsl, POLLOUT);
-                } else if (ret == -2) {
-                    STMS_WARN("send() failed with WANT_READ! Retrying!");
-                    blockUntilReady(cli->sock, cli->pSsl, POLLIN);
-                } else if (ret < 1) {
+                    capProm->set_value(-2);
+                    break;
+                } catch (SSLException &) {
                     STMS_WARN("SSL_write failed for the reason above! Retrying!");
                 }
-                STMS_INFO("Retrying SSL_write!");
             }
 
             if (capCpy) {
@@ -533,8 +503,8 @@ namespace stms {
 
                 std::lock_guard<std::mutex> lg(clientsMtx);
                 deadClients.push(capUuid);
+                capProm->set_value(-3);
             }
-            capProm->set_value(ret);
         });
 
         return prom->get_future();
@@ -562,17 +532,11 @@ namespace stms {
         std::vector<pollfd> toPoll;
         toPoll.reserve(getNumClients() + 1);
 
-        for (const auto &c : getClientUuids()) {
+        for (const auto &c : clients) {
             pollfd cliPollFd{};
             cliPollFd.events = POLLIN;
-
-            std::lock_guard<std::mutex> lg(clientsMtx);
-            if (clients.find(c) != clients.end()) {
-                cliPollFd.fd = clients[c]->sock;
-                toPoll.push_back(cliPollFd);
-            } else {
-                STMS_WARN("Client {} doesn't exist! `clients` was modified after we polled it!", c.buildStr());
-            }
+            cliPollFd.fd = c.second->sock;
+            toPoll.push_back(cliPollFd);
         }
 
         pollfd servPollFd{};
@@ -580,7 +544,40 @@ namespace stms {
         servPollFd.fd = sock;
         toPoll.emplace_back(servPollFd);
 
+        toPoll.shrink_to_fit();
         poll(toPoll.data(), toPoll.size(), toMs);
+    }
+
+    void SSLServer::waitEventsFrom(const std::vector<UUID> &toWait, bool unblockForIncoming, int to) {
+        // sleep for a bit and wait for clients that connected in the previous tick to become noticed.
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitEventsSleepAmount));
+
+        std::vector<pollfd> toPoll;
+        toPoll.reserve(getNumClients() + 1);
+
+        for (const auto &c : toWait) {
+            pollfd cliPollFd{};
+            cliPollFd.events = POLLIN;
+
+            std::lock_guard<std::mutex> lg(clientsMtx);
+            if (clients.find(c) == clients.end()) {
+                STMS_WARN("There is no client with UUID {}! Ignoring this bad UUID passed into `waitEventsFrom`...", c.buildStr());
+                continue;
+            }
+
+            cliPollFd.fd = clients[c]->sock;
+            toPoll.push_back(cliPollFd);
+        }
+
+        if (unblockForIncoming) {
+            pollfd servPollFd{};
+            servPollFd.events = POLLIN;
+            servPollFd.fd = sock;
+            toPoll.emplace_back(servPollFd);
+        }
+
+        toPoll.shrink_to_fit();
+        poll(toPoll.data(), toPoll.size(), to);
     }
 
     std::vector<UUID> SSLServer::getClientUuids() {
@@ -629,31 +626,29 @@ namespace stms {
 
     void ClientRepresentation::shutdownClient() {
         if (doShutdown && pSsl != nullptr) {
-            int shutdownRet = 0;
             int numTries = 0;
-            while (shutdownRet == 0 && numTries < sslShutdownMaxRetries) {
+            while (numTries < sslShutdownMaxRetries) {
                 numTries++;
-                shutdownRet = SSL_shutdown(pSsl);
-                if (shutdownRet < 0) {
-                    shutdownRet = handleSslGetErr(pSsl, shutdownRet);
-                    flushSSLErrors();
-                    STMS_WARN("Error in SSL_shutdown (see above)!");
 
-                    if (shutdownRet == -2) {
-                        if (!serv->blockUntilReady(sock, pSsl, POLLIN)) {
-                            STMS_WARN("Reading timed out for SSL_shutdown!");
-                        }
-                    } else if (shutdownRet == -3) {
-                        if (!serv->blockUntilReady(sock, pSsl, POLLOUT)) {
-                            STMS_WARN("Writing timed out for SSL_shutdown!");
-                        }
-                    } else {
-                        STMS_WARN("Skipping SSL_shutdown()!");
+                try {
+                    int shutdownRet = handleSslGetErr(pSsl,  SSL_shutdown(pSsl));
+                    if (shutdownRet == 0) {
+                        STMS_INFO("Waiting to hear back after SSL_shutdown... retrying");
+                        continue;
+                    } else if (shutdownRet == 1) {
                         break;
                     }
-                } else if (shutdownRet == 0) {
-                    flushSSLErrors();
-                    STMS_INFO("SSL_shutdown needs to be recalled! Retrying...");
+                } catch (SSLWantWriteException &) {
+                    STMS_WARN("SSL_shutdown() returned WANT_WRITE! Blocking...");
+                    serv->blockUntilReady(sock, pSsl, POLLOUT);
+                } catch (SSLWantReadException &) {
+                    STMS_WARN("SSL_shutdown() returned WANT_READ! Blocking...");
+                    serv->blockUntilReady(sock, pSsl, POLLIN);
+                } catch (SSLFatalException &) {
+                    STMS_WARN("Fatal exception during SSL_shutdown()! Skipping it!");
+                    break; // just give up lol
+                } catch (SSLException &) {
+                    STMS_INFO("Retrying SSL_shutdown()!");
                 }
             }
 

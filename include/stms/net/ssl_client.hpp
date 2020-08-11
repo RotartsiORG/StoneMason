@@ -72,14 +72,11 @@ namespace stms {
          * @param copy If true, the contents of `data` are copied. That way, `data` can be destroyed after
          *             passing it into send()`. Otherwise, we read from msg directly and assume it won't be gone.
          * @return A `std::future<int>` is returned that you can use to block until the `SSL_write` operation finishes.
-         *         If there is an OpenSSL error, a value < 0 is returned.
-         *         If `-114` is returned, send failed because the client is stopped. Call `start()` first!
-         *         If `-1`, `-5`, or `-999` is returned, there was a fatal error and the connection to the server
-         *         has been closed. If `-3` or `-2` is returned, you can retry immediately.
-         *         If `-6` is returned, the server has closed their writing connection, so
-         *         no more data will be read. If another negative value is returned, retry later.
-         *         **Otherwise, if the operation completed successfully, a positive value containing the number
-         *         of bytes sent would be returned.**
+         *         If there is an OpenSSL error, a value < 0 is returned. If a -1 is returned, then send() was called
+         *         while the client was stopped, and you must start the client first. If a -2 is returned, then there
+         *         was a fatal exception and we disconnected.
+         *         If -3 is returned, the operation timed out and we disconnected. Otherwise, a positive integer
+         *         containing the number of bytes sent is returned.
          */
         std::future<int> send(const uint8_t *const data, int size, bool copy = false);
 

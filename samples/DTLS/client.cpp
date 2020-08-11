@@ -10,7 +10,7 @@ int main() {
     stms::ThreadPool pool;
     pool.start();
 
-    stms::SSLClient cli = stms::SSLClient(&pool, false);
+    stms::SSLClient cli = stms::SSLClient(&pool, true);
     cli.setTimeout(5000); // 5 sec timeout
     cli.setHostAddr("3000", "127.0.0.1"); // can be omitted.
     cli.setIPv6(false);

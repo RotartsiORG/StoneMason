@@ -10,7 +10,7 @@ int main() {
     stms::ThreadPool pool;
     pool.start();
 
-    stms::SSLServer serv = stms::SSLServer(&pool, false);
+    stms::SSLServer serv = stms::SSLServer(&pool, true);
     serv.setTimeout(5000); // 5 sec timeout
     serv.setHostAddr("3000", "127.0.0.1"); // can be left out but *shurgs*
     serv.setIPv6(false);

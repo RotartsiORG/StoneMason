@@ -37,7 +37,7 @@ namespace stms {
         socklen_t sockAddrLen{}; //!< Size of `pSockAddr`.
         SSL *pSsl = nullptr; //!< OpenSSL `SSL` object
         int sock = 0; //!< Client socket file descriptor
-        bool doShutdown = true; //!< If true, `SSL_shutdown` is called on `pSsl` when this object is destroyed.
+        bool doShutdown = false; //!< If true, `SSL_shutdown` is called on `pSsl` when this object is destroyed.
         bool isReading = false; //!< Flag for if a `SSL_read` is in progress.
 
         /// A `Stopwatch` for checking if the connection timed out (ie `timeoutMs` milliseconds passed without response)
@@ -235,6 +235,14 @@ namespace stms {
         void waitEvents(int timeoutMs) override;
 
         /**
+         * @brief Block until there is data to be read from the specified clients, or there is an incoming connection.
+         * @param toWait A list of clients we poll. If any packet arrives from these clients, this function unblocks.
+         * @param unblockForIncoming If true, this function unblocks when a new client tries to connect to the server.
+         * @param to Maximum amount of time to block for, in milliseconds
+         */
+        void waitEventsFrom(const std::vector<UUID> &toWait, bool unblockForIncoming, int to);
+
+        /**
          * @brief Disconnect ('kick') the client with the following uuid. **Note: this function will NOT block, as the
          *        client isn't disconnected immediately, but queued to be disconnected on the next call to `tick`.
          *        As a result, the next call to `tick` WILL block until `SSL_shutdown` completes.**
@@ -250,14 +258,10 @@ namespace stms {
          * @param cpy If true, the contents of `msg` are copied. That way, `msg` can be destroyed after passing it into
          *            `send()`. Otherwise, we read from msg directly and assume it won't be gone.
          * @return A `std::future<int>` is returned that you can use to block until the `SSL_write` operation finishes.
-         *         If `clientUuid` is invalid, 0 is returned. If there is an OpenSSL error, a value < 0 is returned.
-         *         If `-114` is returned, send failed because the server is stopped. Call `start()` first!
-         *         If `-1`, `-5`, or `-999` is returned, there was a fatal error and the connection to the client
-         *         has been closed. If `-3` or `-2` is returned, you can retry immediately.
-         *         If `-6` is returned, the client has closed their writing connection, so
-         *         no more data will be read. If another negative value is returned, retry later.
-         *         **Otherwise, if the operation completed successfully, a positive value containing the number
-         *         of bytes sent would be returned.**
+         *         If `clientUuid` is invalid, 0 is returned. If the server was stopped, -1 is returned; you must
+         *         first start the server before calling `send()`. If there was a fatal SSL error, -2 is returned and
+         *         the client is kicked. If the operation timed out, -3 is returned and the client is kicked.
+         *         Otherwise, the number of bytes sent is returned.
          */
         std::future<int> send(const UUID &clientUuid, const uint8_t *const msg, int msgLen, bool cpy = false);
 

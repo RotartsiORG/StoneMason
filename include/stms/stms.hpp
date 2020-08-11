@@ -14,6 +14,8 @@
 
 namespace stms {
 
+    class InternalException : public std::exception {};
+
     constexpr char hexChars[] = "0123456789abcdef";
 
     inline std::default_random_engine &stmsRand() {

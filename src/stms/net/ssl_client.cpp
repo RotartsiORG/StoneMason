@@ -40,43 +40,27 @@ namespace stms {
         }
 
         STMS_INFO("DTLS/TLS client about to preform handshake!");
-        bool doHandshake = true;
         int handshakeTimeouts = 0;
-        while (doHandshake && handshakeTimeouts < maxTimeouts) {
-            int handshakeRet = SSL_connect(pSsl);
+        while (handshakeTimeouts < maxTimeouts) {
             handshakeTimeouts++;
-
-            if (handshakeRet == 1) {
-                doHandshake = false;
-                handshakeTimeouts = 0;
-                STMS_INFO("Client handshake successful!");
-            } else if (handshakeRet == 0) {
-                STMS_INFO("DTLS/TLS client handshake failed! Cannot connect!");
-                handleSslGetErr(pSsl, handshakeRet);
+            try {
+                int handshakeRet = handleSslGetErr(pSsl, SSL_connect(pSsl));
+                if (handshakeRet == 1) {
+                    STMS_INFO("Client handshake successful!");
+                    handshakeTimeouts = 0;
+                    break;
+                }
+            } catch (SSLWantReadException &) {
+                STMS_INFO("WANT_READ returned from SSL_connect! Blocking until read-ready...");
+                blockUntilReady(sock, pSsl, POLLIN);
+            } catch (SSLWantWriteException &) {
+                STMS_INFO("WANT_WRITE returned from SSL_connect! Blocking until write-ready...");
+                blockUntilReady(sock, pSsl, POLLOUT);
+            } catch (SSLFatalException &) {
+                STMS_WARN("SSL_connect() error was fatal! Dropping connection!");
                 running = false;
                 return;
-            } else if (handshakeRet < 0) {
-                STMS_WARN("DTLS/TLS client handshake error!");
-                handshakeRet = handleSslGetErr(pSsl, handshakeRet);
-                if (handshakeRet == -5 || handshakeRet == -1 || handshakeRet == -999 ||
-                        handshakeRet == -6) {
-                    STMS_WARN("SSL_connect() error was fatal! Dropping connection!");
-                    running = false;
-                    return;
-                } else if (handshakeRet == -2) { // Read
-                    STMS_INFO("WANT_READ returned from SSL_connect! Blocking until read-ready...");
-                    if (!blockUntilReady(sock, pSsl, POLLIN)) {
-                        STMS_WARN("SSL_connect() WANT_READ timed out!");
-                        continue;
-                    }
-                } else if (handshakeRet == -3) { // Write
-                    STMS_INFO("WANT_WRITE returned from SSL_connect! Blocking until write-ready...");
-                    if (!blockUntilReady(sock, pSsl, POLLOUT)) {
-                        STMS_WARN("SSL_connect() WANT_WRITE timed out!");
-                        continue;
-                    }
-                }
-
+            } catch (SSLException &) {
                 STMS_INFO("Retrying SSL_connect()!");
             }
         }
@@ -121,7 +105,6 @@ namespace stms {
         }
 
         if (timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
-            timeoutTimer.reset();
             if (isUdp) { DTLSv1_handle_timeout(pSsl); }
             STMS_INFO("Connection to server timed out! Dropping connection!");
             stop();
@@ -137,40 +120,34 @@ namespace stms {
             isReading = true;
             // lambda captures validated
             pPool->submitTask([&]() {
-
-                bool retryRead = true;
                 int readTimeouts = 0;
-                while (retryRead && readTimeouts < maxTimeouts) {
+                while (readTimeouts < maxTimeouts) {
                     readTimeouts++;
 
-                    uint8_t recvBuf[maxRecvLen];
-                    int readLen = SSL_read(pSsl, recvBuf, maxRecvLen);
-                    readLen = handleSslGetErr(pSsl, readLen);
+                    try {
+                        uint8_t recvBuf[maxRecvLen];
+                        int readLen = handleSslGetErr(pSsl, SSL_read(pSsl, recvBuf, maxRecvLen));
 
-                    if (readLen > 0) {
-                        timeoutTimer.reset();
-                        recvCallback(recvBuf, readLen);
-                        retryRead = false;
-                    } else if (readLen == -1 || readLen == -5 || readLen == -6) {
-                        STMS_WARN("Connection to server closed forcefully!");
+                        if (readLen > 0) {
+                            readTimeouts = 0;
+                            timeoutTimer.reset();
+                            recvCallback(recvBuf, readLen);
+                            break;
+                        }
+                    } catch (SSLWantReadException &) {
+                        STMS_INFO("SSL_read() returned WANT_READ. Retrying!");
+                        blockUntilReady(sock, pSsl, POLLIN);
+                    } catch (SSLWantWriteException &) {
+                        STMS_INFO("SSL_read() returned WANT_WRITE. Retrying!");
+                        blockUntilReady(sock, pSsl, POLLOUT);
+                    } catch (SSLFatalException &) {
+                        STMS_WARN("Connection to server closed forcefully due to SSL_read() exception!");
                         doShutdown = false;
 
                         stop();
-                        retryRead = false;
-                    } else if (readLen == -999) {
-                        STMS_WARN("Disconnected from server for: Unknown error");
-
-                        stop();
-                        retryRead = false;
-                    } else if (readLen == -2) {
-                        STMS_INFO("SSL_read() returned WANT_READ. Retrying!");
-                        blockUntilReady(sock, pSsl, POLLIN);
-                    } else if (readLen == -3) {
-                        STMS_INFO("SSL_read() returned WANT_WRITE. Retrying!");
-                        blockUntilReady(sock, pSsl, POLLOUT);
-                    } else {
-                        STMS_WARN("Server SSL_read failed for the reason above! Retrying!");
-                        // Retry.
+                        break;
+                    } catch (SSLException &) {
+                        STMS_INFO("SSL_read() failed! Retrying...");
                     }
                 }
 
@@ -187,27 +164,26 @@ namespace stms {
 
     void SSLClient::onStop() {
         if (pSsl != nullptr && doShutdown) {
-            int shutdownRet = 0;
             int numTries = 0;
-            while (shutdownRet == 0 && numTries < sslShutdownMaxRetries) {
+            while (numTries < sslShutdownMaxRetries) {
                 numTries++;
-                shutdownRet = SSL_shutdown(pSsl);
-                if (shutdownRet < 0) {
-                    shutdownRet = handleSslGetErr(pSsl, shutdownRet);
-                    flushSSLErrors();
-                    STMS_WARN("Error in SSL_shutdown (see above)!");
-
-                    if (shutdownRet == -2) {
-                        if (!blockUntilReady(sock, pSsl, POLLIN)) {
-                            STMS_WARN("Reading timed out for SSL_shutdown!");
-                        }
-                    } else {
-                        STMS_WARN("Skipping SSL_shutdown()!");
+                try {
+                    int shutdownRet = handleSslGetErr(pSsl, SSL_shutdown(pSsl));
+                    if (shutdownRet == 0) {
+                        STMS_INFO("Waiting to hear back after SSL_shutdown... retrying");
+                        continue;
+                    } else if (shutdownRet == 1) {
                         break;
                     }
-                } else if (shutdownRet == 0) {
-                    flushSSLErrors();
-                    STMS_INFO("SSL_shutdown needs to be recalled! Retrying...");
+                } catch (SSLWantWriteException &) {
+                    blockUntilReady(sock, pSsl, POLLOUT);
+                } catch (SSLWantReadException &) {
+                    blockUntilReady(sock, pSsl, POLLIN);
+                } catch (SSLFatalException &) {
+                    STMS_WARN("Skipping SSL_shutdown() because of fatal exception!");
+                    break; // give up *tableflip*
+                } catch (SSLException &) {
+                    STMS_INFO("Retrying SSL_shutdown()!");
                 }
             }
 
@@ -225,7 +201,7 @@ namespace stms {
         std::shared_ptr<std::promise<int>> prom = std::make_shared<std::promise<int>>();
         if (!running) {
             STMS_ERROR("SSLClient::send called when not connected! {} bytes dropped!", msgLen);
-            prom->set_value(-114);
+            prom->set_value(-1);
             return prom->get_future();
         }
 
@@ -241,42 +217,35 @@ namespace stms {
 
         // lambda captures validated
         pPool->submitTask([&, capProm{prom}, capMsg{passIn}, capLen{msgLen}, capCpy{copy}]() {
-            int ret = -3;
 
             int sendTimeouts = 0;
-            while (ret == -3 && sendTimeouts < maxTimeouts) {
+            while (sendTimeouts < maxTimeouts) {
                 sendTimeouts++;
 
-                ret = SSL_write(pSsl, capMsg, capLen);
-                ret = handleSslGetErr(pSsl, ret);
-
-                if (ret > 0) {
-                    timeoutTimer.reset();
-                    capProm->set_value(ret);
-                    return;
-                } else if (ret == -1 || ret == -5 || ret == -6) {
+                try {
+                    int ret = handleSslGetErr(pSsl, SSL_write(pSsl, capMsg, capLen));
+                    if (ret > 0) {
+                        sendTimeouts = 0;
+                        timeoutTimer.reset();
+                        capProm->set_value(ret);
+                        break;
+                    }
+                } catch (SSLWantReadException &) {
+                    STMS_WARN("send() failed with WANT_READ! Retrying!");
+                    blockUntilReady(sock, pSsl, POLLIN);
+                } catch (SSLWantWriteException &) {
+                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
+                    blockUntilReady(sock, pSsl, POLLOUT);
+                } catch (SSLFatalException &) {
                     STMS_WARN("Connection to server at {} closed forcefully!", addrStr);
                     doShutdown = false;
 
                     stop();
-                    capProm->set_value(ret);
-                    return;
-                } else if (ret == -999) {
-                    STMS_WARN("Disconnecting from server at {} for: Unknown error", addrStr);
-
-                    stop();
-                    capProm->set_value(ret);
-                    return;
-                } else if (ret == -3) {
-                    STMS_WARN("send() failed with WANT_WRITE! Retrying!");
-                    blockUntilReady(sock, pSsl, POLLOUT);
-                } else if (ret == -2) {
-                    STMS_WARN("send() failed with WANT_READ! Retrying!");
-                    blockUntilReady(sock, pSsl, POLLIN);
-                } else if (ret < 1) {
-                    STMS_WARN("SSL_write failed for the reason above! Retrying!");
+                    capProm->set_value(-2);
+                    break;
+                } catch (SSLException &) {
+                    STMS_INFO("Retrying SSL_write!");
                 }
-                STMS_INFO("Retrying SSL_write!");
             }
 
             if (capCpy) {
@@ -286,9 +255,8 @@ namespace stms {
             if (sendTimeouts >= maxTimeouts) {
                 STMS_WARN("SSL_write() timed out completely! Dropping connection!");
                 stop();
+                capProm->set_value(-3);
             }
-
-            capProm->set_value(ret);
         });
 
         return prom->get_future();

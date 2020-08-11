@@ -55,53 +55,53 @@ namespace stms {
             case SSL_ERROR_ZERO_RETURN: {
                 STMS_ERROR("Tried to preform SSL IO, but peer has closed the connection! Don't try to read more data!");
                 flushSSLErrors();
-                return -6;
+                throw SSLFatalException();
             }
             case SSL_ERROR_WANT_WRITE: {
                 STMS_WARN("Unable to complete OpenSSL call: Want Write. Please retry. (Auto Retry is on!)");
-                return -3;
+                throw SSLWantWriteException();
             }
             case SSL_ERROR_WANT_READ: {
                 STMS_WARN("Unable to complete OpenSSL call: Want Read. Please retry. (Auto Retry is on!)");
-                return -2;
+                throw SSLWantReadException();
             }
             case SSL_ERROR_SYSCALL: {
                 STMS_ERROR("System Error from OpenSSL call: {}", strerror(errno));
                 flushSSLErrors();
-                return -5;
+                throw SSLFatalException();
             }
             case SSL_ERROR_SSL: {
                 STMS_ERROR("Fatal OpenSSL error occurred!");
                 flushSSLErrors();
-                return -1;
+                throw SSLFatalException();
             }
             case SSL_ERROR_WANT_CONNECT: {
                 STMS_WARN("Unable to complete OpenSSL call: SSL hasn't been connected! Retry later!");
-                return -7;
+                throw SSLException();
             }
             case SSL_ERROR_WANT_ACCEPT: {
                 STMS_WARN("Unable to complete OpenSSL call: SSL hasn't been accepted! Retry later!");
-                return -8;
+                throw SSLException();
             }
             case SSL_ERROR_WANT_X509_LOOKUP: {
                 STMS_WARN("The X509 Lookup callback asked to be recalled! Retry later!");
-                return -4;
+                throw SSLException();
             }
             case SSL_ERROR_WANT_ASYNC: {
                 STMS_WARN("Cannot complete OpenSSL call: Async operation in progress. Retry later!");
-                return -9;
+                throw SSLException();
             }
             case SSL_ERROR_WANT_ASYNC_JOB: {
                 STMS_WARN("Cannot complete OpenSSL call: Async thread pool is overloaded! Retry later!");
-                return -10;
+                throw SSLException();
             }
             case SSL_ERROR_WANT_CLIENT_HELLO_CB: {
                 STMS_WARN("ClientHello callback asked to be recalled! Retry Later!");
-                return -11;
+                throw SSLException();
             }
             default: {
                 STMS_ERROR("Got an Undefined error from `SSL_get_error()`! This should be impossible!");
-                return -999;
+                throw SSLFatalException();
             }
         }
     }
