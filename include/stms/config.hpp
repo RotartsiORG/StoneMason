@@ -43,6 +43,8 @@ namespace stms {
     constexpr short versionMinor = 0; //!< Minor number (x.X.x)
     constexpr short versionMicro = 0; //!< Micro/Patch number (x.x.X)
 
+    constexpr unsigned threadPoolConvarTimeoutMs = 250; //!< Max number of milliseconds the condition var in worker threads would block
+
     constexpr bool logToLatestLog = true; //!< If true, write log output to `latest.log`
     constexpr bool logToUniqueFile = false; //!< If true, write log output to `<logsDir>/<datetime>.log`
     constexpr bool logToStdout = true; //!< If true, write log output to stdout

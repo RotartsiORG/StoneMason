@@ -16,9 +16,17 @@ namespace stms {
 
             std::unique_lock<std::mutex> tlg(parent->taskQueueMtx);
             // Block until there are tasks to consume or we are requested to stop
-            parent->taskQueueCv.wait(tlg, [&]() {
-                return (!parent->tasks.empty()) || index == parent->stopRequest || (!parent->running);
-            });
+            if (parent->tasks.empty()) {
+                auto rawnow = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
+                std::cout << "Worker thread " << index << " starting to block!" << std::endl;
+
+                parent->taskQueueCv.wait_for(tlg, std::chrono::milliseconds(threadPoolConvarTimeoutMs), [&]() {
+                    return (!parent->tasks.empty()) || index == parent->stopRequest || (!parent->running);
+                });
+
+                auto end = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
+                std::cout << end.time_since_epoch().count() - rawnow.time_since_epoch().count() << "ms later: Worker thread " << index << " unblocked!" << std::endl;
+            }
 
             if (!parent->tasks.empty()) {
                 auto front = std::move(parent->tasks.front());
@@ -113,7 +121,7 @@ namespace stms {
 
         std::lock_guard<std::mutex> lg(this->taskQueueMtx);
         this->tasks.emplace(std::move(task));
-        taskQueueCv.notify_one();
+        taskQueueCv.notify_one(); // should this be changed to notify_all?
 
         return future;
     }
@@ -198,12 +206,20 @@ namespace stms {
         this->destroy();
     }
 
-    void ThreadPool::waitIdle() {
+    void ThreadPool::waitIdle(unsigned timeout) {
         if (unfinishedTasks == 0) {
             return;
         }
 
         std::unique_lock<std::mutex> lg(unfinishedTaskMtx);
-        unfinishedTasksCv.wait(lg, [&]() { return unfinishedTasks == 0; });
+
+        STMS_DEBUG("waitIdle() starting to block");
+        auto predicate = [&]() { return unfinishedTasks == 0; };
+        if (timeout == 0) {
+            unfinishedTasksCv.wait(lg, predicate);
+        } else {
+            unfinishedTasksCv.wait_for(lg, std::chrono::milliseconds(timeout), predicate);
+        }
+        STMS_DEBUG("waitIdle() unblocked");
     }
 }

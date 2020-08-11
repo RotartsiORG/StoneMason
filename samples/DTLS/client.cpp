@@ -36,5 +36,5 @@ int main() {
         cli.stop();  // Stop is automatically called in destructor.
     }
     stms::flushSSLErrors();
-    pool.waitIdle();
+    pool.waitIdle(1000);
 }

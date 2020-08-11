@@ -33,8 +33,8 @@ namespace stms {
         }
 
         if (logPool != nullptr) {
-            logPool->waitIdle(); // make sure all in-flight log records are processed!
-            logPool->stop(true);
+            logPool->waitIdle(1000); // make sure all in-flight log records are processed!
+            logPool->stop(false);
         }
     }
 

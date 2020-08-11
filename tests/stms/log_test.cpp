@@ -22,7 +22,7 @@ namespace {
 
         void TearDown() override {
             stms::logPool = nullptr;
-            this->pool->waitIdle();
+            this->pool->waitIdle(1000);
             this->pool->stop();
             delete this->pool;
         }

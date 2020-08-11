@@ -76,7 +76,7 @@ namespace {
         }
 
         void stopPool() {
-            pool->waitIdle();
+            pool->waitIdle(1000);
 
             EXPECT_TRUE(pool->isRunning());
             pool->stop(true);

@@ -23,10 +23,13 @@
 
 namespace stms {
 
+    /// Internal non-fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
     class SSLException : public InternalException {};
+    /// Internal non-fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
     class SSLWantWriteException : public InternalException {};
+    /// Internal non-fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
     class SSLWantReadException : public InternalException {};
-
+    /// Internal fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
     class SSLFatalException : public InternalException {};
 
     /// @brief This is `secretCookieLen` of random data to be used for DTLS stateless cookie exchanges

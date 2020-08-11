@@ -116,8 +116,11 @@ namespace stms {
             return unfinishedTasks;
         }
 
-        // TODO: Add a timeout? It's simple; just use std::condition_variable::wait_for instead of wait()
-        void waitIdle(); //!< Block until all tasks are finished
+        /**
+         * @brief Block until all tasks in the thread pool are finished (aka the thread pool is *idle*)
+         * @param timeout Maximum number of milliseconds to block for. If set to 0, this will block infinitely
+         */
+        void waitIdle(unsigned timeout = 0);
 
         /**
          * @brief Query if the thread pool is still running
