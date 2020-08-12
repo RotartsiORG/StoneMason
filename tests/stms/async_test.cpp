@@ -86,10 +86,6 @@ namespace {
             EXPECT_FALSE(pool->isRunning());
 
             for (int i = 0; i < numTasks; i++) {
-                STMS_INFO("CMP i={}", i);
-                std::cout << "reulsts = " << *results.at(i) << std::endl;
-                std::cout << "workArgs = " << workArgs.at(i) << std::endl;
-
                 EXPECT_EQ(*results.at(i), workArgs.at(i));
             }
 

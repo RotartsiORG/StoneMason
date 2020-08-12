@@ -6,15 +6,24 @@ set(STMS_VERSION 0.0.0)
 set(STMS_COMPILE_FLAGS -Wall -Wextra -Wpedantic -Wshadow -Wno-unused-function -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
-add_compile_options(-fPIC)
-add_link_options(-fPIC)
-
-add_compile_options(-fsanitize=address -O1 -fno-omit-frame-pointer -g)
-add_link_options(-fsanitize=address -O1 -fno-omit-frame-pointer -g)
+add_compile_options(-fPIC -O2)
+add_link_options(-fPIC -O2)
 
 option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
 option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)
-#option(STMS_OPTIMIZE "Builds STMS with -O3" ON)
+option(STMS_DEBUG_SYMBOLS "Builds STMS with debug symbols" ON)
+option(STMS_ASAN "Builds STMS with address sanitizer" OFF)
+
+if (STMS_ASAN)
+    message("-- Compiling STMS with ASAN!")
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address -fno-omit-frame-pointer)
+endif()
+
+if (STMS_DEBUG_SYMBOLS)
+    message("-- Compiling STMS with max debug symbols!")
+    add_compile_options(-g -ggdb -g3)
+endif()
 
 option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" ON) # option in config.hpp must also be set
 option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON) # option in config.hpp must also be set

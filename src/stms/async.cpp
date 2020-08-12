@@ -17,11 +17,9 @@ namespace stms {
             std::unique_lock<std::mutex> tlg(parent->taskQueueMtx);
             // Block until there are tasks to consume or we are requested to stop
             if (parent->tasks.empty()) {
-                std::cout << "Worker " << index << " block\n";
                 parent->taskQueueCv.wait_for(tlg, std::chrono::milliseconds(threadPoolConvarTimeoutMs), [&]() {
                     return (!parent->tasks.empty()) || index == parent->stopRequest || (!parent->running);
                 });
-                std::cout << "Worker " << index << " unblock\n";
             } else if (!parent->tasks.empty()) {
                 auto front = std::move(parent->tasks.front());
                 parent->tasks.pop();
@@ -32,7 +30,6 @@ namespace stms {
                 std::lock_guard<std::mutex> lg(parent->unfinishedTaskMtx);
                 parent->unfinishedTasks--;
                 parent->unfinishedTasksCv.notify_all();
-                std::cout << "UnfinishedTasks = " << parent->unfinishedTasks << ", notified all!" << std::endl;
             }
         }
     }
@@ -168,29 +165,38 @@ namespace stms {
             return *this;
         }
 
-        if (this->isRunning() || rhs.isRunning()) {
-            STMS_ERROR("Attempted to move running ThreadPool! Ignoring operator=!!!");
-            return *this;
+        unsigned nThreads = 0;
+        if (rhs.isRunning()) {
+            STMS_WARN("ThreadPool moved while running! It will be restarted for the move!");
+            nThreads = rhs.getNumThreads();
+            rhs.waitIdle(1000);
+            rhs.stop(true);
         }
 
         this->destroy();
 
-        // Hopefully locking ALL mutexes during the move is enough to prevent aforementioned race conditions.
-        std::lock_guard<std::mutex> rhsWorkerLg(rhs.workerMtx);
-        std::lock_guard<std::mutex> thisWorkerLg(this->workerMtx);
-        std::lock_guard<std::mutex> rhsTaskLg(rhs.taskQueueMtx);
-        std::lock_guard<std::mutex> thisTaskLg(this->taskQueueMtx);
+        {
+            // Hopefully locking ALL mutexes during the move is enough to prevent aforementioned race conditions.
+            std::lock_guard<std::mutex> rhsWorkerLg(rhs.workerMtx);
+            std::lock_guard<std::mutex> thisWorkerLg(this->workerMtx);
+            std::lock_guard<std::mutex> rhsTaskLg(rhs.taskQueueMtx);
+            std::lock_guard<std::mutex> thisTaskLg(this->taskQueueMtx);
 
-        std::lock_guard<std::mutex> thisTaskCountLg(this->unfinishedTaskMtx);
-        std::lock_guard<std::mutex> rhsTaskCountLg(rhs.unfinishedTaskMtx);
+            std::lock_guard<std::mutex> thisTaskCountLg(this->unfinishedTaskMtx);
+            std::lock_guard<std::mutex> rhsTaskCountLg(rhs.unfinishedTaskMtx);
 
-        // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
-        // Likewise, we cannot move the condition variables so we just quietly leave it be
-        this->stopRequest = rhs.stopRequest;
-        this->running = rhs.running;
-        this->tasks = std::move(rhs.tasks);
-        this->workers = std::move(rhs.workers);
-        this->unfinishedTasks = rhs.unfinishedTasks;
+            // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
+            // Likewise, we cannot move the condition variables so we just quietly leave it be
+            this->stopRequest = rhs.stopRequest;
+            this->running = rhs.running;
+            this->tasks = std::move(rhs.tasks);
+            this->workers = std::move(rhs.workers);
+            this->unfinishedTasks = rhs.unfinishedTasks;
+        }
+
+        if (nThreads > 0) {
+            this->start(nThreads);
+        }
 
         return *this;
     }
@@ -209,13 +215,11 @@ namespace stms {
             return;
         }
 
-        STMS_INFO("WaitIdle block");
         auto predicate = [&]() { return unfinishedTasks == 0; };
         if (timeout == 0) {
             unfinishedTasksCv.wait(lg, predicate);
         } else {
             unfinishedTasksCv.wait_for(lg, std::chrono::milliseconds(timeout), predicate);
         }
-        STMS_INFO("WaitIdle unblock");
     }
 }
