@@ -7,7 +7,6 @@
 #ifndef __STONEMASON_GL_SHADERS_HPP
 #define __STONEMASON_GL_SHADERS_HPP
 
-#include "stms/config.hpp"
 #ifdef STMS_ENABLE_OPENGL
 
 #define GLEW_STATIC 1

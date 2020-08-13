@@ -12,7 +12,6 @@
 
 #include "stms/curl.hpp"
 
-#include "stms/config.hpp"
 #include "stms/rend/window.hpp"
 
 namespace stms {

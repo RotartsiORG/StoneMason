@@ -7,7 +7,6 @@
 #ifndef __STONEMASON_VK_PIPELINE_HPP
 #define __STONEMASON_VK_PIPELINE_HPP
 
-#include "stms/config.hpp"
 #ifdef STMS_ENABLE_VULKAN
 
 namespace stms {

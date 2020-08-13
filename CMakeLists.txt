@@ -25,8 +25,8 @@ if (STMS_DEBUG_SYMBOLS)
     add_compile_options(-g -ggdb -g3)
 endif()
 
-option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" ON) # option in config.hpp must also be set
-option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON) # option in config.hpp must also be set
+option(STMS_ENABLE_OPENGL "Builds STMS with OpenGL support" ON)
+option(STMS_ENABLE_VULKAN "Builds STMS with Vulkan Support" ON)
 
 project(stms_shared LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
 project(stms_static LANGUAGES CXX VERSION ${STMS_VERSION} DESCRIPTION ${STMS_DESCRIPTION})
@@ -55,6 +55,18 @@ add_subdirectory(dep/freetype2)
 
 #add_subdirectory(dep/bullet3)
 
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+
+# only support importing of GLTF, COLLADA (DAE), and OBJ
+set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_COLLADA_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
 add_subdirectory(dep/assimp)
 
 add_subdirectory(dep/fmt)
@@ -88,6 +100,9 @@ target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL
 
 
 if (STMS_ENABLE_OPENGL)
+    add_compile_definitions(stms_static STMS_ENABLE_OPENGL)
+    add_compile_definitions(stms_shared STMS_ENABLE_OPENGL)
+
     message("-- OpenGL support enabled for STMS")
 
     find_package(GLEW REQUIRED)
@@ -101,6 +116,8 @@ if (STMS_ENABLE_OPENGL)
 endif()
 
 if (STMS_ENABLE_VULKAN)
+    add_compile_definitions(stms_static STMS_ENABLE_VULKAN)
+    add_compile_definitions(stms_shared STMS_ENABLE_VULKAN)
     message("-- Vulkan support enabled for STMS")
 
     find_package(Vulkan REQUIRED)
@@ -113,11 +130,23 @@ if (STMS_ENABLE_VULKAN)
 
 
     set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
+    set(SHADERC_SKIP_INSTALL ON CACHE BOOL "" FORCE)
+    set(SHADERC_SPVC_ENABLE_DIRECT_LOGGING ON CACHE BOOL "" FORCE)
+    set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)
+    set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)
+    set(SKIP_SPIRV_TOOLS_INSTALL ON CACHE BOOL "" FORCE)
+    set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "" FORCE)
+
+    set(SHADERC_ENABLE_SHARED_CRT OFF CACHE BOOL "" FORCE)
+    set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+    set(SHADERC_ENABLE_WERROR_COMPILE OFF CACHE BOOL "" FORCE)
     set(ENABLE_CTEST OFF CACHE BOOL "" FORCE)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
     set(ENABLE_HLSL ON CACHE BOOL "" FORCE)
+    # I'm not sure if we need spirv-opt
+    # set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
     add_subdirectory(dep/shaderc)
 
     target_link_libraries(stms_shared PRIVATE shaderc)

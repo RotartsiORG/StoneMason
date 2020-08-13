@@ -7,7 +7,6 @@
 #ifndef __STONEMASON_GL_GL_HPP
 #define __STONEMASON_GL_GL_HPP
 
-#include "stms/config.hpp"
 #ifdef STMS_ENABLE_OPENGL
 
 

@@ -9,7 +9,6 @@ export CXX=/usr/bin/clang++
 #export CC=/usr/bin/gcc
 #export CXX=/usr/bin/g++
 
-mkdir build
 $CMK_EXE -GNinja -Wdev -Wdeprecated -Bbuild -S.
 
 cd build || exit

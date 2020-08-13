@@ -7,7 +7,6 @@
 #ifndef STONEMASON_GL_IMGUI_HPP
 #define STONEMASON_GL_IMGUI_HPP
 
-#include "stms/config.hpp"
 #ifdef STMS_ENABLE_OPENGL
 
 #   include "gl.hpp"

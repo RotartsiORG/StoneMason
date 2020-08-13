@@ -7,6 +7,9 @@
 #include <thread>
 #include "stms/logging.hpp"
 
+// Needed for FLT_MAX
+#include "float.h"
+
 namespace stms {
 
     void Stopwatch::start() {
@@ -49,7 +52,7 @@ namespace stms {
     float TPSTimer::getLatestTps() {
         float mspt = getLatestMspt();
         if (mspt > -0.001 && mspt < 0.001) {
-            return 99999.0f; // infinite tps
+            return FLT_MAX; // infinite tps
         } else {
             return 1000.0f / mspt;
         }

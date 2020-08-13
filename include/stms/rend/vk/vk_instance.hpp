@@ -7,7 +7,6 @@
 #ifndef __STONEMASON_VK_INSTANCE_HPP
 #define __STONEMASON_VK_INSTANCE_HPP
 
-#include "stms/config.hpp"
 #ifdef STMS_ENABLE_VULKAN
 
 #define GLFW_INCLUDE_VULKAN

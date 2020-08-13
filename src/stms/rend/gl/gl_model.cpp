@@ -2,7 +2,6 @@
 // Created by grant on 7/4/20.
 //
 
-#include "stms/config.hpp"
 #ifdef STMS_ENABLE_OPENGL
 
 #include "stms/rend/gl/gl_model.hpp"

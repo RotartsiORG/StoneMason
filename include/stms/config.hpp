@@ -13,19 +13,10 @@
 /// If not defined, all `STMS_XXX` log macros will resolve to nothing. Easily turn logging on/off
 #define STMS_ENABLE_LOGGING
 
-/// Builds StoneMason with OpenGL support. The corresponding option in CMakeLists.txt must also be set.
-#define STMS_ENABLE_OPENGL
-
-/// Builds StoneMason with Vulkan support. The corresponding option in CMakeLists.txt must also be set.
-#define STMS_ENABLE_VULKAN
-
-// IS NOT IMPLEMENTED. THIS MAY BE CHANGED TO `STMS_ENABLE_OPENSSL`.
-#undef STMS_NO_OPENSSL // TODO: Implement
-
 /// Namespace containing everything StoneMason has to offer! (https://github.com/RotartsiORG/StoneMason)
 namespace stms {
-    constexpr char versionString[] = "0.0.0-dev2020.07.23"; //!< Full version string for this version of StoneMason
-    constexpr unsigned fullVersionNum = 4; //!< Raw version number, to be incremented every commit.
+    constexpr char versionString[] = "0.0.0-dev2020.08.12"; //!< Full version string for this version of StoneMason
+    constexpr unsigned fullVersionNum = 5; //!< Raw version number, to be incremented every commit.
 
     /**
      * @var maturity

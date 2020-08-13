@@ -9,17 +9,26 @@
 #include "gtest/gtest.h"
 
 #include "stms/audio.hpp"
-#include "stms/config.hpp"
 #include "stms/logging.hpp"
 #include "stms/stms.hpp"
-
 #include "stms/camera.hpp"
-#include "glm/glm.hpp"
+#include "stms/timers.hpp"
 
 // Timeout after 10 seconds. The actual audio that we're playing is only 5 sec long.
 constexpr unsigned alPlayBlockTimeout = 10;
 
+constexpr float floatingPointThreshold = 0.0625f; // Fucking floating point rounding errors
+
+#define STMS_FLOAT_EQ(a, b, c) cmpFloatArrs(reinterpret_cast<const float *>(&a), reinterpret_cast<const float *>(&b), c)
+
 namespace {
+    void cmpFloatArrs(const float *a, const float *b, unsigned size) {
+        for (unsigned i = 0; i < size; i++) {
+            EXPECT_GT(*(a + i), (*(b + i)) - floatingPointThreshold);
+            EXPECT_LT(*(a + i), (*(b + i)) + floatingPointThreshold);
+        }
+    }
+
     TEST(AL, Play) {
         stms::initAll();
         stms::defaultAlContext().bind();
@@ -91,5 +100,100 @@ namespace {
     TEST(Util, Hex) {
         EXPECT_EQ(stms::toHex(43981), "abcd");
         EXPECT_EQ(stms::toHex(65244, 6), "00fedc");
+    }
+
+    TEST(Camera, TransformInfo) {
+
+        stms::TransformInfo ti{};
+        ti.buildAll();
+
+        // By default, an identity matrix should be built
+        STMS_FLOAT_EQ(ti.mat4, stms::idMat, 16);
+
+        ti.setEuler({0, 0, 3.1415});
+        ti.pos = {0, 100, 0};
+        ti.scale = {0.1f, 1, -1};
+        ti.buildAll();
+
+        stms::TransformInfo tic = ti;
+
+        glm::vec4 orig = {100, 0, 5, 1}; // -10 100 -5 1
+        orig = tic.mat4 * orig;
+
+        auto target = glm::vec4(-10, 100, -5, 1);
+        STMS_FLOAT_EQ(orig, target, 4);
+
+        stms::Camera cam{};
+        cam.trans = ti;
+        cam.buildAll();
+
+        // Roundabout way to test if they are the inverse of each other
+        auto camMulTic = cam.matV * tic.mat4;
+        auto ticMulCam = tic.mat4 * cam.matV;
+
+        STMS_FLOAT_EQ(ti.mat4, tic.mat4, 16);
+        STMS_FLOAT_EQ(camMulTic, ticMulCam, 16);
+        STMS_FLOAT_EQ(camMulTic, stms::idMat, 16);
+    }
+
+    TEST(Timers, Stopwatch) {
+        constexpr unsigned char msThreshold = 25; // REALLY lenient bc travis
+        constexpr unsigned char waitAmount = 125;
+
+        stms::Stopwatch sp;
+        EXPECT_FALSE(sp.isRunning());
+        EXPECT_EQ(sp.getTime(), 0);
+
+        sp.start();
+        EXPECT_TRUE(sp.isRunning());
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitAmount));
+        auto t = sp.getTime();
+        EXPECT_GT(t, waitAmount - msThreshold);
+        EXPECT_LT(t, waitAmount + msThreshold);
+
+        sp.reset();
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitAmount));
+        sp.stop();
+        EXPECT_FALSE(sp.isRunning());
+        std::this_thread::sleep_for(std::chrono::milliseconds(waitAmount));
+
+        t = sp.getTime();
+        EXPECT_GT(t, waitAmount - msThreshold);
+        EXPECT_LT(t, waitAmount + msThreshold);
+
+        auto cpy = sp;
+        EXPECT_EQ(cpy.getTime(), sp.getTime());
+        EXPECT_EQ(cpy.isRunning(), sp.isRunning());
+    }
+
+    TEST(Timers, TPSTimer) {
+        // Let's be REALLY lenient because travis could lag badly
+        constexpr float msptThreshold = 3.0f;
+        constexpr float tpsThreshold = 5.0f;
+
+        stms::TPSTimer tm;
+        EXPECT_EQ(tm.getLatestMspt(), 0);
+        EXPECT_EQ(tm.getLatestTps(), FLT_MAX);
+
+        for (int targetFps = 30; targetFps <= 120; targetFps += 30) {
+            auto floatTarget = static_cast<float>(targetFps);
+            for (unsigned i = 0; i < 15; i++) {
+                tm.tick();
+                tm.wait(floatTarget);
+            }
+
+            auto ret = tm.getLatestTps();
+            EXPECT_GT(ret, floatTarget - tpsThreshold);
+            EXPECT_LT(ret, floatTarget + tpsThreshold);
+
+            auto targetMspt = 1000.0f / floatTarget;
+            ret = tm.getLatestMspt();
+            EXPECT_GT(ret, targetMspt - msptThreshold);
+            EXPECT_LT(ret, targetMspt + msptThreshold);
+        }
+
+        auto cpy = tm;
+        EXPECT_EQ(tm.getLatestMspt(), cpy.getLatestMspt());
+        EXPECT_EQ(tm.getLatestTps(), cpy.getLatestTps());
     }
 }
