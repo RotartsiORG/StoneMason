@@ -1,8 +1,7 @@
 //
 // Created by grant on 7/5/20.
 //
-
-#include "stms/rend/vk/vk_window.hpp"
+#include "stms/rend/vk/vk_pipeline.hpp"
 #include "stms/stms.hpp"
 
 int main() {
@@ -13,6 +12,9 @@ int main() {
     stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails<0>({}, {}, {}, {}));
 
     stms::VKWindow win(&gpu, 640, 480, "StoneMason Vulkan Demo");
+
+    stms::VKShader frag(&gpu, stms::readFile("./res/vkShaders/frag.spv"), stms::VKShaderStageBits::eFragment);
+    stms::VKShader vert(&gpu, stms::readFile("./res/vkShaders/vert.spv"), stms::VKShaderStageBits::eVertex);
 
     while (!win.shouldClose()) {
         stms::pollEvents();

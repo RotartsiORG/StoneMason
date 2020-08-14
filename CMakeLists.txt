@@ -122,8 +122,8 @@ if (STMS_ENABLE_VULKAN)
 
     find_package(Vulkan REQUIRED)
 
-    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include)
-    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include)
+    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include dep/shaderc/libshaderc/include)
+    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include dep/shaderc/libshaderc/include)
 
     target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan)
     target_link_libraries(stms_static PUBLIC Vulkan::Vulkan)
@@ -144,9 +144,9 @@ if (STMS_ENABLE_VULKAN)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
-    set(ENABLE_HLSL ON CACHE BOOL "" FORCE)
+    set(ENABLE_HLSL ON CACHE BOOL "" FORCE) # I must leave HLSL on bc shaderc stubbornly wants to link it
     # I'm not sure if we need spirv-opt
-    # set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
+#     set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
     add_subdirectory(dep/shaderc)
 
     target_link_libraries(stms_shared PRIVATE shaderc)

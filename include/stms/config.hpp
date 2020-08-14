@@ -58,7 +58,7 @@ namespace stms {
      *        If it is 1, exceptions will be thrown at ERRORs. (e.g. Requesting a non-existant client in `SSLServer`.)
      *        If it is 2, exceptions will be thrown at WARNINGs. (e.g. Calling `start()` when something is already started)
      */
-    constexpr unsigned char exceptionLevel = 2;
+    constexpr unsigned char exceptionLevel = 0;
 }
 
 

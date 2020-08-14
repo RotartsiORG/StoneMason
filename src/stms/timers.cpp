@@ -10,6 +10,8 @@
 // Needed for FLT_MAX
 #include <cfloat>
 
+#include "stms/except.hpp"
+
 namespace stms {
 
     void Stopwatch::start() {
@@ -38,7 +40,7 @@ namespace stms {
         if (!(state & 1u)) { // If it's not running
             STMS_WARN("Stopwatch::reset() called when Stopwatch was stopped!");
             if (exceptionLevel > 1) {
-                throw InvalidOperationException("Stopwatch::reset() called when Stopwatch was stopped!");
+                throw std::runtime_error("Stopwatch::reset() called when Stopwatch was stopped!");
             }
             return;
         }

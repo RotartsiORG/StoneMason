@@ -19,7 +19,8 @@
 
 #include <sys/socket.h>
 #include <sys/poll.h>
-#include "stms/stms.hpp"
+
+#include "stms/except.hpp"
 
 namespace stms {
 

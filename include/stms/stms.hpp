@@ -9,26 +9,10 @@
 
 #include <string>
 #include <random>
-#include <stdexcept>
 
 #include "openssl/ssl.h"
 
-#define __STMS_DEFINE_EXCEPTION(x) class x : public std::runtime_error { \
-public:                                                                  \
-    explicit x(const std::string &str) : std::runtime_error(str) {}      \
-}
-
 namespace stms {
-
-    class InternalException : public std::exception {};
-    /// Exception thrown when a file that does not exist is read. Requires `stms::exceptionLevel > 0`
-    __STMS_DEFINE_EXCEPTION(FileNotFoundException);
-    /// Exception thrown when a key is requested that does not exist. Requires `stms::exceptionLevel > 0`
-    __STMS_DEFINE_EXCEPTION(InvalidKeyException);
-    /// Exception thrown when an invalid operation is performed. Requires `stms::exceptionLevel > 0`
-    __STMS_DEFINE_EXCEPTION(InvalidOperationException);
-    /// A generic exception thrown. Requires `stms::exceptionLevel > 0`
-    __STMS_DEFINE_EXCEPTION(GenericException);
 
     constexpr char hexChars[] = "0123456789abcdef";
 
@@ -40,7 +24,7 @@ namespace stms {
 
     /**
      * @brief Read the contents of a file
-     * @throw If `stms::exceptionLevel` > 0, an `FileNotFoundException` is thrown if `filename` cannot be read.
+     * @throw If `stms::exceptionLevel` > 0, an `std::runtime_error` is thrown if `filename` cannot be read.
      * @param filename File to read
      * @return Contents of file as string.
      */

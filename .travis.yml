@@ -12,7 +12,6 @@ cache:
   directories:
     - $HOME/Library/Caches/Homebrew
     - /usr/local/Homebrew
-    - $TRAVIS_BUILD_DIR/build
 before_cache: # https://stackoverflow.com/questions/39930171/cache-brew-builds-with-travis-ci
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew cleanup; fi
   - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then find /usr/local/Homebrew \! -regex ".+\.git.+" -delete; fi

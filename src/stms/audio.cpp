@@ -4,8 +4,9 @@
 
 #include "stms/audio.hpp"
 #include "stb/stb_vorbis.c"
-#include <stms/logging.hpp>
-#include <stms/stms.hpp>
+
+#include "stms/logging.hpp"
+#include "stms/except.hpp"
 
 namespace stms {
 
@@ -50,7 +51,7 @@ namespace stms {
         if (len == 0 || channels == 0 || sampleRate == 0 || data == nullptr) {
             STMS_ERROR("Failed to load ALBuffer audio from {}!", filename);
             if (exceptionLevel > 0) {
-                throw FileNotFoundException(fmt::format("Cannot read .ogg data from {}", filename));
+                throw std::runtime_error(fmt::format("Cannot read .ogg data from {}", filename));
             }
             return;
         }
@@ -124,7 +125,7 @@ namespace stms {
         if (id == nullptr) {
             STMS_ERROR("Failed to open ALDevice: {}", devname == nullptr ? "nullptr" : devname);
             if (exceptionLevel > 0) {
-                throw GenericException("Cannot open ALDevice!");
+                throw std::runtime_error("Cannot open ALDevice!");
             }
         }
     }
@@ -137,10 +138,8 @@ namespace stms {
         ALCenum error = alcGetError(id);
         if (error != ALC_NO_ERROR) {
             STMS_ERROR("[** ALC ERROR **] {}", error);
-            return error;
-        } else {
-            return error;
         }
+        return error;
     }
 
     ALDevice::ALDevice(ALDevice &&rhs) noexcept {

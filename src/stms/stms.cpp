@@ -14,6 +14,8 @@
 #include "stms/rend/window.hpp"
 #include "stms/config.hpp"
 
+#include "stms/except.hpp"
+
 namespace stms {
     bool _stms_STMSInitializer::hasRun = false;
     int(*sslRand)(unsigned char *, int) = RAND_bytes;
@@ -76,7 +78,7 @@ namespace stms {
         if (!in.is_open()) {
             STMS_WARN("Unable to open {}!", filename);
             if (exceptionLevel > 0) {
-                throw FileNotFoundException(fmt::format("Unable to open '{}'", filename));
+                throw std::runtime_error(fmt::format("Unable to open '{}'", filename));
             }
             return "";
         }

@@ -25,7 +25,7 @@ namespace stms {
 
         /**
          * @brief Create a new ALDevice from a device name.
-         * @throw If this fails and `stms::exceptionLevel > 0`, a `GenericException` is thrown.
+         * @throw If this fails and `stms::exceptionLevel > 0`, a `std::runtime_error` is thrown.
          * @param devname Name of the physical device to create the virtual device from. If this is nullptr,
          *                then the default speaker is used.
          */
@@ -101,7 +101,7 @@ namespace stms {
 
         /**
          * @brief Load a .ogg file into the ALBuffer
-         * @throw If `stms::exceptionLevel > 0`, a `FileNotFoundException` will be thrown if `filename` cannot be read.
+         * @throw If `stms::exceptionLevel > 0`, a `std::runtime_error` will be thrown if `filename` cannot be read.
          *        This includes being unable to parse the data contained within the file.
          * @param filename .ogg file to load
          */

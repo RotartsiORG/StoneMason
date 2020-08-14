@@ -14,6 +14,8 @@
 #include "stms/camera.hpp"
 #include "stms/timers.hpp"
 
+#include "stms/except.hpp"
+
 // Timeout after 10 seconds. The actual audio that we're playing is only 5 sec long.
 constexpr unsigned alPlayBlockTimeout = 10;
 
@@ -31,7 +33,11 @@ namespace {
 
     TEST(AL, Play) {
         stms::initAll();
-        stms::defaultAlContext().bind();
+        try {
+            stms::defaultAlContext().bind();
+        } catch (std::runtime_error &e) {
+            STMS_INFO("Got runtime error {}", e.what());
+        }
 
         stms::ALBuffer testBuf;
         stms::ALSource testSrc;
@@ -49,8 +55,9 @@ namespace {
             }
         }
 
-        stms::flushAlErrors();
-        stms::defaultAlDevice().flushErrors();
+        // Use handle instead of flush bc al would bug out and it would get stuck in a loop
+        stms::handleAlError();
+        stms::defaultAlDevice().handleError();
     }
 
     TEST(UUID, Collisions) {
@@ -144,7 +151,9 @@ namespace {
         EXPECT_FALSE(sp.isRunning());
         EXPECT_EQ(sp.getTime(), 0);
 
-        EXPECT_THROW(sp.reset(), stms::InvalidOperationException);
+        if (stms::exceptionLevel > 1) {
+            EXPECT_THROW(sp.reset(), std::runtime_error);
+        }
 
         sp.start();
         EXPECT_TRUE(sp.isRunning());
@@ -189,8 +198,8 @@ namespace {
             }
 
             auto ret = tm.getLatestTps();
-            EXPECT_GT(ret, floatTarget - tpsThreshold);
-            if (ret >= floatTarget + tpsThreshold) {
+            EXPECT_LT(ret, floatTarget + tpsThreshold);
+            if (ret <= floatTarget - tpsThreshold) {
                 STMS_WARN("TPSTimer test was slower than expected! Got {} TPS (expected {})", ret, floatTarget);
             }
 
