@@ -61,14 +61,20 @@ namespace stms {
          */
         float getTime();
 
-        void reset(); //!< Reset the stopwatch. Forget the start/stop times.
+        /**
+         * @brief Reset the stopwatch. Equivalent to calling `stop()` followed by `start()`. However,
+         *        calling `reset()` when the stopwatch is stopped would be an error.
+         * @throw If the stopwatch is stopped and `stms::exceptionLevel > 1`,
+         *        this either throws an `InvalidOperationException`
+         */
+        void reset();
 
         /**
          * @brief Query if the stopwatch is running (i.e. `start()` called, but not `stop()`.)
          * @return True if running, false otherwise.
          */
         [[nodiscard]] inline bool isRunning() const {
-            return getBit(state, 0);
+            return state & 1u; // get the 0th bit
         }
     };
 

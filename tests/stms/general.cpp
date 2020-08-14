@@ -49,8 +49,8 @@ namespace {
             }
         }
 
-        stms::handleAlError();
-        stms::defaultAlDevice().handleError();
+        stms::flushAlErrors();
+        stms::defaultAlDevice().flushErrors();
     }
 
     TEST(UUID, Collisions) {
@@ -144,12 +144,16 @@ namespace {
         EXPECT_FALSE(sp.isRunning());
         EXPECT_EQ(sp.getTime(), 0);
 
+        EXPECT_THROW(sp.reset(), stms::InvalidOperationException);
+
         sp.start();
         EXPECT_TRUE(sp.isRunning());
         std::this_thread::sleep_for(std::chrono::milliseconds(waitAmount));
         auto t = sp.getTime();
         EXPECT_GT(t, waitAmount - msThreshold);
-        EXPECT_LT(t, waitAmount + msThreshold);
+        if (t >= waitAmount + msThreshold) {
+            STMS_WARN("Stopwatch test was slower than expected! Expected {}ms but got {}ms", waitAmount, t);
+        }
 
         sp.reset();
         std::this_thread::sleep_for(std::chrono::milliseconds(waitAmount));
@@ -159,7 +163,9 @@ namespace {
 
         t = sp.getTime();
         EXPECT_GT(t, waitAmount - msThreshold);
-        EXPECT_LT(t, waitAmount + msThreshold);
+        if (t >= waitAmount + msThreshold) {
+            STMS_WARN("Stopwatch test was slower than expected! Expected {}ms but got {}ms", waitAmount, t);
+        }
 
         auto cpy = sp;
         EXPECT_EQ(cpy.getTime(), sp.getTime());
@@ -184,16 +190,26 @@ namespace {
 
             auto ret = tm.getLatestTps();
             EXPECT_GT(ret, floatTarget - tpsThreshold);
-            EXPECT_LT(ret, floatTarget + tpsThreshold);
+            if (ret >= floatTarget + tpsThreshold) {
+                STMS_WARN("TPSTimer test was slower than expected! Got {} TPS (expected {})", ret, floatTarget);
+            }
 
             auto targetMspt = 1000.0f / floatTarget;
             ret = tm.getLatestMspt();
             EXPECT_GT(ret, targetMspt - msptThreshold);
-            EXPECT_LT(ret, targetMspt + msptThreshold);
+            if (ret >= targetMspt + msptThreshold) {
+                STMS_WARN("TPSTimer test was slower than expected! Got {} MSPT (expected {})", ret, targetMspt);
+            }
         }
 
         auto cpy = tm;
         EXPECT_EQ(tm.getLatestMspt(), cpy.getLatestMspt());
         EXPECT_EQ(tm.getLatestTps(), cpy.getLatestTps());
+    }
+
+    TEST(Util, ReadFile) {
+        auto contents = stms::readFile("./res/test.txt");
+        STMS_INFO("Read '{}'", contents);
+        EXPECT_EQ(contents, "begin-Lorem Ipsum-end");
     }
 }

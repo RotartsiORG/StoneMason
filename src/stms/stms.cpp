@@ -4,15 +4,15 @@
 
 #include "stms/stms.hpp"
 #include <bitset>
+#include <fstream>
 
 #include "openssl/rand.h"
 #include "stms/net/ssl.hpp"
 
 #include "stms/logging.hpp"
-
 #include "stms/curl.hpp"
-
 #include "stms/rend/window.hpp"
+#include "stms/config.hpp"
 
 namespace stms {
     bool _stms_STMSInitializer::hasRun = false;
@@ -68,6 +68,27 @@ namespace stms {
 
         std::reverse(ret.begin(), ret.end());
         return ret;
+    }
+
+    std::string readFile(const std::string &filename) {
+        // Open in binary mode, this might cause issues with line endings but fuck windows
+        std::ifstream in(filename, std::ios::ate | std::ios::binary);
+        if (!in.is_open()) {
+            STMS_WARN("Unable to open {}!", filename);
+            if (exceptionLevel > 0) {
+                throw FileNotFoundException(fmt::format("Unable to open '{}'", filename));
+            }
+            return "";
+        }
+
+        std::string str;
+        str.reserve(in.tellg());
+
+        in.seekg(0, std::ios::beg);
+
+        str.assign((std::istreambuf_iterator<char>(in)),
+                   std::istreambuf_iterator<char>());
+        return str;
     }
 
     std::string UUID::buildStr() const {

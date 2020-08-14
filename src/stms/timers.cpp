@@ -8,26 +8,26 @@
 #include "stms/logging.hpp"
 
 // Needed for FLT_MAX
-#include "float.h"
+#include <cfloat>
 
 namespace stms {
 
     void Stopwatch::start() {
         startTime = std::chrono::steady_clock::now();
-        state = setBit(state, 0) | setBit(state, 1);
+        state |= 3u; // Set the 0th (running) and 1st (start time set) bits
     }
 
     void Stopwatch::stop() {
         stopTime = std::chrono::steady_clock::now();
-        state = setBit(state, 2);
-        state = resetBit8(state, 0);
+        state |= 4u; // Set the 2nd bit (stop time set)
+        state &= ~1u; // Reset the 0th bit to FALSE (running)
     }
 
     float Stopwatch::getTime() {
-        if (getBit(state, 0) && getBit(state, 1)) {
+        if ((state & 1u) && (state & 2u)) { // if running and start set
             return std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now() - startTime).count() / 1000000.0f;
-        } else if ((!getBit(state, 0)) && getBit(state, 1) && getBit(state, 2)) {
+        } else if ((!(state & 1u)) && (state & 2u) && (state & 4u)) { // If not running & start set & stop set
             return std::chrono::duration_cast<std::chrono::nanoseconds>(stopTime - startTime).count() / 1000000.0f;
         }
         STMS_ERROR("Stopwatch::getTime() called when there is no time to get!");
@@ -35,9 +35,17 @@ namespace stms {
     }
 
     void Stopwatch::reset() {
+        if (!(state & 1u)) { // If it's not running
+            STMS_WARN("Stopwatch::reset() called when Stopwatch was stopped!");
+            if (exceptionLevel > 1) {
+                throw InvalidOperationException("Stopwatch::reset() called when Stopwatch was stopped!");
+            }
+            return;
+        }
+
         startTime = std::chrono::steady_clock::now();
-        setBit(state, 1);
-        resetBit8(state, 2);
+        state |= 2u; // set the 1st bit (start time set) to TRUE
+        state &= ~(4u); // reset 2nd bit (stop time set) to FALSE
     }
 
     void TPSTimer::tick() {

@@ -9,12 +9,26 @@
 
 #include <string>
 #include <random>
+#include <stdexcept>
 
 #include "openssl/ssl.h"
+
+#define __STMS_DEFINE_EXCEPTION(x) class x : public std::runtime_error { \
+public:                                                                  \
+    explicit x(const std::string &str) : std::runtime_error(str) {}      \
+}
 
 namespace stms {
 
     class InternalException : public std::exception {};
+    /// Exception thrown when a file that does not exist is read. Requires `stms::exceptionLevel > 0`
+    __STMS_DEFINE_EXCEPTION(FileNotFoundException);
+    /// Exception thrown when a key is requested that does not exist. Requires `stms::exceptionLevel > 0`
+    __STMS_DEFINE_EXCEPTION(InvalidKeyException);
+    /// Exception thrown when an invalid operation is performed. Requires `stms::exceptionLevel > 0`
+    __STMS_DEFINE_EXCEPTION(InvalidOperationException);
+    /// A generic exception thrown. Requires `stms::exceptionLevel > 0`
+    __STMS_DEFINE_EXCEPTION(GenericException);
 
     constexpr char hexChars[] = "0123456789abcdef";
 
@@ -23,6 +37,14 @@ namespace stms {
         static std::default_random_engine ret(seedGen());
         return ret;
     }
+
+    /**
+     * @brief Read the contents of a file
+     * @throw If `stms::exceptionLevel` > 0, an `FileNotFoundException` is thrown if `filename` cannot be read.
+     * @param filename File to read
+     * @return Contents of file as string.
+     */
+    std::string readFile(const std::string &filename);
 
     enum UUIDType {
         eUninitialized,
@@ -82,27 +104,6 @@ namespace stms {
     extern _stms_STMSInitializer stmsInitializer;
 
     void initAll();
-
-    inline bool getBit(uint64_t in, uint8_t bit) {
-        return in & (1u << bit);
-    }
-
-#define __STMS_UNSET_FUNC(numBits) inline uint##numBits##_t resetBit##numBits(uint##numBits##_t in, uint8_t bit) { return in & (UINT##numBits##_MAX ^ (1u << bit)); }
-
-    __STMS_UNSET_FUNC(8)
-
-    __STMS_UNSET_FUNC(16)
-
-    __STMS_UNSET_FUNC(32)
-
-    __STMS_UNSET_FUNC(64)
-
-#undef __STMS_UNSET_FUNC
-
-    inline uint64_t setBit(uint64_t in, uint8_t bit) {
-        return in | (1u << bit);
-    }
-
 }
 
 // https://www.boost.org/doc/libs/1_73_0/boost/container_hash/hash.hpp

@@ -9,8 +9,16 @@
 
 #ifdef STMS_ENABLE_VULKAN
 
-namespace stms {
+#include <vector>
+#include <string>
 
+namespace stms {
+    typedef std::vector<char> SPIRV;
+
+    class VkShader {
+    public:
+        VkShader(const SPIRV &bytecode);
+    };
 }
 
 #endif // STMS_ENABLE_VULKAN

@@ -23,15 +23,21 @@ namespace stms {
     public:
         ALDevice() = delete;
 
-        explicit ALDevice(const ALCchar *devname) noexcept;
+        /**
+         * @brief Create a new ALDevice from a device name.
+         * @throw If this fails and `stms::exceptionLevel > 0`, a `GenericException` is thrown.
+         * @param devname Name of the physical device to create the virtual device from. If this is nullptr,
+         *                then the default speaker is used.
+         */
+        explicit ALDevice(const ALCchar *devname);
 
         virtual ~ALDevice();
 
         // Returns true if there was an error handled
-        bool handleError();
+        ALCenum handleError();
 
         inline void flushErrors() {
-            while (handleError());
+            while (handleError() != ALC_NO_ERROR);
         };
 
         ALDevice(ALDevice &rhs) = delete;
@@ -50,7 +56,7 @@ namespace stms {
     public:
         ALContext() = delete;
 
-        ALContext(ALDevice *dev, ALCint *attribs);
+        explicit ALContext(ALDevice *dev, ALCint *attribs = nullptr);
 
         virtual ~ALContext();
 
@@ -86,8 +92,19 @@ namespace stms {
 
         virtual ~ALBuffer();
 
+        /**
+         * @brief Load a .ogg file into a ALBuffer.
+         * @param File to load
+         * @throw See throws for `loadFromFile`.
+         */
         explicit ALBuffer(const char *filename);
 
+        /**
+         * @brief Load a .ogg file into the ALBuffer
+         * @throw If `stms::exceptionLevel > 0`, a `FileNotFoundException` will be thrown if `filename` cannot be read.
+         *        This includes being unable to parse the data contained within the file.
+         * @param filename .ogg file to load
+         */
         void loadFromFile(const char *filename) const;
 
         inline void write(const void *dat, ALsizei size, ALsizei freq, ALSoundFormat fmt) const {
