@@ -14,9 +14,9 @@ int main() {
     serv.setTimeout(5000); // 5 sec timeout
     serv.setHostAddr("3000", "127.0.0.1"); // can be left out but *shurgs*
     serv.setIPv6(false);
-    serv.setCertAuth("./res/ssl/ca-pub-cert.pem", "");
-    serv.setPublicCert("./res/ssl/serv-pub-cert.pem");
-    serv.setPrivateKey("./res/ssl/serv-priv-key.pem");
+    serv.setCertAuth("./res/ssl/legit/ca-pub-cert.pem", "");
+    serv.setPublicCert("./res/ssl/legit/serv-pub-cert.pem");
+    serv.setPrivateKey("./res/ssl/legit/serv-priv-key.pem");
     serv.verifyKeyMatchCert();
 
     serv.setRecvCallback([&](const stms::UUID &cliuuid, const sockaddr *const sockaddr, uint8_t *buf, int size) {

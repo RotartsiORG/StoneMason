@@ -9,7 +9,7 @@ export CXX=/usr/bin/clang++
 #export CC=/usr/bin/gcc
 #export CXX=/usr/bin/g++
 
-$CMK_EXE -GNinja -Wdev -Wdeprecated -Bbuild -S.
+$CMK_EXE -GNinja -Wdev -Wdeprecated -DSTMS_SSL_TESTS_ENABLED=ON -Bbuild -S.
 
 cd build || exit
 $CMK_EXE --build . -j 8

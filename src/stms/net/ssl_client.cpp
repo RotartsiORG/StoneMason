@@ -58,7 +58,7 @@ namespace stms {
                 blockUntilReady(sock, pSsl, POLLOUT);
             } catch (SSLFatalException &) {
                 STMS_WARN("SSL_connect() error was fatal! Dropping connection!");
-                running = false;
+                stop();
                 return;
             } catch (SSLException &) {
                 STMS_INFO("Retrying SSL_connect()!");
@@ -67,7 +67,7 @@ namespace stms {
 
         if (handshakeTimeouts >= maxTimeouts) {
             STMS_WARN("SSL_connect timed out completely ({}/{})! Dropping connection!", handshakeTimeouts, maxTimeouts);
-            running = false;
+            stop();
             return;
         }
         doShutdown = true;

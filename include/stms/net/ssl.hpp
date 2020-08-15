@@ -111,7 +111,7 @@ namespace stms {
          * This is the maximum amount of time we will wait for an IO operation to complete.
          * This timeout is waited for on a thread pool thread, so the main thread won't be affected by this.
          */
-        unsigned timeoutMs = 1000;
+        unsigned timeoutMs = 15000;
         int maxTimeouts = 9; //!< The maximum number of times we are allowed to retry an IO operation like `send` & read
 
         bool running = false; //!< Flag for if the server/client is running (DUH).

@@ -259,7 +259,7 @@ namespace stms {
         }
 
         STMS_WARN("No IP addresses resolved from supplied address and port can be used!");
-        running = false;
+        stop();
     }
 
     bool _stms_SSLBase::tryAddr(addrinfo *addr, int num) {
