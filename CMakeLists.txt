@@ -55,20 +55,6 @@ add_subdirectory(dep/freetype2)
 
 #add_subdirectory(dep/bullet3)
 
-set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
-set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-
-# only support importing of GLTF, COLLADA (DAE), and OBJ
-set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_COLLADA_IMPORTER ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_GLTF_IMPORTER ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
-add_subdirectory(dep/assimp)
-
 add_subdirectory(dep/fmt)
 
 file(GLOB_RECURSE STMS_SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
@@ -83,10 +69,8 @@ add_library(stms_static STATIC ${STMS_SOURCES} ${STMS_INCLUDE})
 target_compile_options(stms_shared PUBLIC ${STMS_COMPILE_FLAGS})
 target_compile_options(stms_static PUBLIC ${STMS_COMPILE_FLAGS})
 
-target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui
-                            dep/assimp/include)
-target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui
-                            dep/assimp/include)
+target_include_directories(stms_shared PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui)
+target_include_directories(stms_static PUBLIC include src dep dep/glfw/include dep/fmt/include dep/glm dep/imgui)
 
 target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR}
                             ${CURL_INCLUDE_DIRS})
@@ -94,9 +78,9 @@ target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INC
                             ${CURL_INCLUDE_DIRS})
 
 target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
-                        assimp freetype)
+                        freetype)
 target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
-                        assimp freetype)
+                        freetype)
 
 
 if (STMS_ENABLE_OPENGL)
@@ -122,35 +106,11 @@ if (STMS_ENABLE_VULKAN)
 
     find_package(Vulkan REQUIRED)
 
-    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include dep/shaderc/libshaderc/include)
-    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS} dep/shaderc/libshaderc_util/include dep/shaderc/libshaderc/include)
+    target_include_directories(stms_shared PUBLIC ${Vulkan_INCLUDE_DIRS})
+    target_include_directories(stms_static PUBLIC ${Vulkan_INCLUDE_DIRS})
 
     target_link_libraries(stms_shared PUBLIC Vulkan::Vulkan)
     target_link_libraries(stms_static PUBLIC Vulkan::Vulkan)
-
-
-    set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
-    set(SHADERC_SKIP_INSTALL ON CACHE BOOL "" FORCE)
-    set(SHADERC_SPVC_ENABLE_DIRECT_LOGGING ON CACHE BOOL "" FORCE)
-    set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)
-    set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)
-    set(SKIP_SPIRV_TOOLS_INSTALL ON CACHE BOOL "" FORCE)
-    set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "" FORCE)
-
-    set(SHADERC_ENABLE_SHARED_CRT OFF CACHE BOOL "" FORCE)
-    set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
-    set(SHADERC_ENABLE_WERROR_COMPILE OFF CACHE BOOL "" FORCE)
-    set(ENABLE_CTEST OFF CACHE BOOL "" FORCE)
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-
-    set(ENABLE_HLSL ON CACHE BOOL "" FORCE) # I must leave HLSL on bc shaderc stubbornly wants to link it
-    # I'm not sure if we need spirv-opt
-#     set(ENABLE_OPT OFF CACHE BOOL "" FORCE)
-    add_subdirectory(dep/shaderc)
-
-    target_link_libraries(stms_shared PRIVATE shaderc)
-    target_link_libraries(stms_static PRIVATE shaderc)
 endif()
 
 if (STMS_BUILD_TESTS)

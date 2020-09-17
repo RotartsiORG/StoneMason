@@ -13,8 +13,8 @@ int main() {
 
     stms::VKWindow win(&gpu, 640, 480, "StoneMason Vulkan Demo");
 
-    stms::VKShader frag(&gpu, stms::readFile("./res/vkShaders/frag.spv"), stms::VKShaderStageBits::eFragment);
-    stms::VKShader vert(&gpu, stms::readFile("./res/vkShaders/vert.spv"), stms::VKShaderStageBits::eVertex);
+    stms::VKShader frag(&gpu, stms::readFile("./res/vkShaders/frag.spv"), vk::ShaderStageFlagBits::eFragment);
+    stms::VKShader vert(&gpu, stms::readFile("./res/vkShaders/vert.spv"), vk::ShaderStageFlagBits::eVertex);
 
     while (!win.shouldClose()) {
         stms::pollEvents();

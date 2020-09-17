@@ -6,10 +6,8 @@
 
 #ifdef STMS_ENABLE_VULKAN
 
-#include "stms/config.hpp"
-
 namespace stms {
-    VKShader::VKShader(VKDevice *dev, const std::string &bytecode, const VKShaderStageBits& shaderStage, const std::string &entryPoint) : pDev(dev) {
+    VKShader::VKShader(VKDevice *dev, const std::string &bytecode, const vk::ShaderStageFlagBits& shaderStage, const std::string &entryPoint) : pDev(dev) {
         vk::ShaderModuleCreateInfo ci{{}, bytecode.size(), reinterpret_cast<const uint32_t *>(bytecode.data())};
         mod = dev->device.createShaderModule(ci);
 

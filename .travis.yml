@@ -79,12 +79,6 @@ install: # we apt purge libharfbuzz-dev because cmake grabs 1.7 despite the min 
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cd /Volumes/vulkansdk-macos-1.2.141.2; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then source setup-env.sh; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo python install_vulkan.py; fi
-  - cd $STMS_WD/dep/shaderc
-  - ./utils/git-sync-deps
-  - ./utils/add_copyright.py
-  - cd third_party/glslang
-  - git clone https://github.com/google/googletest.git External/googletest
-  - ./update_glslang_sources.py
   - cd $STMS_WD
 script:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake -GNinja -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -Bbuild -S.; fi
