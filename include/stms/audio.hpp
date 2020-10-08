@@ -8,6 +8,7 @@
 #define __STONEMASON_AUDIO_BUFFER_HPP
 
 #include <string>
+#include <vector>
 
 #include "glm/glm.hpp"
 #include "al.h"
@@ -39,6 +40,12 @@ namespace stms {
         inline void flushErrors() {
             while (handleError() != ALC_NO_ERROR);
         };
+
+        /**
+         * @brief Gets the human-readable device name as a string.
+         * @return Device name as string, or `nullptr` if device-name querying isn't supported.
+         */
+        [[nodiscard]] const ALCchar *getName() const;
 
         ALDevice(ALDevice &rhs) = delete;
 
@@ -237,6 +244,15 @@ namespace stms {
         defaultAlDevice() = ALDevice(nullptr);
         defaultAlContext() = ALContext(&defaultAlDevice(), nullptr);
     }
+
+    /**
+     * @brief Returns a list of devices
+     * @return List of all devices if possible, otherwise just a list of most devices. If no enumeration extension is
+     *         present, it will fall back to just a single element: nullptr (which will be interpreted as the default device).
+     */
+    std::vector<const ALCchar *> enumerateAlDevices();
+
+    const ALCchar *getDefaultAlDeviceName();
 }
 
 #endif //__STONEMASON_AUDIO_BUFFER_HPP

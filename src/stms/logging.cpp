@@ -3,16 +3,19 @@
 //
 
 #include "stms/logging.hpp"
-#ifdef STMS_ENABLE_LOGGING
 
 #include <chrono>
 #include <sys/stat.h>
 
 namespace stms {
 
+    ThreadPool *logPool = nullptr;
+    std::vector<std::function<void(LogRecord *, std::string *)>> logHooks;
+
     LogRecord::LogRecord(LogLevel lvl, std::chrono::system_clock::time_point iTime, const char *iFile, unsigned int iLine)
                             : level(lvl), time(iTime), file(iFile), line(iLine) {}
 
+#   ifdef STMS_ENABLE_LOGGING
     static FILE *&getLatestLogFile() {
         static FILE *fp = nullptr;
         return fp;
@@ -94,13 +97,15 @@ namespace stms {
         STMS_INFO("Initialized StoneMason {} (compiled on {} {})", versionString, __DATE__, __TIME__);
     }
 
-    volatile bool logConsuming = false;
-    std::mutex logQMtx = std::mutex();
-    std::queue<LogRecord> logQueue = std::queue<LogRecord>(); // screw the non-catchable exceptions i hate my life
-    ThreadPool *logPool = nullptr;
-    std::vector<std::function<void(LogRecord *, std::string *)>> logHooks;
+    static volatile bool logConsuming = false;
+    static std::mutex logQMtx = std::mutex();
 
-    const char *logLevelToString(const LogLevel &lvl) {
+    static inline std::queue<std::unique_ptr<LogRecord>> &getLogQueue() {
+        static std::queue<std::unique_ptr<LogRecord>> queue;
+        return queue;
+    }
+
+    static inline const char *logLevelToString(const LogLevel &lvl) {
         switch (lvl) {
             case (eTrace):
                 return "  \u001b[37mtrace\u001b[0m  "; // white
@@ -123,28 +128,28 @@ namespace stms {
 
         std::unique_lock<std::mutex> lg(logQMtx);
 
-        bool empty = logQueue.empty();
+        bool empty = getLogQueue().empty();
         if (!empty) {
-            LogRecord top = std::move(logQueue.front());
-            logQueue.pop();
+            std::unique_ptr<LogRecord> top = std::move(getLogQueue().front());
+            getLogQueue().pop();
 
             lg.unlock();
 
             fmt::memory_buffer fileUrl;
-            fmt::format_to(fileUrl, "file://{}:{}", top.file, top.line);
+            fmt::format_to(fileUrl, "file://{}:{}", top->file, top->line);
 
-            time_t localtimeReady = std::chrono::system_clock::to_time_t(top.time);
-            auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(top.time);
-            auto ms = std::chrono::duration_cast<std::chrono::nanoseconds>(top.time - seconds);
+            time_t localtimeReady = std::chrono::system_clock::to_time_t(top->time);
+            auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(top->time);
+            auto ms = std::chrono::duration_cast<std::chrono::nanoseconds>(top->time - seconds);
 
             fmt::memory_buffer logMsg;
             fmt::format_to(logMsg, "[{0:%T}.{1:<12}] [{2:^72}] [{3:<8}]: {4}", *std::localtime(&localtimeReady),
-                           ms.count(), fmt::to_string(fileUrl), logLevelToString(top.level), fmt::to_string(top.msg));
+                           ms.count(), fmt::to_string(fileUrl), logLevelToString(top->level), fmt::to_string(top->msg));
 
             std::string finalMsg = fmt::to_string(logMsg); // don't flush!
 
             for (const auto &func : logHooks) {
-                func(&top, &finalMsg);
+                func(top.get(), &finalMsg);
             }
 
             // Recurse. No need to check/set the consume flag as they are only modified on exit/enter.
@@ -166,6 +171,37 @@ namespace stms {
             lg.unlock();
         }
     }
-}
 
-#endif // STMS_ENABLE_LOGGING
+    void insertImpl(std::unique_ptr<LogRecord> rec) {
+        std::unique_lock<std::mutex> lg(logQMtx);
+
+        getLogQueue().emplace(std::move(rec));
+
+        if (logPool != nullptr && !logConsuming) {
+            logConsuming = true;
+
+            lg.unlock();
+
+            logPool->submitTask(consumeLogs);
+
+            if (!logPool->isRunning()) {
+                logPool->start();
+                std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
+            }
+        } else if (!logConsuming) {
+            logConsuming = true;
+
+            lg.unlock();
+
+            consumeLogs(); // no async? just do it here.
+        } else {
+            lg.unlock();
+        }
+    }
+
+#   else // STMS_ENABLE_LOGGING
+    void consumeLogs() {};
+    void initLogging() {};
+    void quitLogging() {};
+#   endif //STMS_ENABLE_LOGGING
+}

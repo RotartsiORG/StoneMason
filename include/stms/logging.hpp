@@ -11,7 +11,6 @@
 //!< Include guard.
 
 #include "stms/config.hpp"
-#ifdef STMS_ENABLE_LOGGING
 
 #include <sstream>
 #include <iomanip>
@@ -60,24 +59,54 @@ namespace stms {
 
     void quitLogging(); //!< Quit logging. If you used `stms::initAll`, you do not have to call this.
 
-/// Logging macro for `LogLevel` of `eTrace`. Used like a fmtlib function. `STMS_TRACE("{1}, {0}!", "World", "Hello");`
+#   ifdef STMS_ENABLE_LOGGING
+    void insertImpl(std::unique_ptr<LogRecord> rec); //!< Internal implementation detail. Don't touch.
+
+    /**
+     * @brief NEVER this function directly. Instead, use the logging macros (`STMS_INFO`, `STMS_WARN`, etc.).
+     *        This function inserts a `LogRecord` into `logQueue` and starts a log-consume task (`consumeLogs`).
+     *        The consume task would be asynchronous if `logPool` is not `nullptr`.
+     * @tparam Args Template param allowing fmtlib arguments to be passed in
+     * @param lvl Severity of the message. See `LogLevel`.
+     * @param line Line of the source file the message is from
+     * @param file Source file the message is from (e.g. `main.cpp`)
+     * @param fmtStr String to format, the actual un-formatted log message.
+     * @param args fmtlib formatting arguments.
+     */
+    template<typename... Args>
+    void insertLog(LogLevel lvl, unsigned line, const char *file, const char *fmtStr, const Args &... args) {
+        std::unique_ptr<LogRecord> insert = std::make_unique<LogRecord>(lvl, std::chrono::system_clock::now(), file, line);
+
+        try {
+            fmt::format_to(insert->msg, fmtStr, args...);
+        } catch (fmt::format_error &e) {
+            fmt::format_to(insert->msg,
+                           "{}\t\u001b[1m\u001b[31m!<<< FORMAT ERROR: {}\u001b[0m", fmtStr, e.what());  // screw it
+        }
+
+        insertImpl(std::move(insert));
+    }
+
+    /// Logging macro for `LogLevel` of `eTrace`. Used like a fmtlib function. `STMS_TRACE("{1}, {0}!", "World", "Hello");`
 #   define STMS_TRACE(...)  ::stms::insertLog(::stms::eTrace, __LINE__, __FILE__, __VA_ARGS__)
-/// Logging macro for `LogLevel` of `eDebug`. Used like a fmtlib function. `STMS_DEBUG("{1}, {0}!", "World", "Hello");`
+    /// Logging macro for `LogLevel` of `eDebug`. Used like a fmtlib function. `STMS_DEBUG("{1}, {0}!", "World", "Hello");`
 #   define STMS_DEBUG(...)  ::stms::insertLog(::stms::eDebug, __LINE__, __FILE__, __VA_ARGS__)
-/// Logging macro for `LogLevel` of `eInfo`. Used like a fmtlib function. `STMS_INFO("{1}, {0}!", "World", "Hello");`
+    /// Logging macro for `LogLevel` of `eInfo`. Used like a fmtlib function. `STMS_INFO("{1}, {0}!", "World", "Hello");`
 #   define STMS_INFO(...)   ::stms::insertLog(::stms::eInfo, __LINE__, __FILE__, __VA_ARGS__)
-/// Logging macro for `LogLevel` of `eWarn`. Used like a fmtlib function. `STMS_WARN("{1}, {0}!", "World", "Hello");`
+    /// Logging macro for `LogLevel` of `eWarn`. Used like a fmtlib function. `STMS_WARN("{1}, {0}!", "World", "Hello");`
 #   define STMS_WARN(...)   ::stms::insertLog(::stms::eWarn, __LINE__, __FILE__, __VA_ARGS__)
-/// Logging macro for `LogLevel` of `eError`. Used like a fmtlib function. `STMS_ERROR("{1}, {0}!", "World", "Hello");`
+    /// Logging macro for `LogLevel` of `eError`. Used like a fmtlib function. `STMS_ERROR("{1}, {0}!", "World", "Hello");`
 #   define STMS_ERROR(...)  ::stms::insertLog(::stms::eError, __LINE__, __FILE__, __VA_ARGS__)
-/// Logging macro for `LogLevel` of `eFatal`. Used like a fmtlib function. `STMS_FATAL("{1}, {0}!", "World", "Hello");`
+    /// Logging macro for `LogLevel` of `eFatal`. Used like a fmtlib function. `STMS_FATAL("{1}, {0}!", "World", "Hello");`
 #   define STMS_FATAL(...)  ::stms::insertLog(::stms::eFatal, __LINE__, __FILE__, __VA_ARGS__)
-
-    /// Flag for if there is currently a log-consume task (`consumeLogs`) active. Implementation detail
-    extern volatile bool logConsuming;
-    extern std::mutex logQMtx; //!< Mutex for syncing IO for `logQueue`. Implementation detail.
-    extern std::queue<LogRecord> logQueue; //!< Queue of `LogRecord`s to be processed. Implementation detail
-
+#   else
+#   define STMS_TRACE(...)
+#   define STMS_DEBUG(...)
+#   define STMS_INFO(...)
+#   define STMS_WARN(...)
+#   define STMS_ERROR(...)
+#   define STMS_FATAL(...)
+#   endif
     /**
      * @brief `ThreadPool` to be used for processing log messages from `logQueue`. You can modify this variable.
      *         If set to `nullptr`, asynchronous logging will be disabled. Otherwise, log-consume tasks will be
@@ -110,59 +139,7 @@ namespace stms {
      */
     extern std::vector<std::function<void(LogRecord *, std::string *)>> logHooks;
 
-    /// Convert a LogLevel to a formatted text string. Internal implementation detail.
-    static const char *logLevelToString(const LogLevel &lvl);
-
     void consumeLogs(); //!< Process all the logs in `logQueue`, essentially flushing the log message backlog
-
-    /**
-     * @brief Don't use this function directly. Instead, use the logging macros (`STMS_INFO`, `STMS_WARN`, etc.).
-     *        This function inserts a `LogRecord` into `logQueue` and starts a log-consume task (`consumeLogs`).
-     *        The consume task would be asynchronous if `logPool` is not `nullptr`.
-     * @tparam Args Template param allowing fmtlib arguments to be passed in
-     * @param lvl Severity of the message. See `LogLevel`.
-     * @param line Line of the source file the message is from
-     * @param file Source file the message is from (e.g. `main.cpp`)
-     * @param fmtStr String to format, the actual un-formatted log message.
-     * @param args fmtlib formatting arguments.
-     */
-    template<typename... Args>
-    void insertLog(LogLevel lvl, unsigned line, const char *file, const char *fmtStr, const Args &... args) {
-
-        std::unique_lock<std::mutex> lg(logQMtx);
-
-        logQueue.emplace(LogRecord{lvl, std::chrono::system_clock::now(), file, line});
-
-        try {
-            fmt::format_to(logQueue.back().msg, fmtStr, args...);
-        } catch (fmt::format_error &e) {
-            fmt::format_to(logQueue.back().msg,
-                    "{}\t\u001b[1m\u001b[31m!<<< FORMAT ERROR: {}\u001b[0m", fmtStr, e.what());  // screw it
-        }
-
-        if (logPool != nullptr && !logConsuming) {
-            logConsuming = true;
-
-            lg.unlock();
-
-            logPool->submitTask(consumeLogs);
-
-            if (!logPool->isRunning()) {
-                logPool->start();
-                std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
-            }
-        } else if (!logConsuming) {
-            logConsuming = true;
-
-            lg.unlock();
-
-            consumeLogs(); // no async? just do it here.
-        } else {
-            lg.unlock();
-        }
-    }
 }
-
-#endif // STMS_ENABLE_LOGGING
 
 #endif //__STONEMASON_LOGGING_HPP

@@ -39,6 +39,12 @@ namespace {
             STMS_INFO("Got runtime error {}", e.what());
         }
 
+        for (const auto &i : stms::enumerateAlDevices()) {
+            STMS_INFO("Got OpenAL Device: '{}'", i);
+        }
+        STMS_INFO("Default device name is: '{}'", stms::getDefaultAlDeviceName());
+        STMS_INFO("Default device.getName() is: '{}'", stms::defaultAlDevice().getName());
+
         stms::ALBuffer testBuf;
         stms::ALSource testSrc;
         testBuf.loadFromFile("./res/test.ogg");

@@ -215,13 +215,17 @@ namespace stms {
         std::lock_guard<std::mutex> lg(clientsMtx);
         for (auto &pair : clients) {
             auto *addrCpy = new sockaddr_storage{};
+            // STMS_FATAL("p = {}", stms::getAddrStr(pair.second->pSockAddr));
+
             std::copy(reinterpret_cast<uint8_t *>(pair.second->pSockAddr),
                       reinterpret_cast<uint8_t *>(pair.second->pSockAddr) + pair.second->sockAddrLen,
                       reinterpret_cast<uint8_t *>(addrCpy));
+            // STMS_FATAL("p2 = {}", stms::getAddrStr(reinterpret_cast<const sockaddr *>(addrCpy)));
 
             pPool->submitTask([&, capUuid = UUID{pair.first},
                                       capAddr{addrCpy}, this]() {
-                disconnectCallback(capUuid, reinterpret_cast<sockaddr *>(addrCpy));
+                // STMS_FATAL("p3 = {}", stms::getAddrStr(reinterpret_cast<const sockaddr *>(capAddr)));
+                disconnectCallback(capUuid, reinterpret_cast<sockaddr *>(capAddr));
                 delete capAddr;
             });
         }

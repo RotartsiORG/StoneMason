@@ -18,6 +18,39 @@ namespace stms {
         return error;
     }
 
+    std::vector<const ALCchar *> enumerateAlDevices() {
+        std::vector<const ALCchar *> ret;
+
+        if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT") == AL_TRUE) {
+            const ALCchar *devices = alcGetString(nullptr, ALC_ALL_DEVICES_SPECIFIER);
+
+            while (!(*devices == '\0' && *(devices + 1) == '\0')) {
+                ret.emplace_back(devices);
+                devices += std::strlen(devices) + 1;
+            }
+        } else if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
+            const ALCchar *devices = alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
+
+            while (!(*devices == '\0' && *(devices + 1) == '\0')) {
+                ret.emplace_back(devices);
+                devices += std::strlen(devices) + 1;
+            }
+        } else {
+            ret.emplace_back(nullptr);
+        }
+
+        return ret;
+    }
+
+    const ALCchar *getDefaultAlDeviceName() {
+        if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT") == AL_TRUE) {
+            return alcGetString(nullptr, ALC_DEFAULT_ALL_DEVICES_SPECIFIER);
+        } else if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
+            return alcGetString(nullptr, ALC_DEFAULT_DEVICE_SPECIFIER);
+        }
+        return nullptr;
+    }
+
     ALBuffer::ALBuffer() {
         alGenBuffers(1, &id);
     }
@@ -157,6 +190,14 @@ namespace stms {
         rhs.id = nullptr;
 
         return *this;
+    }
+
+    const ALCchar *ALDevice::getName() const {
+        if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
+            return alcGetString(id, ALC_DEVICE_SPECIFIER);
+        } else {
+            return nullptr;
+        }
     }
 
     ALContext::ALContext(ALDevice *dev, ALCint *attribs) {
