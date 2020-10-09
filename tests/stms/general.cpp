@@ -66,6 +66,66 @@ namespace {
         stms::defaultAlDevice().handleError();
     }
 
+    TEST(AL, Record) {
+        try {
+            stms::defaultAlContext().bind();
+        } catch (std::exception &e) {
+            STMS_INFO("Failed to bind al context: {}", e.what());
+        }
+
+        STMS_INFO("Default input device is {}", stms::getDefaultAlDeviceName(true));
+        for (const auto &i : stms::enumerateAlDevices(true)) {
+            STMS_INFO("Found input device: {}", i);
+        }
+
+        const auto freq = 44100;
+        const auto fmt = stms::eStereo16;
+
+        std::vector<stms::ALBuffer> bufs;
+        stms::ALSource src;
+
+        stms::ALMicrophone mic = stms::ALMicrophone(nullptr, freq, fmt, freq * 2);
+        mic.start();
+
+        STMS_INFO("Mic.getName() = ", mic.getName());
+
+        for (int i = 0; i < 4; i++) {
+            bufs.emplace_back(std::move(stms::ALBuffer()));
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            uint8_t buf[freq * 4];
+            mic.capture(buf, freq);
+
+            bufs[i].write(reinterpret_cast<void *>(buf), freq * 2 * 2, freq, fmt);
+
+            auto proc = src.getProcessed();
+            auto *discard = new ALuint[proc];
+            src.dequeueBuf(proc, discard);
+            delete[] discard;
+
+
+            src.enqueueBuf(&bufs[i]);
+
+            if (!src.isPlaying()) {
+                src.play();
+            }
+        }
+
+        unsigned numSecs = 0;
+        while (src.isPlaying()) {
+            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            if (numSecs++ > alPlayBlockTimeout) {
+                STMS_ERROR("AL Play timed out! This should only happen in Travis CI mac builds.");
+                break;
+            }
+        }
+
+        // Use handle instead of flush bc al would bug out and it would get stuck in a loop
+        stms::handleAlError();
+        stms::defaultAlDevice().handleError();
+    }
+
     TEST(UUID, Collisions) {
         for (int i = 0; i < 16; i++) {
             STMS_INFO("Sample UUID: {}", stms::genUUID4().buildStr());

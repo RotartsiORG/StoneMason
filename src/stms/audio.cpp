@@ -18,10 +18,10 @@ namespace stms {
         return error;
     }
 
-    std::vector<const ALCchar *> enumerateAlDevices() {
+    std::vector<const ALCchar *> enumerateAlDevices(bool cap) {
         std::vector<const ALCchar *> ret;
 
-        if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT") == AL_TRUE) {
+        if ((!cap) && alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT") == AL_TRUE) {
             const ALCchar *devices = alcGetString(nullptr, ALC_ALL_DEVICES_SPECIFIER);
 
             while (!(*devices == '\0' && *(devices + 1) == '\0')) {
@@ -29,7 +29,7 @@ namespace stms {
                 devices += std::strlen(devices) + 1;
             }
         } else if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
-            const ALCchar *devices = alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
+            const ALCchar *devices = alcGetString(nullptr, cap ? ALC_CAPTURE_DEVICE_SPECIFIER : ALC_DEVICE_SPECIFIER);
 
             while (!(*devices == '\0' && *(devices + 1) == '\0')) {
                 ret.emplace_back(devices);
@@ -42,11 +42,11 @@ namespace stms {
         return ret;
     }
 
-    const ALCchar *getDefaultAlDeviceName() {
-        if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT") == AL_TRUE) {
+    const ALCchar *getDefaultAlDeviceName(bool cap) {
+        if ((!cap) && alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT") == AL_TRUE) {
             return alcGetString(nullptr, ALC_DEFAULT_ALL_DEVICES_SPECIFIER);
         } else if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
-            return alcGetString(nullptr, ALC_DEFAULT_DEVICE_SPECIFIER);
+            return alcGetString(nullptr, cap ? ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER : ALC_DEFAULT_DEVICE_SPECIFIER);
         }
         return nullptr;
     }
@@ -202,5 +202,25 @@ namespace stms {
 
     ALContext::ALContext(ALDevice *dev, ALCint *attribs) {
         id = alcCreateContext(dev->id, attribs);
+    }
+
+    ALMicrophone::ALMicrophone(const ALCchar *name, ALCuint freq, ALSoundFormat fmt, ALCsizei capbufSize) {
+        id = alcCaptureOpenDevice(name, freq, fmt, capbufSize);
+    }
+
+    ALMicrophone::~ALMicrophone() {
+        alcCaptureCloseDevice(id);
+    }
+
+    void ALMicrophone::capture(ALCvoid *dataBuf, ALCsizei numSamples) {
+        alcCaptureSamples(id, dataBuf, numSamples);
+    }
+
+    const ALCchar *ALMicrophone::getName() const {
+        if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
+            return alcGetString(id, ALC_CAPTURE_DEVICE_SPECIFIER);
+        } else {
+            return nullptr;
+        }
     }
 }

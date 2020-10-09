@@ -15,6 +15,14 @@
 #include "alc.h"
 
 namespace stms {
+    enum ALSoundFormat {
+        eStereo16 = AL_FORMAT_STEREO16,
+        eMono16 = AL_FORMAT_MONO16,
+
+        eStereo8 = AL_FORMAT_STEREO8,
+        eMono8 = AL_FORMAT_MONO8
+    };
+
     class ALDevice {
     private:
         ALCdevice *id{};
@@ -56,6 +64,26 @@ namespace stms {
         ALDevice &operator=(ALDevice &&rhs) noexcept;
     };
 
+    class ALMicrophone {
+    private:
+        ALCdevice *id{};
+    public:
+        explicit ALMicrophone(const ALCchar *name = nullptr, ALCuint freq = 8000, ALSoundFormat fmt = eMono8, ALCsizei capbufSize = 32768);
+        virtual ~ALMicrophone();
+
+        inline void start() {
+            alcCaptureStart(id);
+        }
+
+        inline void stop() {
+            alcCaptureStop(id);
+        }
+
+        [[nodiscard]] const ALCchar *getName() const;
+
+        void capture(ALCvoid *dataBuf, ALCsizei numSamples);
+    };
+
     class ALContext {
     private:
         ALCcontext *id{};
@@ -78,14 +106,6 @@ namespace stms {
         ALContext(ALContext &&rhs) noexcept;
 
         ALContext &operator=(ALContext &&rhs) noexcept;
-    };
-
-    enum ALSoundFormat {
-        eStereo16 = AL_FORMAT_STEREO16,
-        eMono16 = AL_FORMAT_MONO16,
-
-        eStereo8 = AL_FORMAT_STEREO8,
-        eMono8 = AL_FORMAT_MONO8
     };
 
     class ALBuffer {
@@ -136,6 +156,18 @@ namespace stms {
 
         virtual ~ALSource();
 
+        [[nodiscard]] inline ALint getProcessed() const {
+            ALint ret = 0;
+            alGetSourcei(id, AL_BUFFERS_PROCESSED, &ret);
+            return ret;
+        }
+
+        inline ALint dequeueAll(ALuint *bufsRemoved) const {
+            ALint ret = getProcessed();
+            dequeueBuf(ret, bufsRemoved);
+            return ret;
+        }
+
         inline void play() const {
             alSourcePlay(id);
         }
@@ -156,8 +188,8 @@ namespace stms {
             alSourceRewind(id);
         }
 
-        inline void dequeueBuf(ALBuffer *bufs) const {
-            alSourceUnqueueBuffers(id, 1, &bufs->id);
+        inline void dequeueBuf(ALsizei num, ALuint *bufsRemoved) const {
+            alSourceUnqueueBuffers(id, num, bufsRemoved);
         }
 
         inline void setLooping(bool looping) const {
@@ -247,12 +279,19 @@ namespace stms {
 
     /**
      * @brief Returns a list of devices
+     * @param captureDevices If true, then this returns a list of capture devices (microphones) instead of input devices (speakers)
      * @return List of all devices if possible, otherwise just a list of most devices. If no enumeration extension is
      *         present, it will fall back to just a single element: nullptr (which will be interpreted as the default device).
      */
-    std::vector<const ALCchar *> enumerateAlDevices();
+    std::vector<const ALCchar *> enumerateAlDevices(bool captureDevices = false);
 
-    const ALCchar *getDefaultAlDeviceName();
+    /**
+     * @brief Returns the name of the default device.
+     * @param captureDevices If true, then this returns the name of the default capture device (microphone) instead of
+     *                       the default input device (speaker)
+     * @return Name of the default device, or nullptr if no enumeration extension is present.
+     */
+    const ALCchar *getDefaultAlDeviceName(bool captureDevices = false);
 }
 
 #endif //__STONEMASON_AUDIO_BUFFER_HPP
