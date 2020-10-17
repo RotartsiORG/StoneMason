@@ -16,7 +16,9 @@ namespace stms {
 
     void quitGlfw();
 
-    extern void(*pollEvents)();
+    inline void pollEvents() {
+        glfwPollEvents();
+    };
 
     class GenericWindow {
     protected:

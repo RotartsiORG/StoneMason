@@ -54,7 +54,7 @@ namespace stms {
         result.clear(); // Should we require the client to explicitly request this?
         std::shared_ptr<std::promise<CURLcode>> prom = std::make_shared<std::promise<CURLcode>>();
 
-        pool->submitTask([=]() {
+        pool.load()->submitTask([=]() {
             auto err = curl_easy_perform(handle); // This is typically an expensive call so we async it
             if (err != CURLE_OK) {
                 STMS_ERROR("Failed to perform curl operation on url {}", url);
@@ -67,7 +67,7 @@ namespace stms {
     }
 
     CURLHandle &CURLHandle::operator=(CURLHandle &&rhs) noexcept {
-        if (&rhs == this || rhs.handle == handle) {
+        if (&rhs == this || rhs.handle.load() == handle.load()) {
             return *this;
         }
 
@@ -81,8 +81,8 @@ namespace stms {
         uploadSoFar = rhs.uploadSoFar;
         uploadTotal = rhs.uploadTotal;
 
-        pool = rhs.pool;
-        handle = rhs.handle;
+        pool = rhs.pool.load();
+        handle = rhs.handle.load();
         url = std::move(rhs.url);
 
         return *this;

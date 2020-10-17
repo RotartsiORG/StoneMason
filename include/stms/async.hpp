@@ -36,7 +36,7 @@ namespace stms {
         std::queue<std::packaged_task<void (void)>> tasks; //!< Queue of tasks to execute
         std::deque<std::thread> workers; //!< A list of worker threads.
 
-        bool running = false; //!< True if the thread pool is running. (Duh)
+        std::atomic_bool running = false; //!< True if the thread pool is running. (Duh)
         size_t stopRequest = 0; //!< The thread ID that we request to stop.
 
         friend void workerFunc(ThreadPool *parent, size_t index); //!< Static worker function. Internal impl detail.

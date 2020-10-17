@@ -9,9 +9,6 @@
 
 namespace stms {
 
-    ThreadPool *logPool = nullptr;
-    std::vector<std::function<void(LogRecord *, std::string *)>> logHooks;
-
     LogRecord::LogRecord(LogLevel lvl, std::chrono::system_clock::time_point iTime, const char *iFile, unsigned int iLine)
                             : level(lvl), time(iTime), file(iFile), line(iLine) {}
 
@@ -35,21 +32,22 @@ namespace stms {
             std::fclose(getUniqueLogFile());
         }
 
-        if (logPool != nullptr) {
-            logPool->waitIdle(1000); // make sure all in-flight log records are processed!
-            logPool->stop(false);
+        if (getLogPool() != nullptr) {
+            getLogPool()->waitIdle(1000); // make sure all in-flight log records are processed!
+            getLogPool()->stop(false);
         }
     }
 
     void initLogging() {
 
         if (logToStdout) {
-            logHooks.emplace_back([](LogRecord *, std::string *str) {
-                printf("%s\n", str->c_str()); // or just use cout?
+            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
+                fputs(str->c_str(), stdout);
+                fputc('\n', stdout);
             });
         }
 
-        logHooks.emplace_back([](LogRecord *, std::string *str) {
+        getLogHooks().emplace_back([](LogRecord *, std::string *str) {
             // now remove all text formatting (this is expensive).
             auto start = str->find('\u001b');
             while (start != std::string::npos) {
@@ -62,7 +60,7 @@ namespace stms {
         if (logToLatestLog) {
             getLatestLogFile() = std::fopen("./latest.log", "w");
 
-            logHooks.emplace_back([](LogRecord *, std::string *str) {
+            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getLatestLogFile());
                 std::fputc('\n', getLatestLogFile());
                 // Don't call fflush!
@@ -81,14 +79,14 @@ namespace stms {
             ctimeStr = logsDir + ctimeStr;
             getUniqueLogFile() = fopen(ctimeStr.c_str(), "w");
 
-            logHooks.emplace_back([](LogRecord *, std::string *str) {
+            getLogHooks().emplace_back([](LogRecord *, std::string *str) {
                 std::fputs(str->c_str(), getUniqueLogFile());
                 std::fputc('\n', getUniqueLogFile());
                 // Don't call fflush!
             });
         }
 
-        for (const auto &func : logHooks) {
+        for (const auto &func : getLogHooks()) {
             // it is safe to pass in nullptr bc the only hooks registered so far should be our hooks,
             // and our hooks don't touch the LogRecord *
             func(nullptr, &header);
@@ -148,18 +146,18 @@ namespace stms {
 
             std::string finalMsg = fmt::to_string(logMsg); // don't flush!
 
-            for (const auto &func : logHooks) {
+            for (const auto &func : getLogHooks()) {
                 func(top.get(), &finalMsg);
             }
 
             // Recurse. No need to check/set the consume flag as they are only modified on exit/enter.
             // This is better than just looping bc it breaks the consume task up into multiple submits
             // to the thread pool!
-            if (logPool != nullptr) {
-                logPool->submitTask(consumeLogs);
+            if (getLogPool() != nullptr) {
+                getLogPool()->submitTask(consumeLogs);
 
-                if (!logPool->isRunning()) {
-                    logPool->start();
+                if (!getLogPool()->isRunning()) {
+                    getLogPool()->start();
                     std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
                 }
             } else {
@@ -177,15 +175,15 @@ namespace stms {
 
         getLogQueue().emplace(std::move(rec));
 
-        if (logPool != nullptr && !logConsuming) {
+        if (getLogPool() != nullptr && !logConsuming) {
             logConsuming = true;
 
             lg.unlock();
 
-            logPool->submitTask(consumeLogs);
+            getLogPool()->submitTask(consumeLogs);
 
-            if (!logPool->isRunning()) {
-                logPool->start();
+            if (!getLogPool()->isRunning()) {
+                getLogPool()->start();
                 std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
             }
         } else if (!logConsuming) {

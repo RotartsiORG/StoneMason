@@ -20,8 +20,6 @@
 #include "openssl/conf.h"
 
 namespace stms {
-    uint8_t secretCookie[secretCookieLen];
-
     std::string getAddrStr(const sockaddr *const addr) {
         if (addr->sa_family == AF_INET) {
             auto *v4Addr = reinterpret_cast<const sockaddr_in *>(addr);
@@ -133,10 +131,10 @@ namespace stms {
         SSL_COMP_add_compression_method(0, COMP_zlib());
         STMS_INFO("Initialized {}!", OpenSSL_version(OPENSSL_VERSION));
 
-        if (RAND_bytes(secretCookie, sizeof(uint8_t) * secretCookieLen) != 1) {
+        if (RAND_bytes(getSecretCookie(), sizeof(uint8_t) * secretCookieLen) != 1) {
             STMS_FATAL(
                     "OpenSSL RNG is faulty! Using C++ RNG instead! This may leave you vulnerable to DDoS attacks!");
-            std::generate(std::begin(secretCookie), std::end(secretCookie), []() {
+            std::generate(getSecretCookie(), getSecretCookie() + secretCookieLen, []() {
                 return stms::intRand(0, UINT8_MAX);
             });
         }

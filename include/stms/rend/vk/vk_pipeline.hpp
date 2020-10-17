@@ -54,6 +54,10 @@ namespace stms {
          */
         VKShader(VKShader &&rhs) noexcept;
     };
+
+    class VKFixedFuncPipeline {
+        
+    };
 }
 
 #endif // STMS_ENABLE_VULKAN

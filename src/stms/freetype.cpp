@@ -56,7 +56,14 @@ namespace stms {
     _stms_FTFace::_stms_FTFace(FTLibrary *lib, const char *filename, FT_Long index) {
         if (FT_New_Face(lib->lib, filename, index, &face)) {
             STMS_ERROR("Failed to load font face '{}' (index {})!", filename, index);
+            return;
         }
+
+        if (face == nullptr) {
+            STMS_FATAL("Failed to load font face '{}' (index {})! Face is nullptr. Expect a crash!", filename, index);
+            return;
+        }
+
         FT_Set_Pixel_Sizes(face, 0, 50);
         newlineAdv = face->size->metrics.height >> 6;
 

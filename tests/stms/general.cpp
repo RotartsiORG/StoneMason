@@ -90,7 +90,7 @@ namespace {
         STMS_INFO("Mic.getName() = ", mic.getName());
 
         for (int i = 0; i < 4; i++) {
-            bufs.emplace_back(std::move(stms::ALBuffer()));
+            bufs.emplace_back(stms::ALBuffer());
 
             std::this_thread::sleep_for(std::chrono::seconds(1));
             uint8_t buf[freq * 4];

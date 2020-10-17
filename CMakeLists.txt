@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.13.5)
 
 SET(CMAKE_CXX_STANDARD 17)
+SET(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(STMS_VERSION 0.0.0)
 set(STMS_COMPILE_FLAGS -Wall -Wextra -Wpedantic -Wshadow -Wno-unused-function -std=c++17)

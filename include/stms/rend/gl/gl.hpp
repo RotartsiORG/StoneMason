@@ -21,8 +21,15 @@
 #include <string>
 
 namespace stms {
-    extern bool glInitialized;
-    extern GLint majorGlVersion;
+    inline bool &isGlInitialized() {
+        static bool val = false;
+        return val;
+    }
+
+    inline GLint &getGlMajorVersion() {
+        static GLint val = -1;
+        return val;
+    }
 
     void flushGlErrs(const std::string &log);
 

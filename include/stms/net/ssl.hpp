@@ -35,7 +35,11 @@ namespace stms {
 
     /// @brief This is `secretCookieLen` of random data to be used for DTLS stateless cookie exchanges
     ///        (for protection against DDoS attacks).
-    extern uint8_t secretCookie[secretCookieLen];
+    inline uint8_t *&getSecretCookie() {
+        static uint8_t val[secretCookieLen];
+        static auto *ret = reinterpret_cast<uint8_t *>(val);
+        return ret;
+    }
 
     void initOpenSsl(); //!< Init OpenSSL parts of STMS. Use `stms::initAll` if you wish to init everything.
 

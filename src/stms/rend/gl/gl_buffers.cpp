@@ -51,7 +51,7 @@ namespace stms {
                     STMS_WARN("OpenGL 2 doesn't support vertex attribute divisors or "
                                       "instanced rendering! Don't use these if you want to support OpenGL 2!");
 
-                    if (majorGlVersion > 2) {
+                    if (getGlMajorVersion() > 2) {
                         STMS_GLC(glVertexAttribDivisor(enabledIndices, attrib.divisor));
                     } else {
                         STMS_ERROR("OGL 2 doesn't support vertex attribute divisors! Expect crashes and/or bugs!");
@@ -101,7 +101,7 @@ namespace stms {
     }
 
     GLVertexArray::GLVertexArray() {
-        if (majorGlVersion < 3) {
+        if (getGlMajorVersion() < 3) {
             impl = new VertexArrayImplOGL2();
         } else {
             impl = new VertexArrayImplOGL3();

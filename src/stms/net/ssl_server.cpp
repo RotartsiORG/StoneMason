@@ -25,7 +25,7 @@ namespace stms {
         auto addrSize = BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
 
         *len = DTLS1_COOKIE_LENGTH - 1;
-        HMAC(EVP_sha1(), secretCookie, secretCookieLen, (unsigned char *) &peer, addrSize, result, len);
+        HMAC(EVP_sha1(), getSecretCookie(), secretCookieLen, (unsigned char *) &peer, addrSize, result, len);
         return true;
     }
 

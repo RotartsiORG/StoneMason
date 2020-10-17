@@ -18,7 +18,6 @@
 
 namespace stms {
     bool _stms_STMSInitializer::hasRun = false;
-    int(*sslRand)(unsigned char *, int) = RAND_bytes;
 
     int intRand(int min, int max) {
         std::uniform_int_distribution<> dist(min, max);
@@ -49,10 +48,8 @@ namespace stms {
         return uuid;
     }
 
-    _stms_STMSInitializer stmsInitializer = _stms_STMSInitializer();
-
     void initAll() {
-        std::cout << stmsInitializer.specialValue;
+        fputc(_stms_getInitializer().specialValue, stdout); // Stop -O3 from optimizing the initializer out ¯\_(ツ)_/¯
     }
 
     std::string toHex(unsigned long long in, uint8_t places) {

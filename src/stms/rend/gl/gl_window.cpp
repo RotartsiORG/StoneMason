@@ -12,12 +12,12 @@
 namespace stms {
 
     GLWindow::GLWindow(int width, int height, const char *title) {
-        if (glInitialized) {
+        if (isGlInitialized()) {
             STMS_ERROR("Failed to create window '{}': Only 1 OpenGL window is permitted!", title);
             return;
         }
 
-        glInitialized = true;
+        isGlInitialized() = true;
 
         // compat with mac osx :|
         glfwDefaultWindowHints();
@@ -51,7 +51,7 @@ namespace stms {
         // In newer versions of opengl, we can do `glGetIntegerv(GL_MAJOR_VERSION, &majorGlVersion)`, but it will
         // not work with opengl < 3
         auto vers = STMS_GLC(glGetString(GL_VERSION));
-        majorGlVersion = std::stoi(std::string(reinterpret_cast<const char *>(vers)));
+        getGlMajorVersion() = std::stoi(std::string(reinterpret_cast<const char *>(vers)));
 
         auto vendor = STMS_GLC(glGetString(GL_VENDOR));
         auto gpu = STMS_GLC(glGetString(GL_RENDERER));
@@ -59,9 +59,9 @@ namespace stms {
 
         STMS_INFO("Initialized OpenGL {} with GLEW {}", vers, glewGetString(GLEW_VERSION));
         STMS_INFO("OpenGL vendor is {} with renderer {}", vendor, gpu);
-        STMS_INFO("GLSL version is {} and got major version {}", glsl, majorGlVersion);
+        STMS_INFO("GLSL version is {} and got major version {}", glsl, getGlMajorVersion());
 
-        if (majorGlVersion < 2) {
+        if (getGlMajorVersion() < 2) {
             STMS_WARN("Your OpenGL version is outdated and unsupported! Expect crashes and/or bugs!");
         }
 

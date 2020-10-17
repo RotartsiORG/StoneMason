@@ -188,7 +188,7 @@ namespace stms {
             // We cannot move the mutex so we quietly skip it and hope nobody notices. (Watch it crash and burn later)
             // Likewise, we cannot move the condition variables so we just quietly leave it be
             this->stopRequest = rhs.stopRequest;
-            this->running = rhs.running;
+            this->running = rhs.running.load();
             this->tasks = std::move(rhs.tasks);
             this->workers = std::move(rhs.workers);
             this->unfinishedTasks = rhs.unfinishedTasks;

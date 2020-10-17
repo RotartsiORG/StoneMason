@@ -7,7 +7,6 @@
 #include "stms/logging.hpp"
 
 namespace stms {
-    void(*pollEvents)() = &glfwPollEvents;
 
     static void glfwErrCb(int code, const char* description) {
         STMS_ERROR("GLFW ERROR {}: {}", code, description);

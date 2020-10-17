@@ -10,6 +10,7 @@
 #include <string>
 #include <random>
 
+#include <openssl/rand.h>
 #include "openssl/ssl.h"
 
 namespace stms {
@@ -35,7 +36,9 @@ namespace stms {
         eUuid4
     };
 
-    extern int(*sslRand)(unsigned char *, int);
+    inline int sslRand(unsigned char * buf, int size) {
+        return RAND_bytes(buf, size);
+    }
 
     std::string toHex(unsigned long long in, uint8_t places = 0);
 
@@ -85,7 +88,10 @@ namespace stms {
         _stms_STMSInitializer &operator=(_stms_STMSInitializer &rhs) = delete;
     };
 
-    extern _stms_STMSInitializer stmsInitializer;
+    inline _stms_STMSInitializer &_stms_getInitializer() {
+        static _stms_STMSInitializer val = _stms_STMSInitializer();
+        return val;
+    };
 
     void initAll();
 }

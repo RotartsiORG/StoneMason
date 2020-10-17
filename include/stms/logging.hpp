@@ -112,7 +112,10 @@ namespace stms {
      *         If set to `nullptr`, asynchronous logging will be disabled. Otherwise, log-consume tasks will be
      *         submitted to this pool. By default, this is `nullptr` and async logging is disabled.
      */
-    extern ThreadPool *logPool;
+    inline ThreadPool *&getLogPool() {
+        static ThreadPool *val = nullptr;
+        return val;
+    }
 
     /**
      * @brief List of hooks to call for each log message processed, in order. You can modify this variable.
@@ -137,7 +140,10 @@ namespace stms {
      * If `stms::logToUniqueFile` is true, the next hook would be one that writes the second argument to
      * `${stms::logsDir}/${DATE_TIME}.log`
      */
-    extern std::vector<std::function<void(LogRecord *, std::string *)>> logHooks;
+    inline std::vector<std::function<void(LogRecord *, std::string *)>> &getLogHooks() {
+        static std::vector<std::function<void(LogRecord *, std::string *)>> val;
+        return val;
+    }
 
     void consumeLogs(); //!< Process all the logs in `logQueue`, essentially flushing the log message backlog
 }

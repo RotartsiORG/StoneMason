@@ -29,11 +29,11 @@ namespace stms {
      */
     class CURLHandle {
     private:
-        ThreadPool *pool{}; //!< Thread pool to submit async tasks to
+        std::atomic<ThreadPool *> pool{}; //!< Thread pool to submit async tasks to
 
         std::mutex resultMtx; //!< Mutex for syncing writes to the result string
 
-        CURL *handle; //!< Internal impl detail. Don't touch
+        std::atomic<CURL *> handle; //!< Internal impl detail. Don't touch
         std::string url; //!< Target URL to connect to
 
         friend size_t curlWriteCb(void *buf, size_t size, size_t nmemb, void *userDat); //!< internal impl detail.

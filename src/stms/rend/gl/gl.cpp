@@ -9,8 +9,6 @@
 #include "stms/rend/gl/gl_ImGui.hpp"
 
 namespace stms {
-    bool glInitialized = false;
-    GLint majorGlVersion = -1;
 
     void flushGlErrs(const std::string &log) {
         GLenum err = glGetError();
