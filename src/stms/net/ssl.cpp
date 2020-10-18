@@ -10,8 +10,6 @@
 #include <fcntl.h>
 #include <poll.h>
 
-#include <utility>
-
 #include "stms/stms.hpp"
 #include "stms/logging.hpp"
 
@@ -138,6 +136,14 @@ namespace stms {
                 return stms::intRand(0, UINT8_MAX);
             });
         }
+
+        fmt::memory_buffer scdump;
+        fmt::format_to(scdump, "OpenSSL secret cookie dump (len {}): ", secretCookieLen);
+        for (int i = 0; i < secretCookieLen; i++) {
+            fmt::format_to(scdump, "{:02x} ", getSecretCookie()[i]);
+        }
+        *scdump.end() = '\0';
+        STMS_INFO(scdump.begin());
     }
 
     void quitOpenSsl() {

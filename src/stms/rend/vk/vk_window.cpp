@@ -97,9 +97,139 @@ namespace stms {
         pDev->pInst->inst.destroy(surface);
     }
 
+    static inline std::vector<const char *> &getDeviceFeatureList() {
+        static auto val = std::vector<const char *>({"robustBufferAccess", "fullDrawIndexUint32", "imageCubeArray",
+            "independentBlend", "geometryShader", "tessellationShader", "sampleRateShading", "dualSrcBlend", "logicOp",
+            "multiDrawIndirect", "drawIndirectFirstInstance", "depthClamp", "depthBiasClamp", "fillModeNonSolid",
+            "depthBounds", "wideLines", "largePoints", "alphaToOne", "multiViewport", "samplerAnisotropy",
+            "textureCompressionETC2", "textureCompressionASTC_LDR", "textureCompressionBC", "occlusionQueryPrecise",
+            "pipelineStatisticsQuery", "vertexPipelineStoresAndAtomics", "fragmentStoresAndAtomics",
+            "shaderTessellationAndGeometryPointSize", "shaderImageGatherExtended", "shaderStorageImageExtendedFormats",
+            "shaderStorageImageMultisample", "shaderStorageImageReadWithoutFormat", "shaderStorageImageWriteWithoutFormat",
+            "shaderUniformBufferArrayDynamicIndexing", "shaderSampledImageArrayDynamicIndexing", "shaderStorageBufferArrayDynamicIndexing",
+            "shaderStorageImageArrayDynamicIndexing", "shaderClipDistance", "shaderCullDistance", "shaderFloat64", "shaderInt64", "shaderInt16",
+            "shaderResourceResidency", "shaderResourceMinLod", "sparseBinding", "sparseResidencyBuffer", "sparseResidencyImage2D",
+            "sparseResidencyImage3D", "sparseResidency2Samples", "sparseResidency4Samples", "sparseResidency8Samples",
+            "sparseResidency16Samples", "sparseResidencyAliased", "variableMultisampleRate", "inheritedQueries"});
+        return val;
+    }
+
+    VKDevice::VKDevice(VKInstance *inst, VKGPU dev, const ConstructionDetails &details) : pInst(inst), phys(dev) {
+        float prio = 1.0f;
+
+        std::vector<const char *> deviceExts(details.requiredExts);
+        deviceExts.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); // required ext :/
+
+        struct _tmp_ExtDat {
+            bool required = false;
+            bool supported = false;
+            bool wanted = false;
+            bool enabled = false;
+        };
+        std::unordered_map<std::string, _tmp_ExtDat> extDat;
+        for (const auto &i : details.wantedExts) {
+            extDat[i].wanted = true;
+        }
+        for (const auto &i : deviceExts) {
+            extDat[std::string(i)].required = true;
+        }
+
+        std::vector<vk::ExtensionProperties> supportedExts = dev.gpu.enumerateDeviceExtensionProperties();
+        for (const auto &prop : supportedExts) {
+            if (details.wantedExts.find(std::string(prop.extensionName)) != details.wantedExts.end()) {
+                deviceExts.emplace_back(prop.extensionName);
+            }
+
+            extDat[std::string(prop.extensionName)].supported = true;
+        }
+
+        for (const auto &ext : deviceExts) {
+            std::string s(ext);
+            extDat[s].enabled = true;
+            enabledExts.emplace(s);
+        }
+
+        for (const auto &i : extDat) {
+            std::string remark = "\u001b[1m\u001b[31mDISABLED\u001b[0m";
+            if (i.second.required || i.second.enabled) {
+                remark = i.second.required ? "\u001b[93mREQUIRED\u001b[0m" : "\u001b[1m\u001b[32mENABLED\u001b[0m";
+                if (!i.second.supported) {
+                    remark += "\t\u001b[1m\u001b[31m!<< NOT SUPPORTED! EXPECT CRASH!!\u001b[0m";
+                }
+            } else if (i.second.wanted) {
+                remark = "\u001b[96mWANTED\u001b[0m";
+                if (!i.second.supported) {
+                    remark += "\t\u001b[1m\u001b[93m!<< NOT SUPPORTED! DISABLED!\u001b[0m";
+                }
+            }
+
+            STMS_INFO("VkDeviceExt\t{:<42}\t\t{}", i.first, remark);
+        }
+
+        // Enable all required feats. If they aren't supported, it doesn't matter since they are REQUIRED.
+        feats = details.requiredFeats;
+        auto supportedFeats = dev.gpu.getFeatures();
+        for (size_t i = 0; i < (sizeof(vk::PhysicalDeviceFeatures) / sizeof(vk::Bool32)); i++) {
+
+            std::string name;
+            try {
+                name = getDeviceFeatureList().at(i);
+            } catch (std::out_of_range &e) {
+                name = "!OUT_OF_RANGE!";
+            }
+
+            bool isSupported = reinterpret_cast<vk::Bool32 *>(&supportedFeats)[i] == VK_TRUE;
+
+            std::string remark = "\u001b[1m\u001b[31mDISABLED\u001b[0m"; // Bold Red
+            if (isSupported) {
+                remark += "\t\u001b[1m\u001b[32m!<< SUPPORTED!\u001b[0m"; // bold green
+            }
+
+            if (reinterpret_cast<vk::Bool32 *>(&feats)[i] == VK_TRUE) {
+                remark = "\u001b[1m\u001b[93mREQUIRED\u001b[0m"; // bold magenta
+                if (!isSupported) {
+                    remark += "\t\u001b[1m\u001b[31m!<< NOT SUPPORTED! EXPECT CRASH!!\u001b[0m"; // bold red
+                }
+            } else if (reinterpret_cast<const vk::Bool32 *>(&details.wantedFeats)[i] == VK_TRUE) {
+                remark = "\u001b[96mWANTED\u001b[0m";
+                reinterpret_cast<vk::Bool32 *>(&feats)[i] = VK_TRUE;
+                if (!isSupported) {
+                    remark += "\t\u001b[1m\u001b[93m!<< NOT SUPPORTED! DISABLED!\u001b[0m"; // bold yellow
+                    reinterpret_cast<vk::Bool32 *>(&feats)[i] = VK_FALSE;
+                }
+            }
+            STMS_INFO("VkDevFeat#{}\t{:<42}\t{}", i, name, remark);
+        }
+
+        std::vector<vk::DeviceQueueCreateInfo> queues = {{{}, dev.graphicsIndex, 1, &prio}};
+        if (dev.presentIndex != dev.graphicsIndex) {
+            queues.emplace_back(vk::DeviceQueueCreateInfo{{}, dev.presentIndex, 1, &prio});
+        }
+
+        vk::DeviceCreateInfo devCi{{}, static_cast<uint32_t>(queues.size()), queues.data(),
+                                   static_cast<uint32_t>(inst->layers.size()), inst->layers.data(),
+                                   static_cast<uint32_t>(deviceExts.size()), deviceExts.data(), &feats};
+
+        device = dev.gpu.createDevice(devCi);
+
+        device.getQueue(dev.graphicsIndex, 0, &graphics);
+        device.getQueue(dev.presentIndex, 0, &present);
+    }
+
     VKDevice::~VKDevice() {
         device.destroy();
     }
+
+    VKDevice::ConstructionDetails::ConstructionDetails(const vk::PhysicalDeviceFeatures &req,
+                                                       const vk::PhysicalDeviceFeatures &want,
+                                                       std::unordered_set<std::string> wantExt,
+                                                       std::vector<const char *> reqExt)
+            : requiredFeats(req), wantedFeats(want), wantedExts(std::move(wantExt)), requiredExts(std::move(reqExt)) {}
 }
 
 #endif // STMS_ENABLE_VULKAN
+
+
+/*
+
+    */

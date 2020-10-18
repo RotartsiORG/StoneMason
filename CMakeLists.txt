@@ -46,6 +46,8 @@ find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
 find_package(OpenAL REQUIRED)
 
+message("-- OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}, OPENSSL_LIBRARIES=${OPENSSL_LIBRARIES}")
+
 set(GLFW_VULKAN_STATIC OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
@@ -78,11 +80,11 @@ target_include_directories(stms_shared PUBLIC dep/freetype2/include ${OPENAL_INC
 target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR}
                             ${CURL_INCLUDE_DIRS})
 
-target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
-                        freetype)
-target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} OpenSSL::SSL OpenSSL::Crypto CURL::libcurl
-                        freetype)
+target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} CURL::libcurl freetype)
+target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} CURL::libcurl freetype)
 
+target_link_libraries(stms_static PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(stms_shared PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 if (STMS_ENABLE_OPENGL)
     add_compile_definitions(stms_static STMS_ENABLE_OPENGL)

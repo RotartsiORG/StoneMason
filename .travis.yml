@@ -82,9 +82,10 @@ install: # we apt purge libharfbuzz-dev because cmake grabs 1.7 despite the min 
   - cd $STMS_WD
 script:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then /snap/bin/cmake -GNinja -Wdev -Wdeprecated -DGLEW_INCLUDE_DIR=/usr/include -DGLEW_LIBRARIES=/usr/lib/x86_64-linux-gnu/libGLEW.so -Bbuild -S.; fi
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export PATH="/usr/local/Cellar/openssl@1.1/1.1.1g/bin:$PATH"; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export PATH="/usr/local/Cellar/openssl@1.1/1.1.1h/bin:$PATH"; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export OPENSSL_ROOT_DIR="/usr/local/Cellar/openssl@1.1/1.1.1h"; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export PATH="/usr/local/opt/openssl@1.1/bin:$PATH"; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig"; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export LDFLAGS="-L/usr/local/opt/openssl@1.1/lib"; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then export CPPFLAGS="-I/usr/local/opt/openssl@1.1/include"; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then cmake -GNinja -Wdev -Wdeprecated -Bbuild -S.; fi

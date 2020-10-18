@@ -17,7 +17,7 @@ $CMK_EXE --build . -j 8
 #touch .inferconfig
 #echo '{"infer-blacklist-path-regex":[".*\/dep\/.*"]}' > .inferconfig
 
-infer run --report-blacklist-path-regex ".*\/dep\/.*" --compilation-database compile_commands.json
+# infer run --report-blacklist-path-regex ".*\/dep\/.*" --compilation-database compile_commands.json
 
 cd .. || exit
 
