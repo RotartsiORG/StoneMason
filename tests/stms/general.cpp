@@ -14,8 +14,6 @@
 #include "stms/camera.hpp"
 #include "stms/timers.hpp"
 
-#include "stms/except.hpp"
-
 // Timeout after 10 seconds. The actual audio that we're playing is only 5 sec long.
 constexpr unsigned alPlayBlockTimeout = 10;
 

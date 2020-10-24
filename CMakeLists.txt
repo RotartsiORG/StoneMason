@@ -37,7 +37,7 @@ set(GLEW_USE_STATIC_LIBS ON CACHE BOOL "" FORCE)
 if (APPLE)
     # This is a bug in CMake that causes it to prefer the system version over
     # the one in the specified ROOT folder.
-    set(OPENSSL_ROOT_DIR /usr/local/Cellar/openssl@1.1/1.1.1g)
+    set(OPENSSL_ROOT_DIR /usr/local/Cellar/openssl@1.1/1.1.1h)
     set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib CACHE FILEPATH "" FORCE)
     set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
 endif()
@@ -82,6 +82,8 @@ target_include_directories(stms_static PUBLIC dep/freetype2/include ${OPENAL_INC
 
 target_link_libraries(stms_shared PUBLIC glfw fmt ${OPENAL_LIBRARY} CURL::libcurl freetype)
 target_link_libraries(stms_static PUBLIC glfw fmt ${OPENAL_LIBRARY} CURL::libcurl freetype)
+
+message("-- OPENSSL_LIBRARIES = ${OPENSSL_LIBRARIES}")
 
 target_link_libraries(stms_static PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(stms_shared PRIVATE OpenSSL::SSL OpenSSL::Crypto)

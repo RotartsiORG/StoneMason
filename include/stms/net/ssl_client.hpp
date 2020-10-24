@@ -112,13 +112,13 @@ namespace stms {
          * @param rhs Right Hand Side of the `std::move`
          * @return A reference to `this`.
          */
-        SSLClient &operator=(SSLClient &&rhs);
+        SSLClient &operator=(SSLClient &&rhs) noexcept;
 
         /**
          * @brief UNIMPLEMENTED Move copy constructor
          * @param rhs Right Hand Side of the `std::move`
          */
-        SSLClient(SSLClient &&rhs);
+        SSLClient(SSLClient &&rhs) noexcept;
     };
 }
 

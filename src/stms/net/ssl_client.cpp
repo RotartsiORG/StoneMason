@@ -269,4 +269,34 @@ namespace stms {
 
         poll(&servPollFd, 1, pollTimeoutMs);
     }
+
+    SSLClient &SSLClient::operator=(SSLClient &&rhs) noexcept {
+        if (pSsl == rhs.pSsl || pBio == rhs.pBio || pCtx == rhs.pCtx || this == &rhs) {
+            return *this;
+        }
+
+        if (rhs.isRunning()) {
+            STMS_WARN("SSLClient moved while running! Stopping it now! We will disconnect from the server.");
+            stop();
+        }
+
+        if (running) { stop(); }
+
+        pBio = rhs.pBio;
+        pSsl = rhs.pSsl;
+        doShutdown = rhs.doShutdown;
+        isReading = rhs.isReading;
+        timeoutTimer = rhs.timeoutTimer;
+        recvCallback = rhs.recvCallback;
+        internalOpEq(&rhs);
+
+        rhs.pSsl = nullptr;
+        rhs.pBio = nullptr;
+
+        return *this;
+    }
+
+    SSLClient::SSLClient(SSLClient &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
 }

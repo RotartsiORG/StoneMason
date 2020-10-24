@@ -207,10 +207,6 @@ namespace stms {
         }
     }
 
-//    SSLServer::SSLServer(SSLServer &&rhs) noexcept {
-//        *this = std::move(rhs);
-//    }
-
     void SSLServer::onStop() {
         std::lock_guard<std::mutex> lg(clientsMtx);
         for (auto &pair : clients) {
@@ -624,6 +620,37 @@ namespace stms {
         deadClients.emplace(cliId);
     }
 
+    SSLServer &SSLServer::operator=(SSLServer &&rhs) noexcept {
+        if (this == &rhs || pCtx == rhs.pCtx) {
+            return *this;
+        }
+
+        if (rhs.isRunning()) {
+            STMS_WARN("SSLServer moved while running! Stopping the server! Clients will be kicked.");
+            rhs.stop();
+        }
+
+        if (running) { stop(); }
+
+        std::unique_lock<std::mutex> lg(clientsMtx);
+        std::unique_lock<std::mutex> rhsLg(rhs.clientsMtx);
+
+        clients = std::move(rhs.clients);
+        deadClients = std::move(rhs.deadClients);
+        recvCallback = std::move(rhs.recvCallback);
+        connectCallback = std::move(rhs.connectCallback);
+        disconnectCallback = std::move(rhs.disconnectCallback);
+        internalOpEq(&rhs);
+
+        rhs.clients.clear(); // do we have to do this? they are std::move'd // TODO: Stack overflow this
+
+        return *this;
+    }
+
+    SSLServer::SSLServer(SSLServer &&rhs) noexcept : _stms_SSLBase() {
+        *this = std::move(rhs);
+    }
+
     ClientRepresentation::~ClientRepresentation() {
         shutdownClient();
     }
@@ -695,14 +722,14 @@ namespace stms {
 
         shutdownClient();
 
-        addrStr = rhs.addrStr;
+        addrStr = std::move(rhs.addrStr);
         pSockAddr = rhs.pSockAddr;
         sockAddrLen = rhs.sockAddrLen;
         pSsl = rhs.pSsl;
         sock = rhs.sock;
         doShutdown = rhs.doShutdown;
         isReading = rhs.isReading;
-        timeoutTimer = rhs.timeoutTimer;
+        timeoutTimer = std::move(rhs.timeoutTimer);
         serv = rhs.serv;
 
         if (rhs.dtls != nullptr) {

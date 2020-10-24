@@ -16,7 +16,8 @@
 /// Namespace containing everything StoneMason has to offer! (https://github.com/RotartsiORG/StoneMason)
 namespace stms {
     constexpr char versionString[] = "0.0.0-dev2020.08.12"; //!< Full version string for this version of StoneMason
-    constexpr unsigned fullVersionNum = 5; //!< Raw version number, to be incremented every commit.
+    constexpr unsigned fullVersionNum = 6; //!< Raw version number, to be incremented every commit.
+    constexpr unsigned compatVersionNum = 0; //!< STMS versions with the same compatVersionNum are api-compatible
 
     /**
      * @var maturity

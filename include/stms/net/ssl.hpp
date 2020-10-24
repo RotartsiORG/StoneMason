@@ -20,18 +20,16 @@
 #include <sys/socket.h>
 #include <sys/poll.h>
 
-#include "stms/except.hpp"
-
 namespace stms {
 
     /// Internal non-fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
-    class SSLException : public InternalException {};
+    class SSLException : public std::exception {};
     /// Internal non-fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
-    class SSLWantWriteException : public InternalException {};
+    class SSLWantWriteException : public std::exception {};
     /// Internal non-fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
-    class SSLWantReadException : public InternalException {};
+    class SSLWantReadException : public std::exception {};
     /// Internal fatal ssl exception. Implementation detail. If this is thrown but not caught, it's a bug
-    class SSLFatalException : public InternalException {};
+    class SSLFatalException : public std::exception {};
 
     /// @brief This is `secretCookieLen` of random data to be used for DTLS stateless cookie exchanges
     ///        (for protection against DDoS attacks).
@@ -140,6 +138,9 @@ namespace stms {
         /// Try and evaluate a candidate address from `pAddrCandidates`. Internal implementation detail. Don't touch.
         bool tryAddr(addrinfo *addr, int num);
 
+        void internalOpEq(_stms_SSLBase *rhs);
+
+        _stms_SSLBase() = default;
         virtual ~_stms_SSLBase(); //!< virtual destructor
 
         /**
@@ -151,22 +152,12 @@ namespace stms {
          */
         bool blockUntilReady(int fd, SSL *ssl, short event) const;
 
+        _stms_SSLBase &operator=(_stms_SSLBase &&rhs) noexcept; //!< DUH
+        _stms_SSLBase(_stms_SSLBase &&rhs) noexcept; //!< Duh
+
     public:
         _stms_SSLBase &operator=(const _stms_SSLBase &rhs) = delete; //!< Deleted copy assignment operator=
         _stms_SSLBase(const _stms_SSLBase &rhs) = delete; //!< Deleted copy constructor
-
-        /**
-         * @brief UNIMPLEMENTED Move copy operator
-         * @param rhs Right Hand Side of the `std::move`
-         * @return A reference to `this`
-         */
-        _stms_SSLBase &operator=(_stms_SSLBase &&rhs) noexcept;
-
-        /**
-         * @brief UNIMPLEMENTED Move copy constructor
-         * @param rhs Right Hand Side of the `std::move`
-         */
-        _stms_SSLBase(_stms_SSLBase &&rhs) noexcept;
 
         /// Start the server/client!
         void start();

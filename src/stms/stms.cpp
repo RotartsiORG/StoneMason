@@ -14,9 +14,8 @@
 #include "stms/rend/window.hpp"
 #include "stms/config.hpp"
 
-#include "stms/except.hpp"
-
 namespace stms {
+    _stms_STMSInitializer _stms_initializer = _stms_STMSInitializer();
     bool _stms_STMSInitializer::hasRun = false;
 
     int intRand(int min, int max) {
@@ -49,11 +48,12 @@ namespace stms {
     }
 
     void initAll() {
-        fputc(_stms_getInitializer().specialValue, stdout); // Stop -O3 from optimizing the initializer out ¯\_(ツ)_/¯
+        fputc(_stms_initializer.specialValue, stdout); // Stop -O3 from optimizing the initializer out ¯\_(ツ)_/¯
     }
 
     std::string toHex(unsigned long long in, uint8_t places) {
         std::string ret;
+        ret.reserve(places);
 
         uint8_t i = 0;
         uint8_t lastAdded = in % 16;
@@ -88,6 +88,10 @@ namespace stms {
         str.assign((std::istreambuf_iterator<char>(in)),
                    std::istreambuf_iterator<char>());
         return str;
+    }
+
+    size_t boostHashCombine(size_t lhs, size_t rhs) {
+        return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6UL) + (lhs >> 2UL));
     }
 
     std::string UUID::buildStr() const {

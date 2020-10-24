@@ -1,13 +1,14 @@
-//
-// Created by grant on 1/24/20.
-//
+/**
+ * @file stms/audio.hpp
+ * @brief File containing all OpenAL wrappers. STMS audio engine.
+ * Created by grant on 1/24/20.
+ */
 
 #pragma once
 
 #ifndef __STONEMASON_AUDIO_BUFFER_HPP
-
-/// Include guard
 #define __STONEMASON_AUDIO_BUFFER_HPP
+//!< Include guard
 
 #include <string>
 #include <vector>

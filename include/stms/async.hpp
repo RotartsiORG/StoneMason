@@ -85,7 +85,6 @@ namespace stms {
          * @brief Submit a function to the thread pool for execution (if the `ThreadPool` is started).
          * @param func Function to execute
          * @return A void future that you can wait on to block until the task is finished.
-         *         **NOTE: When C++20 is finalized, this may or may not get replaced by a `std::binary_semaphore`.**
          */
         std::future<void> submitTask(const std::function<void(void)> &func);
 

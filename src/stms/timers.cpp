@@ -10,8 +10,6 @@
 // Needed for FLT_MAX
 #include <cfloat>
 
-#include "stms/except.hpp"
-
 namespace stms {
 
     void Stopwatch::start() {

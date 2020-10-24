@@ -6,7 +6,6 @@
 #include "stb/stb_vorbis.c"
 
 #include "stms/logging.hpp"
-#include "stms/except.hpp"
 
 namespace stms {
 

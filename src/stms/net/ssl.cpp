@@ -482,5 +482,43 @@ namespace stms {
 
         return true;
     }
+
+    void _stms_SSLBase::internalOpEq(_stms_SSLBase *rhs) {
+        SSL_CTX_free(pCtx);
+        freeaddrinfo(pAddrCandidates);
+
+        isServ = rhs->isServ;
+        isUdp = rhs->isUdp;
+        wantV6 = rhs->wantV6;
+        addrStr = std::move(rhs->addrStr);
+        pAddrCandidates = rhs->pAddrCandidates;
+        pAddr = rhs->pAddr;
+        pCtx = rhs->pCtx;
+        sock = rhs->sock;
+        timeoutMs = rhs->timeoutMs;
+        maxTimeouts = rhs->maxTimeouts;
+        running = rhs->running;
+        pPool = rhs->pPool;
+        password = std::move(rhs->password);
+
+        rhs->pCtx = nullptr;
+        rhs->pAddrCandidates = nullptr;
+        rhs->pAddr = nullptr;
+        rhs->sock = 0;
+    }
+
+    _stms_SSLBase &_stms_SSLBase::operator=(_stms_SSLBase &&rhs) noexcept {
+        if (pCtx == rhs.pCtx) {
+            return *this;
+        }
+
+        internalOpEq(&rhs);
+
+        return *this;
+    }
+
+    _stms_SSLBase::_stms_SSLBase(_stms_SSLBase &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
 }
 
