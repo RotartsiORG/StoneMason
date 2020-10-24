@@ -35,6 +35,8 @@ namespace stms {
                 ret.emplace_back(devices);
                 devices += std::strlen(devices) + 1;
             }
+        } else if (exceptionLevel > 0) {
+            throw std::runtime_error("Cannot enumerate OpenAL devices: Both ALC_ENUMERATION_EXT and ALC_ENUMERATE_ALL_EXT are missing");
         } else {
             ret.emplace_back(nullptr);
         }
@@ -47,6 +49,8 @@ namespace stms {
             return alcGetString(nullptr, ALC_DEFAULT_ALL_DEVICES_SPECIFIER);
         } else if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
             return alcGetString(nullptr, cap ? ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER : ALC_DEFAULT_DEVICE_SPECIFIER);
+        } else if (exceptionLevel > 0) {
+            throw std::runtime_error("Cannot get default OpenAL device: Both ALC_ENUMERATION_EXT and ALC_ENUMERATE_ALL_EXT are missing");
         }
         return nullptr;
     }
@@ -56,7 +60,7 @@ namespace stms {
     }
 
     ALBuffer::~ALBuffer() {
-        alDeleteBuffers(1, &id);
+        if (freeOnDel) { alDeleteBuffers(1, &id); }
     }
 
     ALBuffer &ALBuffer::operator=(ALBuffer &&rhs) noexcept {
@@ -64,7 +68,7 @@ namespace stms {
             return *this;
         }
 
-        alDeleteBuffers(1, &id);
+        if (freeOnDel) { alDeleteBuffers(1, &id); }
         this->id = rhs.id;
         rhs.id = 0;
 
@@ -105,6 +109,7 @@ namespace stms {
         loadFromFile(filename);
     }
 
+    ALBuffer::ALBuffer(ALuint id) : freeOnDel(false), id(id) {}
 
     ALSource::ALSource() {
         alGenSources(1, &id);
@@ -129,6 +134,14 @@ namespace stms {
         rhs.id = 0;
 
         return *this;
+    }
+
+    ALint ALSource::dequeueAll() const {
+        ALint ret = getProcessed();
+        auto *bufsRemoved = new ALuint[ret];
+        dequeueBufs(ret, bufsRemoved);
+        delete[] bufsRemoved;
+        return ret;
     }
 
     ALContext::~ALContext() {
@@ -167,7 +180,7 @@ namespace stms {
         alcCloseDevice(id);
     }
 
-    ALCenum ALDevice::handleError() {
+    ALCenum _stms_GenericALDevice::handleError() {
         ALCenum error = alcGetError(id);
         if (error != ALC_NO_ERROR) {
             STMS_ERROR("[** ALC ERROR **] {}", error);
@@ -192,9 +205,28 @@ namespace stms {
         return *this;
     }
 
+    ALMicrophone::ALMicrophone(ALMicrophone &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    ALMicrophone &ALMicrophone::operator=(ALMicrophone &&rhs) noexcept {
+        if (this == &rhs) {
+            return *this;
+        }
+
+        alcCaptureCloseDevice(this->id);
+
+        this->id = rhs.id;
+        rhs.id = nullptr;
+
+        return *this;
+    }
+
     const ALCchar *ALDevice::getName() const {
         if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
             return alcGetString(id, ALC_DEVICE_SPECIFIER);
+        } else if (exceptionLevel > 0) {
+            throw std::runtime_error("Cannot get name of ALDevice: ALC_ENUMERATION_EXT not present!");
         } else {
             return nullptr;
         }
@@ -206,6 +238,12 @@ namespace stms {
 
     ALMicrophone::ALMicrophone(const ALCchar *name, ALCuint freq, ALSoundFormat fmt, ALCsizei capbufSize) {
         id = alcCaptureOpenDevice(name, freq, fmt, capbufSize);
+        if (id == nullptr) {
+            STMS_ERROR("Failed to open ALMicrophone: {}", name == nullptr ? "nullptr" : name);
+            if (exceptionLevel > 0) {
+                throw std::runtime_error("Cannot open ALMicrophone!");
+            }
+        }
     }
 
     ALMicrophone::~ALMicrophone() {
@@ -219,6 +257,8 @@ namespace stms {
     const ALCchar *ALMicrophone::getName() const {
         if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATION_EXT") == AL_TRUE) {
             return alcGetString(id, ALC_CAPTURE_DEVICE_SPECIFIER);
+        } else if (exceptionLevel > 0) {
+            throw std::runtime_error("Cannot get name of ALMicrophone: ALC_ENUMERATION_EXT not found.");
         } else {
             return nullptr;
         }

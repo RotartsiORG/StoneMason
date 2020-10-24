@@ -63,8 +63,6 @@ namespace stms {
         /**
          * @brief Reset the stopwatch. Equivalent to calling `stop()` followed by `start()`. However,
          *        calling `reset()` when the stopwatch is stopped would be an error.
-         * @throw If the stopwatch is stopped and `stms::exceptionLevel > 1`,
-         *        this throws an `std::runtime_error`
          */
         void reset();
 

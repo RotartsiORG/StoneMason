@@ -98,10 +98,7 @@ namespace {
 
             bufs[i].write(reinterpret_cast<void *>(buf), freq * 2 * 2, freq, fmt);
 
-            auto proc = src.getProcessed();
-            auto *discard = new ALuint[proc];
-            src.dequeueBuf(proc, discard);
-            delete[] discard;
+            src.dequeueAll();
 
 
             src.enqueueBuf(&bufs[i]);
@@ -217,9 +214,7 @@ namespace {
         EXPECT_FALSE(sp.isRunning());
         EXPECT_EQ(sp.getTime(), 0);
 
-        if (stms::exceptionLevel > 1) {
-            EXPECT_THROW(sp.reset(), std::runtime_error);
-        }
+        sp.reset();
 
         sp.start();
         EXPECT_TRUE(sp.isRunning());

@@ -39,9 +39,6 @@ namespace stms {
     void Stopwatch::reset() {
         if (!(state & 1u)) { // If it's not running
             STMS_WARN("Stopwatch::reset() called when Stopwatch was stopped!");
-            if (exceptionLevel > 1) {
-                throw std::runtime_error("Stopwatch::reset() called when Stopwatch was stopped!");
-            }
             return;
         }
 
