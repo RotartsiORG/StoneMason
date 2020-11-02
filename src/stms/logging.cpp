@@ -105,17 +105,17 @@ namespace stms {
 
     static inline const char *logLevelToString(const LogLevel &lvl) {
         switch (lvl) {
-            case (eTrace):
+            case (LogLevel::eTrace):
                 return "  \u001b[37mtrace\u001b[0m  "; // white
-            case (eDebug):
+            case (LogLevel::eDebug):
                 return "  \u001b[36mdebug\u001b[0m  "; // cyan
-            case (eInfo):
+            case (LogLevel::eInfo):
                 return "  \u001b[34minfo\u001b[0m   "; // blue
-            case (eWarn):
+            case (LogLevel::eWarn):
                 return " \u001b[1m\u001b[33mWARNING\u001b[0m "; // bold yellow
-            case (eError):
+            case (LogLevel::eError):
                 return "  \u001b[1m\u001b[31mERROR\u001b[0m  "; // bold red
-            case (eFatal):
+            case (LogLevel::eFatal):
                 return " \u001b[1m\u001b[4m\u001b[31m*FATAL*\u001b[0m "; // bold underlined red
             default:
                 return "!!! INVALID LOG LEVEL !!!";

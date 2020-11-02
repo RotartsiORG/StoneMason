@@ -230,6 +230,7 @@ namespace stms {
             auto queues = d.getQueueFamilyProperties();
             bool graphicsFound = false;
             bool presentFound = false;
+            bool computeFound = false;
             uint32_t i = 0;
             for (const auto &q : queues) {
                 if (d.getSurfaceSupportKHR(i, surface)) {
@@ -240,13 +241,21 @@ namespace stms {
                 if (q.queueFlags & vk::QueueFlagBits::eGraphics) {
                     graphicsFound = true;
                     toInsert.graphicsIndex = i;
+                }
+
+                if (q.queueFlags & vk::QueueFlagBits::eCompute) {
+                    toInsert.computeIndex = i;
+                    computeFound = true;
+                }
+
+                if (graphicsFound && presentFound && computeFound) {
                     break;
                 }
 
                 i++;
             }
 
-            if (graphicsFound && presentFound) {
+            if (graphicsFound && presentFound && computeFound) {
                 ret.emplace_back(toInsert);
             } else {
                 STMS_WARN("Skipping card {} because its queues are inadequate.", props.deviceName);

@@ -22,6 +22,7 @@ namespace stms {
         vk::PhysicalDevice gpu;
         uint32_t graphicsIndex{};
         uint32_t presentIndex{};
+        uint32_t computeIndex{};
     };
 
     class VKInstance {

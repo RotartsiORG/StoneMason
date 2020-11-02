@@ -59,11 +59,11 @@ namespace stms {
 
         skipSetFirst:
 
-        bool queuesIdentical = d->phys.graphicsIndex == d->phys.presentIndex;
+        bool queuesIdentical = d->phys.graphicsIndex == d->phys.presentIndex && d->phys.presentIndex == d->phys.computeIndex;
         if (queuesIdentical) {
-            STMS_INFO("Using exclusive queue sharing mode as present and graphics queues are identical");
+            STMS_INFO("Using exclusive queue sharing mode as present, compute, and graphics queues are identical");
         } else {
-            STMS_INFO("Using shared sharing mode as present and graphics queues are discrete");
+            STMS_INFO("Using shared sharing mode as present, compute, and graphics queues are discrete");
         }
 
         vk::SwapchainCreateInfoKHR swapCi{
@@ -97,8 +97,8 @@ namespace stms {
         pDev->pInst->inst.destroy(surface);
     }
 
-    static inline std::vector<const char *> &getDeviceFeatureList() {
-        static auto val = std::vector<const char *>({"robustBufferAccess", "fullDrawIndexUint32", "imageCubeArray",
+    static inline const std::array<const char *, 55> &getDeviceFeatureList() {
+        static constexpr auto val = std::array<const char *, 55>({"robustBufferAccess", "fullDrawIndexUint32", "imageCubeArray",
             "independentBlend", "geometryShader", "tessellationShader", "sampleRateShading", "dualSrcBlend", "logicOp",
             "multiDrawIndirect", "drawIndirectFirstInstance", "depthClamp", "depthBiasClamp", "fillModeNonSolid",
             "depthBounds", "wideLines", "largePoints", "alphaToOne", "multiViewport", "samplerAnisotropy",
@@ -205,6 +205,9 @@ namespace stms {
         if (dev.presentIndex != dev.graphicsIndex) {
             queues.emplace_back(vk::DeviceQueueCreateInfo{{}, dev.presentIndex, 1, &prio});
         }
+        if (dev.computeIndex != dev.presentIndex && dev.computeIndex != dev.graphicsIndex) {
+            queues.emplace_back(vk::DeviceQueueCreateInfo{{}, dev.computeIndex, 1, &prio});
+        }
 
         vk::DeviceCreateInfo devCi{{}, static_cast<uint32_t>(queues.size()), queues.data(),
                                    static_cast<uint32_t>(inst->layers.size()), inst->layers.data(),
@@ -214,6 +217,7 @@ namespace stms {
 
         device.getQueue(dev.graphicsIndex, 0, &graphics);
         device.getQueue(dev.presentIndex, 0, &present);
+        device.getQueue(dev.computeIndex, 0, &compute);
     }
 
     VKDevice::~VKDevice() {

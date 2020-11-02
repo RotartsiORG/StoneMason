@@ -145,7 +145,7 @@ namespace stms {
 
     UUID::UUID(UUIDType type) {
         switch (type) {
-            case (eUuid4): {
+            case (UUIDType::eUuid4): {
                 *this = genUUID4();
                 break;
             }

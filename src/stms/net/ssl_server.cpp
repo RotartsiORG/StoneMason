@@ -95,7 +95,7 @@ namespace stms {
             BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
         }
 
-        UUID uuid{eUuid4};
+        UUID uuid{UUIDType::eUuid4};
 
         char certName[certAndCipherLen];
         char cipherName[certAndCipherLen];
@@ -593,7 +593,7 @@ namespace stms {
     }
 
     UUID SSLServer::refreshUuid(const UUID &client) {
-        UUID newUuid(eUuid4);
+        UUID newUuid(UUIDType::eUuid4);
 
         if (!setNewUuid(client, newUuid)) {
             return UUID{}; // return empty uuid as the client doesnt exist

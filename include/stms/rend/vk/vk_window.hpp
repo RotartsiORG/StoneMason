@@ -29,6 +29,7 @@ namespace stms {
         vk::Device device;
         vk::Queue graphics;
         vk::Queue present;
+        vk::Queue compute;
 
         VKInstance *pInst{};
 

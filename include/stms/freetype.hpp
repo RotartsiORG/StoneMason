@@ -79,15 +79,28 @@ namespace stms {
             newlineAdv = face->size->metrics.height >> 6;
         }
 
+        /**
+         * @brief Set the `spacing`, a multiplier for `newlineAdv`. 1.0 is single spaced, 2.0 is double, etc.
+         * @param newSpacing Spacing multiplier
+         */
         inline void setSpacing(float newSpacing) {
             spacing = newSpacing;
         }
 
+        /**
+         * @brief Set the size of tabs in terms of spaces. Note that tabs will be processed normally and are NOT
+         *        fixed-width.
+         * @param spaces Number of spaces = 1 tab. Usually 4
+         */
         inline void setTabSize(int spaces) {
             tabSize = spaces;
         }
     };
 
+    /**
+     * @brief Get the default `FTLibrary` object.
+     * @return Reference to the default `FTLibrary`
+     */
     inline FTLibrary &defaultFtLib() {
         static FTLibrary defLib = FTLibrary();
         return defLib;

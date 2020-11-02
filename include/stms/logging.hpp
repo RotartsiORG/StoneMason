@@ -25,7 +25,7 @@
 namespace stms {
 
     /// The level of severity of the log message. Can be used as a bit flag.
-    enum LogLevel {
+    enum class LogLevel {
         eInvalid = 0, //!< Invalid log level. Has value 0
         eTrace = 0b1, //!< Trace info. Value 1. (first bit)
         eDebug = 0b10, //!< Debug message. Value 2. (2nd bit)
@@ -46,7 +46,7 @@ namespace stms {
          */
         LogRecord(LogLevel lvl, std::chrono::system_clock::time_point time, const char *file, unsigned line);
 
-        LogLevel level = eInvalid; //!< Severity of the message. See `LogLevel`.
+        LogLevel level = LogLevel::eInvalid; //!< Severity of the message. See `LogLevel`.
         std::chrono::system_clock::time_point time; //!< Time at which the message was generated
 
         const char *file = ""; //!< File from which the message originated
@@ -88,17 +88,17 @@ namespace stms {
     }
 
     /// Logging macro for `LogLevel` of `eTrace`. Used like a fmtlib function. `STMS_TRACE("{1}, {0}!", "World", "Hello");`
-#   define STMS_TRACE(...)  ::stms::insertLog(::stms::eTrace, __LINE__, __FILE__, __VA_ARGS__)
+#   define STMS_TRACE(...)  ::stms::insertLog(::stms::LogLevel::eTrace, __LINE__, __FILE__, __VA_ARGS__)
     /// Logging macro for `LogLevel` of `eDebug`. Used like a fmtlib function. `STMS_DEBUG("{1}, {0}!", "World", "Hello");`
-#   define STMS_DEBUG(...)  ::stms::insertLog(::stms::eDebug, __LINE__, __FILE__, __VA_ARGS__)
+#   define STMS_DEBUG(...)  ::stms::insertLog(::stms::LogLevel::eDebug, __LINE__, __FILE__, __VA_ARGS__)
     /// Logging macro for `LogLevel` of `eInfo`. Used like a fmtlib function. `STMS_INFO("{1}, {0}!", "World", "Hello");`
-#   define STMS_INFO(...)   ::stms::insertLog(::stms::eInfo, __LINE__, __FILE__, __VA_ARGS__)
+#   define STMS_INFO(...)   ::stms::insertLog(::stms::LogLevel::eInfo, __LINE__, __FILE__, __VA_ARGS__)
     /// Logging macro for `LogLevel` of `eWarn`. Used like a fmtlib function. `STMS_WARN("{1}, {0}!", "World", "Hello");`
-#   define STMS_WARN(...)   ::stms::insertLog(::stms::eWarn, __LINE__, __FILE__, __VA_ARGS__)
+#   define STMS_WARN(...)   ::stms::insertLog(::stms::LogLevel::eWarn, __LINE__, __FILE__, __VA_ARGS__)
     /// Logging macro for `LogLevel` of `eError`. Used like a fmtlib function. `STMS_ERROR("{1}, {0}!", "World", "Hello");`
-#   define STMS_ERROR(...)  ::stms::insertLog(::stms::eError, __LINE__, __FILE__, __VA_ARGS__)
+#   define STMS_ERROR(...)  ::stms::insertLog(::stms::LogLevel::eError, __LINE__, __FILE__, __VA_ARGS__)
     /// Logging macro for `LogLevel` of `eFatal`. Used like a fmtlib function. `STMS_FATAL("{1}, {0}!", "World", "Hello");`
-#   define STMS_FATAL(...)  ::stms::insertLog(::stms::eFatal, __LINE__, __FILE__, __VA_ARGS__)
+#   define STMS_FATAL(...)  ::stms::insertLog(::stms::LogLevel::eFatal, __LINE__, __FILE__, __VA_ARGS__)
 #   else
 #   define STMS_TRACE(...)
 #   define STMS_DEBUG(...)
