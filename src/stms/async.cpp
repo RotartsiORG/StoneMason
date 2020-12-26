@@ -49,8 +49,9 @@ namespace stms {
 
     void ThreadPool::start(unsigned threads) {
         if (running) {
-            STMS_WARN("ThreadPool::start() called when already started! Ignoring...");
-            return;
+            STMS_WARN("ThreadPool::start() called when already started! Restarting the thread pool...");
+            waitIdle(1000);
+            stop(true);
         }
 
         if (threads == 0) {
@@ -103,6 +104,11 @@ namespace stms {
     }
 
     std::future<void> ThreadPool::submitTask(const std::function<void(void)> &func) {
+        if (!running) {
+            STMS_WARN("Task submitted before ThreadPool was started! Please start the pool!");
+            // Don't do anything.
+        }
+
         {
             std::lock_guard<std::mutex> lg(unfinishedTaskMtx);
             unfinishedTasks++;

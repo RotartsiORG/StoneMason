@@ -68,7 +68,7 @@ namespace stms {
         virtual ~ThreadPool(); //!< Virtual destructor
 
         /**
-         * @brief Start the thread pool
+         * @brief Start the thread pool, or if the pool is already running, restart it with the new number of threads.
          * @param threads Number of threads to create for the pool. If it is 0, then we default to
          *                `std::thread::hardware_concurrency()`. If that is still 0, we default to 8.
          */

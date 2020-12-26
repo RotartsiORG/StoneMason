@@ -520,5 +520,12 @@ namespace stms {
     _stms_SSLBase::_stms_SSLBase(_stms_SSLBase &&rhs) noexcept {
         *this = std::move(rhs);
     }
+
+    void _stms_SSLBase::trustDefault() {
+        if (SSL_CTX_set_default_verify_paths(pCtx) != 1) {
+            STMS_WARN("Failed to set default truststore!");
+            handleSSLError();
+        }
+    }
 }
 

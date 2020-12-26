@@ -41,6 +41,25 @@ namespace stms {
         inline GLFWwindow *getRawPtr() {
             return win;
         }
+
+        inline void focus() { glfwFocusWindow(win); }
+
+        inline void requestAttention() { glfwRequestWindowAttention(win); }
+
+        inline void hide() { glfwHideWindow(win); }
+
+        inline void show() { glfwShowWindow(win); }
+
+        inline void maximize() { glfwMaximizeWindow(win); }
+
+        inline void iconify() { glfwIconifyWindow(win); }
+
+        inline void restore() { glfwRestoreWindow(win); }
+
+        inline void setTitle(const char *title) { glfwSetWindowTitle(win, title); }
+
+        inline void setPos(glm::ivec2 pos) { glfwSetWindowPos(win, pos.x, pos.y); }
+
     };
 }
 

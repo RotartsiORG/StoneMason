@@ -34,6 +34,22 @@ namespace stms {
     VKShader::VKShader(VKShader &&rhs) noexcept {
         *this = std::move(rhs);
     }
+
+    VKPipeline::VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout) {
+        VKPipelineConfig config{};
+
+        uint32_t bindingCounter = 0, locationCounter = 0;
+        for (const auto &row : vboLayout) {
+            uint32_t stride = 0;
+            for (const auto &attrib : row.attribs) {
+                stride += attrib.size;
+                config.vboAttribVec.emplace_back(vk::VertexInputAttributeDescription{locationCounter++, bindingCounter,
+                                                                                     attrib.type, attrib.offset});
+            }
+            config.vboBindingVec.emplace_back(vk::VertexInputBindingDescription{bindingCounter++, stride, row.rate});
+        }
+
+    }
 }
 
 #endif

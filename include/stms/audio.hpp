@@ -174,11 +174,12 @@ namespace stms {
      */
     class ALBuffer {
     private:
-        bool freeOnDel = true;
         ALuint id{}; //!< Internal OpenAL id, implementation detail, dont touch, only read.
 
         friend class ALSource;
     public:
+
+        bool freeOnDel = true;
 
         ALBuffer(); //!< Duh. Default constructor
 

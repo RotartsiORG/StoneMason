@@ -13,6 +13,10 @@
       <file path="$PROJECT_DIR$/build" />
       <file path="$PROJECT_DIR$/cov-int" />
       <file path="$PROJECT_DIR$/dep" />
+      <file path="$PROJECT_DIR$/sphinx-out/_build" />
+      <file path="$PROJECT_DIR$/sphinx-out/_static" />
+      <file path="$PROJECT_DIR$/sphinx-out/_templates" />
+      <file path="$PROJECT_DIR$/sphinx-out/api" />
       <file path="$PROJECT_DIR$/tests/build" />
     </excludeRoots>
   </component>

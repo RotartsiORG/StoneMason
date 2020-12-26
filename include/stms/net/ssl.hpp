@@ -237,6 +237,11 @@ namespace stms {
         void setCertAuth(const std::string &caCert, const std::string &caPath);
 
         /**
+         * @brief Set the default trust stores. See SSL docs for `SSL_CTX_set_default_verify_paths`
+         */
+        void trustDefault();
+
+        /**
          * @brief Specify the path to the private key of the server. (.PEM format)
          * @param key The path to the .pem private key of the server.
          */

@@ -39,10 +39,28 @@ namespace stms {
             *(lowerHalf + 1) = u64Dist(stmsRand());
         }
 
+        /* RFC 4122
+         * "Set the four most significant bits (bits 12 through 15) of the
+         * time_hi_and_version field to the 4-bit version number from
+         * Section 4.1.3."
+         *
+         * The version number is in the most significant 4 bits of the time
+         * stamp (bits 4 through 7 of the time_hi_and_version field).
+         *
+         * Msb0  Msb1  Msb2  Msb3
+         *  0     1     0     0
+         */
+
         uuid.timeHiAndVersion &= (65535u ^ ((1u << 15u) | (1u << 13u) | (1u << 12u)));
         uuid.timeHiAndVersion |= (1u << 14u);
-        uuid.clockSeqHiAndReserved &= (255u ^ (1u << 6u));
-        uuid.clockSeqHiAndReserved |= (1u << 7u);
+
+
+        /* RFC 4122
+         * "Set the two most significant bits (bits 6 and 7) of the
+         * clock_seq_hi_and_reserved to zero and one, respectively."
+         */
+        uuid.clockSeqHiAndReserved &= (255u ^ (1u << 6u)); // Set 6th bit to 0 by &= 0b10111111
+        uuid.clockSeqHiAndReserved |= (1u << 7u);          // Set 7th bit to 1 by |= 0b10000000
 
         return uuid;
     }

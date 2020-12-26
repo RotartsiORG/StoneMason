@@ -662,8 +662,10 @@ namespace stms {
                 numTries++;
 
                 try {
-                    int shutdownRet = handleSslGetErr(pSsl,  SSL_shutdown(pSsl));
-                    if (shutdownRet == 0) {
+                    int shutdownRet = SSL_shutdown(pSsl);
+                    if (shutdownRet < 0) {
+                        handleSslGetErr(pSsl, shutdownRet);
+                    } else if (shutdownRet == 0) {
                         STMS_INFO("Waiting to hear back after SSL_shutdown... retrying");
                         continue;
                     } else if (shutdownRet == 1) {

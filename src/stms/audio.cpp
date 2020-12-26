@@ -108,7 +108,7 @@ namespace stms {
         loadFromFile(filename);
     }
 
-    ALBuffer::ALBuffer(ALuint id) : freeOnDel(false), id(id) {}
+    ALBuffer::ALBuffer(ALuint id) : id(id), freeOnDel(false) {}
 
     ALSource::ALSource() {
         alGenSources(1, &id);
@@ -169,6 +169,7 @@ namespace stms {
         id = alcOpenDevice(devname);
         if (id == nullptr) {
             STMS_ERROR("Failed to open ALDevice: {}", devname == nullptr ? "nullptr" : devname);
+            flushAlErrors();
             if (exceptionLevel > 0) {
                 throw std::runtime_error("Cannot open ALDevice!");
             }
@@ -233,12 +234,21 @@ namespace stms {
 
     ALContext::ALContext(ALDevice *dev, ALCint *attribs) {
         id = alcCreateContext(dev->id, attribs);
+        if (id == nullptr) {
+            STMS_ERROR("Failed to open ALContext!");
+            flushAlErrors();
+            dev->flushErrors();
+            if (exceptionLevel > 0) {
+                throw std::runtime_error("Cannot open ALContext!");
+            }
+        }
     }
 
     ALMicrophone::ALMicrophone(const ALCchar *name, ALCuint freq, ALSoundFormat fmt, ALCsizei capbufSize) {
         id = alcCaptureOpenDevice(name, freq, fmt, capbufSize);
         if (id == nullptr) {
             STMS_ERROR("Failed to open ALMicrophone: {}", name == nullptr ? "nullptr" : name);
+            flushAlErrors();
             if (exceptionLevel > 0) {
                 throw std::runtime_error("Cannot open ALMicrophone!");
             }

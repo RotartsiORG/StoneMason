@@ -57,7 +57,7 @@ namespace stms {
 
     struct VKPipelineConfig {
         std::vector<vk::VertexInputBindingDescription> vboBindingVec;
-        std::vector<vk::VertexInputAttributeDescription> shaderAttribVec;
+        std::vector<vk::VertexInputAttributeDescription> vboAttribVec;
 
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyCi = vk::PipelineInputAssemblyStateCreateInfo{
             {}, // flags
@@ -125,19 +125,37 @@ namespace stms {
         // Do these belong here? They are framebuffer attachments
         std::vector<vk::PipelineColorBlendAttachmentState> blendAttachVec;
 
-//        vk::PipelineColorBlendStateCreateInfo blendCi = vk::PipelineColorBlendStateCreateInfo{
-//                {},
-//        };
-
         std::vector<vk::DynamicState> dynamicStateVec;
 
         std::vector<vk::DescriptorSetLayout> descSetLayoutVec;
         std::vector<vk::PushConstantRange> pushConstVec;
     };
 
+    struct VKVertexAttribLayout {
+        uint32_t offset;
+        vk::Format type;
+        uint32_t size; // might be redundant as this is also stored in vk::Format, but i dont wanna make a giant switch.
+    };
+
+    struct VKVertexBufferLayout {
+        std::vector<VKVertexAttribLayout> attribs;
+        vk::VertexInputRate rate = vk::VertexInputRate::eVertex;
+    };
+
     class VKPipeline {
     public:
-        VKPipeline(VKWindow *win);
+
+        /*
+         * Explanation of vboLayout:
+         *
+         * Example (the number following the attrib name is the location this attribute can be accessed at in the shader):
+         *
+         * {
+         *    {attrib0, attrib1} // VBO expected at index 0
+         *    {attrib2, attrib3, attrib4} // VBO expected at index 1
+         * }
+         */
+        VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout);
 
         VKPipeline(const VKPipeline &rhs) = delete;
         VKPipeline &operator=(const VKPipeline &rhs) = delete;
@@ -147,11 +165,6 @@ namespace stms {
 
 
     };
-
-    class VKVertexInput {
-
-    };
-
 
 }
 

@@ -123,7 +123,9 @@ namespace {
 
     TEST(UUID, Collisions) {
         for (int i = 0; i < 16; i++) {
-            STMS_INFO("Sample UUID: {}", stms::genUUID4().buildStr());
+            auto suuid = stms::genUUID4();
+            STMS_INFO("time_hi_and_version = {:#b}, clock_seq_hi_and_reserved = {:#b}", suuid.timeHiAndVersion, suuid.clockSeqHiAndReserved);
+            STMS_INFO("Sample UUID: {}", suuid.buildStr());
         }
 
         const int numIter = 16384;
