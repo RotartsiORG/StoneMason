@@ -3,6 +3,7 @@
 //
 #include "stms/rend/vk/vk_pipeline.hpp"
 #include "stms/stms.hpp"
+#include "stms/util/util.hpp"
 
 int main() {
     stms::initAll();

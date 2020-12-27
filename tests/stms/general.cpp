@@ -11,8 +11,11 @@
 #include "stms/audio.hpp"
 #include "stms/logging.hpp"
 #include "stms/stms.hpp"
+#include "stms/util/uuid.hpp"
+#include "stms/util/util.hpp"
+#include "stms/util/compare.hpp"
 #include "stms/camera.hpp"
-#include "stms/timers.hpp"
+#include "stms/util/timers.hpp"
 
 // Timeout after 10 seconds. The actual audio that we're playing is only 5 sec long.
 constexpr unsigned alPlayBlockTimeout = 10;
@@ -281,5 +284,12 @@ namespace {
         auto contents = stms::readFile("./res/test.txt");
         STMS_INFO("Read '{}'", contents);
         EXPECT_EQ(contents, "begin-Lorem Ipsum-end");
+    }
+
+    TEST(Util, Compare) {
+        EXPECT_EQ(stms::editDistance("abc", "xkcd"), 3);
+        EXPECT_EQ(stms::editDistance("smbc", "some"), 3);
+        EXPECT_EQ(stms::editDistance("edit distance", "eat distant"), stms::editDistance("eat distant", "edit distance"));
+        EXPECT_EQ(stms::editDistance("abc", "def"), stms::editDistance("def", "abc"));
     }
 }

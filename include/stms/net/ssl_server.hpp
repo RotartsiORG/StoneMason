@@ -18,13 +18,13 @@
 #include <unordered_map>
 #include <stms/async.hpp>
 #include <stms/logging.hpp>
-#include <stms/timers.hpp>
+#include <stms/util/timers.hpp>
 
 #include "openssl/ssl.h"
 #include "openssl/bio.h"
 #include "openssl/err.h"
 #include "stms/net/ssl.hpp"
-#include "stms/stms.hpp"
+#include "stms/util/uuid.hpp"
 
 namespace stms {
     class SSLServer;

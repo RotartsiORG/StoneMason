@@ -11,7 +11,7 @@
 //!< Include guard
 
 #include <string>
-#include <stms/timers.hpp>
+#include <stms/util/timers.hpp>
 
 #include "stms/async.hpp"
 #include "stms/net/ssl.hpp"

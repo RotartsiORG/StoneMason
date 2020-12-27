@@ -16,7 +16,7 @@
 #include <stms/logging.hpp>
 #include <stms/rend/gl/gl.hpp>
 
-#include "stms/timers.hpp"
+#include "stms/util/timers.hpp"
 
 void clamp(float *val, float min, float max) {
     if (*val > max) {

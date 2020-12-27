@@ -11,6 +11,7 @@
 #include <poll.h>
 
 #include "stms/stms.hpp"
+#include "stms/util/util.hpp"
 #include "stms/logging.hpp"
 
 #include "openssl/rand.h"

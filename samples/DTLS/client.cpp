@@ -4,6 +4,7 @@
 
 #include "stms/net/ssl_server.hpp"
 #include "stms/net/ssl_client.hpp"
+#include "stms/stms.hpp"
 
 int main() {
     stms::initAll();
