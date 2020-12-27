@@ -13,6 +13,9 @@
 #include <string>
 #include <random>
 
+#include <cstdlib>
+#include <cmath>
+
 #include <openssl/rand.h>
 #include "openssl/ssl.h"
 
@@ -157,6 +160,59 @@ namespace stms {
      * @return Combined 64-bit hash.
      */
     size_t boostHashCombine(size_t lhs, size_t rhs);
+
+
+    template <typename T>
+    class Cmp {
+    public:
+
+#       define STMS_CMP_MOD inline static
+
+        STMS_CMP_MOD T tolerance(const T &a, const T &b) {
+            return std::numeric_limits<T>::epsilon() * std::max(std::abs(a), std::abs(b));
+        }
+
+        STMS_CMP_MOD T tolerance(const T &ref) {
+            return std::numeric_limits<T>::epsilon() * std::abs(ref);
+        }
+
+        // The following functions all assume that `tol` is positive
+
+        STMS_CMP_MOD bool eq(const T &a, const T &b, const T &tol) { // define a `ne()` not equal inverse? pointless.
+            return std::abs(a - b) <= tol;
+        }
+
+        STMS_CMP_MOD bool gt(const T &a, const T &b, const T &tol) {
+            return a > b + tol;
+        }
+
+        STMS_CMP_MOD bool lt(const T &a, const T &b, const T &tol) {
+            return a < b - tol;
+        }
+
+        STMS_CMP_MOD bool ge(const T &a, const T &b, const T &tol) {
+            return a >= b - tol;
+        }
+
+        STMS_CMP_MOD bool le(const T &a, const T &b, const T &tol) {
+            return a <= b + tol;
+        }
+
+
+#       define STMS_AUTO_TOLERANCE(exp) STMS_CMP_MOD bool exp(const T &a, const T &b) { \
+            return exp(a, b, Cmp<T>::tolerance(a, b));                             \
+        }
+
+        STMS_AUTO_TOLERANCE(eq);
+        STMS_AUTO_TOLERANCE(gt);
+        STMS_AUTO_TOLERANCE(lt);
+        STMS_AUTO_TOLERANCE(ge);
+        STMS_AUTO_TOLERANCE(le);
+
+#       undef STMS_AUTO_TOLERANCE
+#       undef STMS_CMP_MOD
+
+    };
 }
 
 

@@ -116,7 +116,7 @@ namespace stms {
 
         /**
          * @brief Get the Ticks Per Second, calculated using the last 2 ticks.
-         * @return TPS in milliseconds. If MSPT is 0, `FLT_MAX` is returned, as TPS at this point is infinite.
+         * @return TPS in milliseconds. If MSPT is 0, infinity is returned.
          */
         float getLatestTps();
     };

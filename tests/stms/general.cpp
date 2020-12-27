@@ -249,7 +249,7 @@ namespace {
 
         stms::TPSTimer tm;
         EXPECT_EQ(tm.getLatestMspt(), 0);
-        EXPECT_EQ(tm.getLatestTps(), FLT_MAX);
+        EXPECT_EQ(tm.getLatestTps(), std::numeric_limits<float>::infinity());
 
         for (int targetFps = 30; targetFps <= 120; targetFps += 30) {
             auto floatTarget = static_cast<float>(targetFps);

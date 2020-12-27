@@ -55,12 +55,7 @@ namespace stms {
     }
 
     float TPSTimer::getLatestTps() {
-        float mspt = getLatestMspt();
-        if (mspt > -0.001 && mspt < 0.001) {
-            return FLT_MAX; // infinite tps
-        } else {
-            return 1000.0f / mspt;
-        }
+        return 1000.0f / getLatestMspt(); // dont worry bout division by zero, as it will return infinity in that case.
     }
 
     void TPSTimer::wait(float targetFps) {
