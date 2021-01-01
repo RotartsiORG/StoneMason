@@ -291,5 +291,8 @@ namespace {
         EXPECT_EQ(stms::editDistance("smbc", "some"), 3);
         EXPECT_EQ(stms::editDistance("edit distance", "eat distant"), stms::editDistance("eat distant", "edit distance"));
         EXPECT_EQ(stms::editDistance("abc", "def"), stms::editDistance("def", "abc"));
+
+        EXPECT_EQ(stms::editDistance("same thing", "same thing"), 0);
+        EXPECT_EQ(stms::editDistance("", "abc"), 3);
     }
 }

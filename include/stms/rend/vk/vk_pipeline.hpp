@@ -131,29 +131,37 @@ namespace stms {
         std::vector<vk::PushConstantRange> pushConstVec;
     };
 
+    /**
+     * @brief Represents a vertex attribute in a VBO.
+     */
     struct VKVertexAttribLayout {
-        uint32_t offset;
-        vk::Format type;
-        uint32_t size; // might be redundant as this is also stored in vk::Format, but i dont wanna make a giant switch.
+        /**
+         * Shader location number (i.e. if location was 123, then this attrib could be accessed in the shader with
+         * `layout(location = 123) vec4 color;`. Note that some types [arrays, dvec4s, etc] take multiple locations)
+         */
+        uint32_t location;
+
+        uint32_t offset; //!< Offset from beginning of buffer in bytes.
+        vk::Format format; //!< Format of data, see vulkan docs.
     };
 
+    /**
+     * @brief Layout of a vertex buffer, represents a buffer to load data from.
+     */
     struct VKVertexBufferLayout {
-        std::vector<VKVertexAttribLayout> attribs;
-        vk::VertexInputRate rate = vk::VertexInputRate::eVertex;
+        vk::VertexInputRate rate = vk::VertexInputRate::eVertex; //!< How often we move on to the next 'vertex'. For instancing.
+        uint32_t stride; //!< Number of bytes each whole vertex takes. Allows for implicit padding.
+
+        std::vector<VKVertexAttribLayout> attribs; //!< List of `VkVertexAttribLayout`s for specific vertex attribs.
     };
 
     class VKPipeline {
     public:
-
-        /*
-         * Explanation of vboLayout:
+        /**
+         * @brief Create a pipeline.
+         * @param win Parent window.
+         * @param vboLayout Layout of the VBOs. Every VBO will have the same binding number as its index here.
          *
-         * Example (the number following the attrib name is the location this attribute can be accessed at in the shader):
-         *
-         * {
-         *    {attrib0, attrib1} // VBO expected at index 0
-         *    {attrib2, attrib3, attrib4} // VBO expected at index 1
-         * }
          */
         VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout);
 

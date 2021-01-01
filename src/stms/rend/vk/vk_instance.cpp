@@ -158,12 +158,12 @@ namespace stms {
                                                      vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
                                                      vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
 
-        vk::DebugUtilsMessengerCreateInfoEXT validationCbInfo{{}, severityBits, typeBits, vulkanDebugCallback, nullptr};
-
         if (details.validate && enabledExts.find(VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != enabledExts.end()) {
             STMS_INFO("Setting up vulkan validation callback...");
             auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
                     inst.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
+
+            vk::DebugUtilsMessengerCreateInfoEXT validationCbInfo{{}, severityBits, typeBits, vulkanDebugCallback, nullptr};
 
             if (func != nullptr) {
                 auto rawCi = static_cast<VkDebugUtilsMessengerCreateInfoEXT>(validationCbInfo);

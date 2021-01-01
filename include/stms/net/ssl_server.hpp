@@ -79,11 +79,11 @@ namespace stms {
         void shutdownClient();
     };
 
-    /// Internal impl detail. Don't touch
-    static void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
-
-    /// Internal impl detail, don't touch
-    static void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
+//    /// Internal impl detail. Don't touch
+//    static void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
+//
+//    /// Internal impl detail, don't touch
+//    static void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
 
     /// A SSL/TLS server. Can be TCP (TLS) or UDP (DTLS)
     class SSLServer : public _stms_SSLBase {
@@ -133,10 +133,10 @@ namespace stms {
                                                                                               const sockaddr *const) {};
 
         /// Internal implementation detail. Don't touch
-        friend void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
+        void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli);
 
         /// Internal implementation detail. Don't touch
-        friend void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *serv);
+        void doHandshake(const std::shared_ptr<ClientRepresentation> &cli);
 
         friend struct ClientRepresentation; //!< Internal implementation detail. Don't touch
 

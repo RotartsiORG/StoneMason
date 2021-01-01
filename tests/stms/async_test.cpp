@@ -114,17 +114,27 @@ namespace {
         stopPool();
     }
 
-    TEST_F(ThreadPoolTests, PopPushWorkerTest) {
-        startPool(1);
-        for (int i = 0; i < (numTasks / 2); i++) {
-            pool->pushThread();
-        }
-        EXPECT_EQ(pool->getNumThreads(), (numTasks / 2) + 1);
+    TEST_F(ThreadPoolTests, MultiStart) {
+        startPool();
+        pool->start(5);
+        EXPECT_EQ(pool->getNumThreads(), 5);
+        pool->start(3);
+        EXPECT_EQ(pool->getNumThreads(), 3);
+        stopPool();
+    }
 
-        for (int i = 0; i < (numTasks / 2); i++) {
+    TEST_F(ThreadPoolTests, PopPushWorkerTest) {
+        startPool(8);
+        for (int i = 0; i < 8; i++) {
             pool->popThread();
         }
-        EXPECT_EQ(pool->getNumThreads(), 1);
+        EXPECT_EQ(pool->getNumThreads(), 0);
+
+        for (int i = 0; i < 8; i++) {
+            pool->pushThread();
+        }
+
+        EXPECT_EQ(pool->getNumThreads(), 8);
         stopPool();
     }
 }

@@ -53,9 +53,9 @@ namespace stms {
 
     }
 
-    static void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *serv) {
+    void SSLServer::doHandshake(const std::shared_ptr<ClientRepresentation> &cli) {
         int handshakeTimeouts = 0;
-        while (handshakeTimeouts < serv->maxTimeouts) {
+        while (handshakeTimeouts < maxTimeouts) {
             handshakeTimeouts++;
             try {
                 int ret = handleSslGetErr(cli->pSsl, SSL_accept(cli->pSsl));
@@ -67,10 +67,10 @@ namespace stms {
                 }
             } catch (SSLWantReadException &) {
                 STMS_INFO("WANT_READ returned from SSL_accept! Blocking until read-ready and retrying.");
-                serv->blockUntilReady(cli->sock, cli->pSsl, POLLIN);
+                blockUntilReady(cli->sock, cli->pSsl, POLLIN);
             } catch (SSLWantWriteException &) {
                 STMS_INFO("WANT_WRITE returned from SSL_accept! Blocking until write-ready and retrying.");
-                serv->blockUntilReady(cli->sock, cli->pSsl, POLLOUT);
+                blockUntilReady(cli->sock, cli->pSsl, POLLOUT);
             } catch (SSLFatalException &) {
                 STMS_WARN("Dropping connection to client because of fatal SSL_accept() error!");
                 return;
@@ -79,17 +79,17 @@ namespace stms {
             }
         }
 
-        if (handshakeTimeouts >= serv->maxTimeouts) {
+        if (handshakeTimeouts >= maxTimeouts) {
             STMS_WARN("DTLS server handshake timed out completely! Dropping connection");
             return;
         }
 
         cli->doShutdown = true; // Handshake completed, we can shutdown!
 
-        if (serv->isUdp) {
+        if (isUdp) {
             timeval timeout{};
-            timeout.tv_usec = (serv->timeoutMs % 1000) * 1000;
-            timeout.tv_sec = serv->timeoutMs / 1000;
+            timeout.tv_usec = (timeoutMs % 1000) * 1000;
+            timeout.tv_sec = timeoutMs / 1000;
             // TODO: Is this necessary?
             BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
             BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
@@ -119,14 +119,14 @@ namespace stms {
                   expansion == nullptr ? "NULL" : expansion);
         {
             cli->timeoutTimer.start();
-            std::lock_guard<std::mutex> lg(serv->clientsMtx);
-            serv->clients[uuid] = cli;
+            std::lock_guard<std::mutex> lg(clientsMtx);
+            clients[uuid] = cli;
         }
 
-        serv->connectCallback(uuid, cli->pSockAddr);
+        connectCallback(uuid, cli->pSockAddr);
     }
 
-    static void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *serv) {
+    void SSLServer::handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli) {
         int on = 1;
 
         if (BIO_ADDR_family(cli->dtls->pBioAddr) == AF_INET6) {
@@ -152,7 +152,7 @@ namespace stms {
         cli->addrStr = getAddrStr(cli->pSockAddr);
         STMS_INFO("New client at {} is trying to connect.", cli->addrStr);
 
-        cli->sock = socket(BIO_ADDR_family(cli->dtls->pBioAddr), serv->pAddr->ai_socktype, serv->pAddr->ai_protocol);
+        cli->sock = socket(BIO_ADDR_family(cli->dtls->pBioAddr), pAddr->ai_socktype, pAddr->ai_protocol);
         if (cli->sock == -1) {
             STMS_INFO("Failed to bind socket for new client: {}. Refusing to connect.", strerror(errno));
             return;
@@ -179,7 +179,7 @@ namespace stms {
                       "(this may result in 'Socket in Use' errors): {}", strerror(errno));
         }
 
-        if (bind(cli->sock, serv->pAddr->ai_addr, serv->pAddr->ai_addrlen) == -1) {
+        if (bind(cli->sock, pAddr->ai_addr, pAddr->ai_addrlen) == -1) {
             STMS_INFO("Failed to bind client socket: {}. Refusing to connect!", strerror(errno));
             return;
         }
@@ -191,7 +191,7 @@ namespace stms {
         BIO_set_fd(SSL_get_rbio(cli->pSsl), cli->sock, BIO_NOCLOSE);
         BIO_ctrl(SSL_get_rbio(cli->pSsl), BIO_CTRL_DGRAM_SET_CONNECTED, 0, cli->pSockAddr);
 
-        doHandshake(cli, serv);
+        doHandshake(cli);
     }
 
     SSLServer::SSLServer(stms::ThreadPool *pool, bool udp) : _stms_SSLBase(true, pool, udp) {
@@ -271,7 +271,7 @@ namespace stms {
                 } else {
                     // Lambda captures validated
                     pPool->submitTask([&, capCli{cli}]() {
-                        handleDtlsConnection(capCli, this);
+                        this->handleDtlsConnection(capCli);
                     });
                 }
             }
@@ -323,7 +323,7 @@ namespace stms {
             SSL_set_fd(cli->pSsl, cli->sock);
 
             pPool->submitTask([&, capCli{cli}]() {
-               doHandshake(capCli, this);
+               this->doHandshake(capCli);
             });
         }
 
