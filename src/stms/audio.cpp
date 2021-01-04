@@ -169,7 +169,7 @@ namespace stms {
         id = alcOpenDevice(devname);
         if (id == nullptr) {
             STMS_ERROR("Failed to open ALDevice: {}", devname == nullptr ? "nullptr" : devname);
-            flushAlErrors();
+            handleAlError();
             if (exceptionLevel > 0) {
                 throw std::runtime_error("Cannot open ALDevice!");
             }
@@ -236,8 +236,8 @@ namespace stms {
         id = alcCreateContext(dev->id, attribs);
         if (id == nullptr) {
             STMS_ERROR("Failed to open ALContext!");
-            flushAlErrors();
-            dev->flushErrors();
+            handleAlError();
+            dev->handleError();
             if (exceptionLevel > 0) {
                 throw std::runtime_error("Cannot open ALContext!");
             }
@@ -248,7 +248,7 @@ namespace stms {
         id = alcCaptureOpenDevice(name, freq, fmt, capbufSize);
         if (id == nullptr) {
             STMS_ERROR("Failed to open ALMicrophone: {}", name == nullptr ? "nullptr" : name);
-            flushAlErrors();
+            handleAlError();
             if (exceptionLevel > 0) {
                 throw std::runtime_error("Cannot open ALMicrophone!");
             }

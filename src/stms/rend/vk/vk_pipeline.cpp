@@ -7,7 +7,6 @@
 #ifdef STMS_ENABLE_VULKAN
 
 namespace stms {
-    static uint32_t getSizeOfVkFormat(vk::Format fmt);
 
     VKShader::VKShader(VKDevice *dev, const std::string &bytecode, const vk::ShaderStageFlagBits& shaderStage, const std::string &entryPoint) : pDev(dev) {
         vk::ShaderModuleCreateInfo ci{{}, bytecode.size(), reinterpret_cast<const uint32_t *>(bytecode.data())};
@@ -37,7 +36,7 @@ namespace stms {
         *this = std::move(rhs);
     }
 
-    VKPipeline::VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout) {
+    VKPipeline::VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout) : pWin(win) {
         VKPipelineConfig config{};
 
         uint32_t bindingCounter = 0;
@@ -49,21 +48,51 @@ namespace stms {
             config.vboBindingVec.emplace_back(vk::VertexInputBindingDescription{bindingCounter++, row.stride, row.rate});
         }
 
+        config.viewportVec.emplace_back(vk::Viewport{0, 0, static_cast<float>(win->swapExtent.width),
+                                                     static_cast<float>(win->swapExtent.height), 0.0f, 1.0f});
+        config.scissorVec.emplace_back(vk::Rect2D{vk::Offset2D{0, 0}, win->swapExtent});
+        vk::PipelineViewportStateCreateInfo viewStateCi{
+            {}, static_cast<uint32_t>(config.viewportVec.size()), config.viewportVec.data(),
+            static_cast<uint32_t>(config.scissorVec.size()), config.scissorVec.data()
+        };
+
+        config.blendAttachVec.emplace_back(vk::PipelineColorBlendAttachmentState{
+            VK_TRUE, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
+            vk::ColorComponentFlagBits::eA
+        });
+        vk::PipelineColorBlendStateCreateInfo blendStateCi{
+            {}, VK_FALSE, vk::LogicOp::eCopy, static_cast<uint32_t>(config.blendAttachVec.size()),
+            config.blendAttachVec.data(), std::array<float, 4>{{
+                0.0f, 0.0f, 0.0f, 0.0f
+            }}
+        };
+
+        config.dynamicStateVec = {};
+        vk::PipelineDynamicStateCreateInfo dynamicStateCi{
+            {}, static_cast<uint32_t>(config.dynamicStateVec.size()), config.dynamicStateVec.data()
+        };
+
+        vk::PipelineLayoutCreateInfo layoutCi{
+                {}, static_cast<uint32_t>(config.descSetLayoutVec.size()), config.descSetLayoutVec.data(),
+                static_cast<uint32_t>(config.pushConstVec.size()), config.pushConstVec.data()
+        };
+
+        layout = win->pDev->device.createPipelineLayout(layoutCi);
+
     }
 
-    /**
-     * @brief Get the size (in bytes) of a vulkan type.
-     * @deprecated I added stride to `VKVertexBufferLayout` so this wont be needed anymore.
-     * @param fmt Type
-     * @return Size it takes, in bytes.
-     */
-    static uint32_t getSizeOfVkFormat(vk::Format fmt) {
-        switch (fmt) {
+    VKPipeline::~VKPipeline() {
+        pWin->pDev->device.destroyPipelineLayout(layout);
+    }
+
+    uint32_t getSizeOfVkFormat(vk::Format val) {
+        switch (val) {
             case vk::Format::eUndefined :
-                STMS_WARN("getSizeOfVkFormat() called with undefined format (eUndefined)!");
+                STMS_WARN("getSizeOfVkFormat() called with vk::Format::eUndefined)!");
                 if (exceptionLevel > 0) {
-                    // should we have a different exception type for eUndefined and invalid?
-                    throw std::runtime_error("Cannot use vk::Format::eUndefined in VBO!");
+                    throw std::invalid_argument("stms::getSizeOfVkFormat: Cannot get size of vk::Format::eUndefined!");
                 }
                 return 0;
 
@@ -333,13 +362,17 @@ namespace stms {
             case vk::Format::eAstc10x10SfloatBlockEXT :
             case vk::Format::eAstc12x10SfloatBlockEXT :
             case vk::Format::eAstc12x12SfloatBlockEXT :
-                STMS_FATAL("getSizeOfVkFormat() implementation for `{}` is not available yet!", vk::to_string(fmt));
+                STMS_FATAL("getSizeOfVkFormat() implementation for `{}` is not available yet!", vk::to_string(val));
                 STMS_FATAL("This is a known issue in StoneMason");
                 return 0;
 
             default:
-                STMS_WARN("[stms::getSizeOfVkFormat()] Called with unrecognized format: `{}` (raw: {})!", vk::to_string(fmt), fmt);
-                STMS_WARN("[stms::getSizeOfVkFormat()] Is this format from a newer version of vulkan, or is this a bug in StoneMason?");
+                std::string rawStr = std::to_string(static_cast<std::underlying_type<vk::Format>::type>(val));
+                STMS_WARN("getSizeOfVkFormat() called on unrecognized fmt: {} (Raw: {})", vk::to_string(val), rawStr);
+                STMS_WARN("Is this format from a newer version of vulkan, or is this a bug in StoneMason?");
+                if (exceptionLevel > 0) {
+                    throw std::domain_error("stms::getSizeOfVkFormat() called with invalid format: " + rawStr);
+                }
                 return 0;
         }
     }

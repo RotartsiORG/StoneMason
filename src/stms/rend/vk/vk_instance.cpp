@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include "stms/rend/vk/vk_window.hpp"
+
 namespace stms {
     static bool devExtensionsSuitable(vk::PhysicalDevice dev) {
         auto supportedExts = dev.enumerateDeviceExtensionProperties();
@@ -65,7 +67,8 @@ namespace stms {
     static std::unordered_set<std::string> &getForbiddenLayers() {
         static auto forbidden = std::unordered_set<std::string>(
                 {"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump", "VK_LAYER_LUNARG_demo_layer",
-                 "VK_LAYER_LUNARG_monitor", "VK_LAYER_VALVE_steam_fossilize_32", "VK_LAYER_VALVE_steam_fossilize_64"});
+                 "VK_LAYER_LUNARG_monitor", "VK_LAYER_VALVE_steam_fossilize_32", "VK_LAYER_VALVE_steam_fossilize_64",
+                 "VK_LAYER_LUNARG_device_simulation", "VK_LAYER_MANGOHUD_overlay", "VK_LAYER_VKBASALT_post_processing"});
         return forbidden;
     }
 
@@ -90,6 +93,23 @@ namespace stms {
         uint32_t glfwExtCount = 0;
         const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
         exts.insert(exts.end(), glfwExts, glfwExts + glfwExtCount);
+
+        std::vector<vk::LayerProperties> layerProps;
+        if (details.validate) {
+            STMS_INFO("Vulkan validation layers are enabled!");
+            exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            layerProps = vk::enumerateInstanceLayerProperties();
+            for (const auto &lyo : layerProps) {
+                if (getForbiddenLayers().find(std::string(lyo.layerName)) == getForbiddenLayers().end()) {
+                    STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[32mENABLED\u001b[0m", lyo.layerName);
+                    layers.emplace_back(lyo.layerName);
+                } else {
+                    STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[31mFORBIDDEN\u001b[0m", lyo.layerName);
+                }
+            }
+        } else {
+            STMS_INFO("Vulkan validation layers are disabled!");
+        }
 
         for (const auto &i : exts) {
             extDat[std::string(i)].required = true;
@@ -128,24 +148,6 @@ namespace stms {
             STMS_INFO("VkExt\t{:<42}\t\t{}", i.first, remark);
         }
 
-
-        std::vector<vk::LayerProperties> layerProps;
-        if (details.validate) {
-            STMS_INFO("Vulkan validation layers are enabled!");
-            exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            layerProps = vk::enumerateInstanceLayerProperties();
-            for (const auto &lyo : layerProps) {
-                if (getForbiddenLayers().find(std::string(lyo.layerName)) == getForbiddenLayers().end()) {
-                    STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[32mENABLED\u001b[0m", lyo.layerName);
-                    layers.emplace_back(lyo.layerName);
-                } else {
-                    STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[31mFORBIDDEN\u001b[0m", lyo.layerName);
-                }
-            }
-        } else {
-            STMS_INFO("Vulkan validation layers are disabled!");
-        }
-
         vk::InstanceCreateInfo ci{{}, &appInfo, static_cast<uint32_t>(layers.size()), layers.data(),
                                   static_cast<uint32_t>(exts.size()), exts.data()};
 
@@ -158,12 +160,13 @@ namespace stms {
                                                      vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
                                                      vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
 
+        // This MUST be outside of the if bc it will be read in vk::createInstance.
+        vk::DebugUtilsMessengerCreateInfoEXT validationCbInfo{{}, severityBits, typeBits, vulkanDebugCallback, nullptr};
+
         if (details.validate && enabledExts.find(VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != enabledExts.end()) {
             STMS_INFO("Setting up vulkan validation callback...");
             auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
                     inst.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
-
-            vk::DebugUtilsMessengerCreateInfoEXT validationCbInfo{{}, severityBits, typeBits, vulkanDebugCallback, nullptr};
 
             if (func != nullptr) {
                 auto rawCi = static_cast<VkDebugUtilsMessengerCreateInfoEXT>(validationCbInfo);
@@ -185,7 +188,6 @@ namespace stms {
         if (debugMessenger != vk::DebugUtilsMessengerEXT()) { // not null handle?
             auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(inst.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
             if (func != nullptr) {
-
                 func(inst, debugMessenger, nullptr);
             }
         }
@@ -193,14 +195,9 @@ namespace stms {
         inst.destroy();
     }
 
-    std::vector<VKGPU> VKInstance::buildDeviceList() const {
-        glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // no opengl api
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        GLFWwindow *win = glfwCreateWindow(8, 8, "Dummy Present Target", nullptr, nullptr);
-
+    std::vector<VKGPU> VKInstance::buildDeviceList(VKPartialWindow *win) const {
         VkSurfaceKHR rawSurf;
-        if (glfwCreateWindowSurface(inst, win, nullptr, &rawSurf) != VK_SUCCESS) {
+        if (glfwCreateWindowSurface(inst, win->win, nullptr, &rawSurf) != VK_SUCCESS) {
             STMS_ERROR("Failed to create dummy surface target! Returning empty vector from VKInstance::buildDeviceList()!");
             return {};
         }
@@ -263,7 +260,6 @@ namespace stms {
         }
 
         inst.destroySurfaceKHR(surface);
-        glfwDestroyWindow(win);
 
         std::unordered_map<size_t, size_t> sizeCache;
 

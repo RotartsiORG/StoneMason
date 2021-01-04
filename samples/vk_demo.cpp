@@ -8,14 +8,19 @@
 int main() {
     stms::initAll();
 
+    auto *preWin = new stms::VKPartialWindow{640, 480, "StoneMason Vulkan Demo"};
+
     stms::VKInstance inst(stms::VKInstance::ConstructionDetails{"VK Demo", 0, 0, 0, {}, {}, true});
-    auto gpus = inst.buildDeviceList();
+    auto gpus = inst.buildDeviceList(preWin);
     stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails({}, {}, {}, {}));
 
-    stms::VKWindow win(&gpu, 640, 480, "StoneMason Vulkan Demo");
+    stms::VKWindow win(&gpu, std::move(*preWin));
+    delete preWin; // preWin is safe to destroy at this point.
 
     stms::VKShader frag(&gpu, stms::readFile("./res/vkShaders/frag.spv"), vk::ShaderStageFlagBits::eFragment);
     stms::VKShader vert(&gpu, stms::readFile("./res/vkShaders/vert.spv"), vk::ShaderStageFlagBits::eVertex);
+
+    stms::VKPipeline pipeline{&win, {}};
 
     while (!win.shouldClose()) {
         stms::pollEvents();

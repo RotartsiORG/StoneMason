@@ -151,7 +151,7 @@ namespace stms {
          */
         explicit SSLServer(stms::ThreadPool *pool, bool isUdp);
 
-        ~SSLServer() override; //!< Override of virtual destructor of `_stms_SSLBase`.
+        ~SSLServer(); //!< Override of virtual destructor of `_stms_SSLBase`.
 
         SSLServer &operator=(const SSLServer &rhs) = delete; //!< Deleted copy operator=
 

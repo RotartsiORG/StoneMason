@@ -156,7 +156,7 @@ namespace stms {
     class GLVertexBuffer : public _stms_GLBuffer<GL_ARRAY_BUFFER> {
     public:
         GLVertexBuffer();
-        ~GLVertexBuffer() override = default;
+        ~GLVertexBuffer() = default;
 
         GLVertexBuffer(GLVertexBuffer &&rhs) noexcept;
         GLVertexBuffer &operator=(GLVertexBuffer &&rhs) noexcept;
@@ -180,7 +180,7 @@ namespace stms {
         GLenum type = GL_UNSIGNED_INT;
     public:
         GLIndexBuffer();
-        ~GLIndexBuffer() override = default;
+        ~GLIndexBuffer() = default;
 
         GLIndexBuffer(GLIndexBuffer &&rhs) noexcept;
         GLIndexBuffer &operator=(GLIndexBuffer &&rhs) noexcept;
@@ -273,7 +273,7 @@ namespace stms {
             GLuint id = 0;
         public:
             VertexArrayImplOGL3();
-            ~VertexArrayImplOGL3() override;
+            ~VertexArrayImplOGL3();
 
             void build() override;
             void bind() override;

@@ -11,7 +11,7 @@
 #include <numeric>
 
 namespace stms {
-    VKWindow::VKWindow(VKDevice *d, int width, int height, const char *title) : pDev(d) {
+    VKPartialWindow::VKPartialWindow(int width, int height, const char *title) {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // no opengl api
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // TODO: swapchain recreation.
@@ -20,15 +20,38 @@ namespace stms {
         if (!win) {
             STMS_ERROR("Failed to create vulkan window {}! Expect a crash!", title);
         }
+    }
+
+    VKPartialWindow::VKPartialWindow(VKPartialWindow &&rhs) noexcept {
+        *this = std::move(rhs);
+    }
+
+    VKPartialWindow &VKPartialWindow::operator=(VKPartialWindow &&rhs) noexcept {
+        if (this == &rhs || win == rhs.win) {
+            return *this; // self assignment
+        }
+
+        win = rhs.win;
+        rhs.win = nullptr;
+
+        return *this;
+    }
+
+
+    VKWindow::VKWindow(VKDevice *d, VKPartialWindow &&parent) : pDev(d) {
+        win = parent.win;
+        parent.win = nullptr;
+
+        int width, height;
+        glfwGetWindowSize(win, &width, &height);
 
         VkSurfaceKHR rawSurf = VK_NULL_HANDLE;
         if (glfwCreateWindowSurface(d->pInst->inst, win, nullptr, &rawSurf) != VK_SUCCESS) {
-            STMS_ERROR("Failed to create surface for window {}! Vulkan is unusable!", title);
+            STMS_ERROR("Failed to create surface for window! Vulkan is unusable!");
         }
         surface = vk::SurfaceKHR(rawSurf);
 
         auto caps = d->phys.gpu.getSurfaceCapabilitiesKHR(surface);
-        vk::Extent2D swapExtent;
 
         if (caps.currentExtent.width != UINT32_MAX) {
             swapExtent = caps.currentExtent;
@@ -232,8 +255,3 @@ namespace stms {
 }
 
 #endif // STMS_ENABLE_VULKAN
-
-
-/*
-
-    */

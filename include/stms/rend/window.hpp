@@ -20,13 +20,14 @@ namespace stms {
         glfwPollEvents();
     };
 
-    class GenericWindow {
+    class _stms_GenericWindow {
     protected:
+        _stms_GenericWindow() = default;
+
+    public:
         GLFWwindow *win = nullptr;
 
-        GenericWindow() = default;
-    public:
-        virtual ~GenericWindow();
+        virtual ~_stms_GenericWindow();
 
         inline bool shouldClose() {
             return glfwWindowShouldClose(win);

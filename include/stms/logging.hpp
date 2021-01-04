@@ -25,7 +25,7 @@
 namespace stms {
 
     /// The level of severity of the log message. Can be used as a bit flag.
-    enum class LogLevel {
+    enum class LogLevel : uint8_t {
         eInvalid = 0, //!< Invalid log level. Has value 0
         eTrace = 0b1, //!< Trace info. Value 1. (first bit)
         eDebug = 0b10, //!< Debug message. Value 2. (2nd bit)

@@ -25,6 +25,8 @@ namespace stms {
         uint32_t computeIndex{};
     };
 
+    class VKPartialWindow;
+
     class VKInstance {
     public:
         vk::Instance inst;
@@ -64,7 +66,7 @@ namespace stms {
 
         // In the future, the client would be allowed to pass in suitability parameters
         // to decide which devices are suitable.
-        std::vector<VKGPU> buildDeviceList() const;
+        std::vector<VKGPU> buildDeviceList(VKPartialWindow *win) const;
 
         virtual ~VKInstance();
     };

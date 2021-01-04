@@ -155,8 +155,21 @@ namespace stms {
         std::vector<VKVertexAttribLayout> attribs; //!< List of `VkVertexAttribLayout`s for specific vertex attribs.
     };
 
+    /**
+     * @brief Get the size (in bytes) of a vulkan type.
+     * @param val Type
+     * @throws If `exceptionLevel > 0`, this function will throw `std::domain_error` if `val` is unrecognized
+     *         and `std::invalid_argument` if `val` is `vk::Format::eUndefined`
+     * @return Size it takes, in bytes.
+     */
+    uint32_t getSizeOfVkFormat(vk::Format val);
+
     class VKPipeline {
     public:
+
+        vk::PipelineLayout layout;
+        VKWindow *pWin;
+
         /**
          * @brief Create a pipeline.
          * @param win Parent window.
@@ -164,6 +177,7 @@ namespace stms {
          *
          */
         VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout);
+        virtual ~VKPipeline();
 
         VKPipeline(const VKPipeline &rhs) = delete;
         VKPipeline &operator=(const VKPipeline &rhs) = delete;

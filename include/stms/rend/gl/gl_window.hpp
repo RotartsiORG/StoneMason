@@ -31,10 +31,10 @@ namespace stms {
         eStencilTest = GL_STENCIL_TEST
     };
 
-    class GLWindow : public GenericWindow {
+    class GLWindow : public _stms_GenericWindow {
     public:
         GLWindow(int width, int height, const char *title="StoneMason window");
-        ~GLWindow() override;
+        ~GLWindow();
 
         inline void flip() {
             glfwSwapBuffers(win);

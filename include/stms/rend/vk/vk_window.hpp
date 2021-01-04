@@ -61,10 +61,27 @@ namespace stms {
         }
     };
 
-    class VKWindow : public GenericWindow {
+
+    class VKWindow;
+
+    class VKPartialWindow : public _stms_GenericWindow {
+    protected:
+        VKPartialWindow() = default;
+    public:
+        VKPartialWindow(int width, int height, const char *title = "StoneMason Window (VULKAN)");
+
+        VKPartialWindow(const VKPartialWindow &rhs) = delete;
+        VKPartialWindow &operator=(const VKPartialWindow &rhs) = delete;
+
+        VKPartialWindow(VKPartialWindow &&rhs) noexcept;
+        VKPartialWindow &operator=(VKPartialWindow &&rhs) noexcept;
+    };
+
+    class VKWindow : public VKPartialWindow {
     public:
         vk::SurfaceKHR surface;
         VKDevice *pDev;
+        vk::Extent2D swapExtent;
 
         vk::SwapchainKHR swap;
         std::vector<vk::Image> swapImgs;
@@ -73,8 +90,10 @@ namespace stms {
         friend class VKInstance;
 
     public:
-        VKWindow(VKDevice *d, int width, int height, const char *title="StoneMason Window (VULKAN)");
-        ~VKWindow() override;
+        VKWindow() = delete;
+
+        VKWindow(VKDevice *d, VKPartialWindow &&parent);
+        ~VKWindow(); // dont add override
 
         VKWindow(const VKWindow &rhs) = delete;
         VKWindow &operator=(const VKWindow &rhs) = delete;

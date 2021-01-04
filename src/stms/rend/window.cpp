@@ -24,7 +24,9 @@ namespace stms {
         glfwTerminate();
     }
 
-    GenericWindow::~GenericWindow() {
-        glfwDestroyWindow(win);
+    _stms_GenericWindow::~_stms_GenericWindow() {
+        if (win != nullptr) {
+            glfwDestroyWindow(win);
+        }
     }
 }

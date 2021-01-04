@@ -13,7 +13,7 @@
 namespace stms {
 
     /// UUID type, or version. In the future, other types of UUIDs may be supported (in addition to UUIDv4)
-    enum class UUIDType {
+    enum class UUIDType : uint8_t {
         eUninitialized, //!< Used for UUIDs where all 128 bits are set to 0
         eUuid4 //!< Used for UUIDv4s, where 124 bits are randomly set. See RFC 4122 for more info
     };
