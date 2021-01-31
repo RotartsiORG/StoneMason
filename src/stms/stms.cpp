@@ -5,7 +5,6 @@
 #include "stms/stms.hpp"
 #include <bitset>
 
-#include "openssl/rand.h"
 #include "stms/net/ssl.hpp"
 
 #include "stms/logging.hpp"
@@ -14,6 +13,21 @@
 #include "stms/config.hpp"
 
 namespace stms {
+    static inline uint8_t *&getEmergencyMemoryBlock() {
+        static uint8_t *val = nullptr;
+        return val;
+    }
+
+    static void newHandler() {
+        delete[] getEmergencyMemoryBlock();
+        getEmergencyMemoryBlock() = nullptr;
+
+        std::set_new_handler(nullptr);
+
+        STMS_FATAL("[OOM] Out of memory! Freeing initial emergency memory block! Expect a crash!");
+    }
+
+
     _stms_STMSInitializer _stms_initializer = _stms_STMSInitializer();
     bool _stms_STMSInitializer::hasRun = false;
 
@@ -26,6 +40,9 @@ namespace stms {
             STMS_WARN("_stms_STMSInitializer was called more than once! Ignoring invocation!");
             return;
         }
+
+        std::set_new_handler(newHandler); // set new handler bf new
+        getEmergencyMemoryBlock() = new uint8_t[emergencyMemBlockSize];
 
         hasRun = true;
 
@@ -47,5 +64,9 @@ namespace stms {
         stms::quitCurl();
 
         stms::quitLogging();
+
+        std::set_new_handler(nullptr);
+        delete[] getEmergencyMemoryBlock();
+        getEmergencyMemoryBlock() = nullptr;
     }
 }

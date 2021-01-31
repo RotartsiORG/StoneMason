@@ -10,13 +10,15 @@
 #define __STONEMASON_CONFIG_HPP
 //!< Include guard
 
+#include <cstddef>
+
 /// If not defined, all `STMS_XXX` log macros will resolve to nothing. Easily turn logging on/off
 #define STMS_ENABLE_LOGGING
 
 /// Namespace containing everything StoneMason has to offer! (https://github.com/RotartsiORG/StoneMason)
 namespace stms {
-    constexpr char versionString[] = "0.0.0-dev2020.08.12"; //!< Full version string for this version of StoneMason
-    constexpr unsigned fullVersionNum = 6; //!< Raw version number, to be incremented every commit.
+    constexpr char versionString[] = "0.0.0-dev2021.01.30"; //!< Full version string for this version of StoneMason
+    constexpr unsigned fullVersionNum = 7; //!< Raw version number, to be incremented every commit.
     constexpr unsigned compatVersionNum = 0; //!< STMS versions with the same compatVersionNum are api-compatible
 
     /**
@@ -60,6 +62,9 @@ namespace stms {
      *        If it is 2, exceptions will be thrown at WARNINGs. (e.g. Calling `start()` when something is already started)
      */
     constexpr unsigned char exceptionLevel = 0;
+
+    /// How much memory (in bytes) should be allocated at startup so that we can log a msg if we run out of memory
+    constexpr std::size_t emergencyMemBlockSize = 1UL << 24UL; // ~16MB
 }
 
 

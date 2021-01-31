@@ -20,7 +20,11 @@ int main() {
     stms::VKShader frag(&gpu, stms::readFile("./res/vkShaders/frag.spv"), vk::ShaderStageFlagBits::eFragment);
     stms::VKShader vert(&gpu, stms::readFile("./res/vkShaders/vert.spv"), vk::ShaderStageFlagBits::eVertex);
 
-    stms::VKPipeline pipeline{&win, {}};
+    stms::VKPipelineLayout layout{&win};
+
+    stms::VKPipeline pipeline{&layout};
+
+    STMS_INFO("{} {} {}", (void*) pipeline.pLayout, (void*) frag.mod, (void*) vert.mod); // prevent stuff from being optimized out
 
     while (!win.shouldClose()) {
         stms::pollEvents();

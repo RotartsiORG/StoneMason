@@ -56,8 +56,31 @@ namespace stms {
     };
 
     struct VKPipelineConfig {
-        std::vector<vk::VertexInputBindingDescription> vboBindingVec;
-        std::vector<vk::VertexInputAttributeDescription> vboAttribVec;
+        /**
+         * @brief Layout of a vertex buffer, represents a buffer to load data from.
+         */
+        struct VBOLayout {
+            vk::VertexInputRate rate = vk::VertexInputRate::eVertex; //!< How often we move on to the next 'vertex'. For instancing.
+            uint32_t stride; //!< Number of bytes each whole vertex takes. Allows for implicit padding.
+
+            /**
+             * @brief Represents a vertex attribute in a VBO.
+             */
+            struct AttribLayout {
+                /**
+                 * Shader location number (i.e. if location was 123, then this attrib could be accessed in the shader with
+                 * `layout(location = 123) vec4 color;`. Note that some types [arrays, dvec4s, etc] take multiple locations)
+                 */
+                uint32_t location;
+
+                uint32_t offset; //!< Offset from beginning of buffer in bytes.
+                vk::Format format; //!< Format of data, see vulkan docs.
+            };
+
+            std::vector<AttribLayout> attribs; //!< List of `VkVertexAttribLayout`s for specific vertex attribs.
+        };
+
+        std::vector<VBOLayout> vboLayout;
 
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyCi = vk::PipelineInputAssemblyStateCreateInfo{
             {}, // flags
@@ -125,50 +148,39 @@ namespace stms {
         // Do these belong here? They are framebuffer attachments
         std::vector<vk::PipelineColorBlendAttachmentState> blendAttachVec;
 
+        struct BlendState {
+            vk::Bool32 enable = VK_FALSE;
+            vk::LogicOp logicOp = vk::LogicOp::eCopy;
+            std::array<float, 4> blendConstants = std::array<float, 4>{{0.0f, 0.0f, 0.0f, 0.0f}};
+        };
+
+        BlendState blendState{};
+
         std::vector<vk::DynamicState> dynamicStateVec;
-
-        std::vector<vk::DescriptorSetLayout> descSetLayoutVec;
-        std::vector<vk::PushConstantRange> pushConstVec;
     };
 
-    /**
-     * @brief Represents a vertex attribute in a VBO.
-     */
-    struct VKVertexAttribLayout {
-        /**
-         * Shader location number (i.e. if location was 123, then this attrib could be accessed in the shader with
-         * `layout(location = 123) vec4 color;`. Note that some types [arrays, dvec4s, etc] take multiple locations)
-         */
-        uint32_t location;
 
-        uint32_t offset; //!< Offset from beginning of buffer in bytes.
-        vk::Format format; //!< Format of data, see vulkan docs.
+    class VKPipelineLayout {
+    public:
+        vk::PipelineLayout layout;
+        VKWindow *pWin;
+
+        explicit VKPipelineLayout(VKWindow *win, const std::vector<vk::DescriptorSetLayout> &descSetLayoutVec = {},
+                                  const std::vector<vk::PushConstantRange> &pushConstVec = {});
+
+        virtual ~VKPipelineLayout();
+
+        VKPipelineLayout(const VKPipelineLayout &rhs) = delete;
+        VKPipelineLayout &operator=(const VKPipelineLayout &rhs) = delete;
+
+        VKPipelineLayout(VKPipelineLayout &&rhs) noexcept;
+        VKPipelineLayout &operator=(VKPipelineLayout &&rhs) noexcept;
     };
-
-    /**
-     * @brief Layout of a vertex buffer, represents a buffer to load data from.
-     */
-    struct VKVertexBufferLayout {
-        vk::VertexInputRate rate = vk::VertexInputRate::eVertex; //!< How often we move on to the next 'vertex'. For instancing.
-        uint32_t stride; //!< Number of bytes each whole vertex takes. Allows for implicit padding.
-
-        std::vector<VKVertexAttribLayout> attribs; //!< List of `VkVertexAttribLayout`s for specific vertex attribs.
-    };
-
-    /**
-     * @brief Get the size (in bytes) of a vulkan type.
-     * @param val Type
-     * @throws If `exceptionLevel > 0`, this function will throw `std::domain_error` if `val` is unrecognized
-     *         and `std::invalid_argument` if `val` is `vk::Format::eUndefined`
-     * @return Size it takes, in bytes.
-     */
-    uint32_t getSizeOfVkFormat(vk::Format val);
 
     class VKPipeline {
     public:
 
-        vk::PipelineLayout layout;
-        VKWindow *pWin;
+        VKPipelineLayout *pLayout;
 
         /**
          * @brief Create a pipeline.
@@ -176,7 +188,7 @@ namespace stms {
          * @param vboLayout Layout of the VBOs. Every VBO will have the same binding number as its index here.
          *
          */
-        VKPipeline(VKWindow *win, const std::vector<VKVertexBufferLayout>& vboLayout);
+        explicit VKPipeline(VKPipelineLayout *lyo, const VKPipelineConfig& c = {});
         virtual ~VKPipeline();
 
         VKPipeline(const VKPipeline &rhs) = delete;
