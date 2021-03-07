@@ -38,6 +38,9 @@ stms_logs
 Doxyfile
 latest.log
 
+sphinx-out/_build
+sphinx-out/api
+
 imgui.ini
 cov-int
 myproject.tgz
