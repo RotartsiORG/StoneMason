@@ -21,7 +21,7 @@ namespace {
         }
 
         void TearDown() override {
-            stms::getLogPool() = nullptr;
+            stms::getLogPool() = stms::getDefaultInstaPool();
             this->pool->waitIdle(1000);
             this->pool->stop();
             delete this->pool;

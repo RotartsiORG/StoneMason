@@ -32,10 +32,8 @@ namespace stms {
             std::fclose(getUniqueLogFile());
         }
 
-        if (getLogPool() != nullptr) {
-            getLogPool()->waitIdle(1000); // make sure all in-flight log records are processed!
-            getLogPool()->stop(false);
-        }
+        getLogPool()->waitIdle(1000); // make sure all in-flight log records are processed!
+        getLogPool()->stop(false);
     }
 
     void initLogging() {
@@ -153,15 +151,11 @@ namespace stms {
             // Recurse. No need to check/set the consume flag as they are only modified on exit/enter.
             // This is better than just looping bc it breaks the consume task up into multiple submits
             // to the thread pool!
-            if (getLogPool() != nullptr) {
-                getLogPool()->submitTask(consumeLogs);
+            getLogPool()->submitTask(consumeLogs);
 
-                if (!getLogPool()->isRunning()) {
-                    getLogPool()->start();
-                    std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
-                }
-            } else {
-                consumeLogs();
+            if (!getLogPool()->isRunning()) {
+                getLogPool()->start();
+                std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
             }
         } else {
             logConsuming = false;
@@ -175,7 +169,7 @@ namespace stms {
 
         getLogQueue().emplace(std::move(rec));
 
-        if (getLogPool() != nullptr && !logConsuming) {
+        if (!logConsuming) {
             logConsuming = true;
 
             lg.unlock();
@@ -186,12 +180,6 @@ namespace stms {
                 getLogPool()->start();
                 std::cerr << "Logging thread pool was stopped! Starting it now!" << std::endl;
             }
-        } else if (!logConsuming) {
-            logConsuming = true;
-
-            lg.unlock();
-
-            consumeLogs(); // no async? just do it here.
         } else {
             lg.unlock();
         }

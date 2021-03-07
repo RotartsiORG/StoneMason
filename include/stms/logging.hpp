@@ -112,10 +112,10 @@ namespace stms {
      *         If set to `nullptr`, asynchronous logging will be disabled. Otherwise, log-consume tasks will be
      *         submitted to this pool. By default, this is `nullptr` and async logging is disabled.
      */
-    inline ThreadPool *&getLogPool() {
+    inline PoolLike *&getLogPool() {
         // this is a ThreadPool, not a PoolLike as behaviour for PoolLike is identical to nullptr behaviour
         // This was implemented before PoolLike
-        static ThreadPool *val = nullptr;
+        static PoolLike *val = getDefaultInstaPool();
         return val;
     }
 

@@ -28,11 +28,37 @@ namespace stms {
         virtual void submitPackagedTask(std::packaged_task<void(void)> &&func) = 0;
 
 
-        // virtual void start(unsigned threads = 0) = 0;
-        // virtual void stop(bool block = true) = 0;
+        virtual void start(unsigned threads = 0) = 0;
+        virtual void stop(bool block = true) = 0;
+        virtual bool isRunning() const = 0;
+
+        virtual void waitIdle(unsigned timeout = 0) = 0;
+
         // virtual void pushThread() = 0;
         // virtual void popThread(bool block = true) = 0;
     };
+
+    /**
+     * @brief Pretend to be a thread pool, but execute tasks instantly inside of the submit function 
+     */
+    class InstaPool : public PoolLike {
+    public:
+        ~InstaPool() override = default;
+
+        std::future<void> submitTask(const std::function<void(void)> &func) override;
+        void submitPackagedTask(std::packaged_task<void(void)> &&func) override;
+
+        bool isRunning() const override { return true; }
+
+        void start(unsigned = 0) override {};
+        void stop(bool = true) override {};
+        void waitIdle(unsigned = 0) override {};
+    };
+
+    inline PoolLike *getDefaultInstaPool() {
+        static InstaPool pool{};
+        return &pool;
+    }
 
     class ThreadPool;
 
@@ -92,14 +118,14 @@ namespace stms {
          * @param threads Number of threads to create for the pool. If it is 0, then we default to
          *                `std::thread::hardware_concurrency()`. If that is still 0, we default to 8.
          */
-        void start(unsigned threads = 0);
+        void start(unsigned threads = 0) override;
 
         /**
          * @brief Stop the thread pool. Any newly submitted tasks will NOT be executed!
          * @param block If true, this will block until all the worker threads have finished their current task.
          *              Otherwise, they are detached to finish by themselves.
          */
-        void stop(bool block = true);
+        void stop(bool block = true) override;
 
         /**
          * @brief Submit a function to the thread pool for execution (if the `ThreadPool` is started).
@@ -141,13 +167,13 @@ namespace stms {
          * @brief Block until all tasks in the thread pool are finished (aka the thread pool is *idle*)
          * @param timeout Maximum number of milliseconds to block for. If set to 0, this will block infinitely
          */
-        void waitIdle(unsigned timeout = 0);
+        void waitIdle(unsigned timeout = 0) override;
 
         /**
          * @brief Query if the thread pool is still running
          * @return True if running.
          */
-        [[nodiscard]] inline bool isRunning() const {
+        [[nodiscard]] bool isRunning() const override {
             return running;
         }
     };

@@ -36,6 +36,19 @@ namespace stms {
     }
 
 
+    std::future<void> InstaPool::submitTask(const std::function<void(void)> &func) {
+        // We don't just execute the function since we need to future (which can be an exception!)
+        auto packagedTask = std::packaged_task<void(void)>(func);
+        auto future = packagedTask.get_future();
+        submitPackagedTask(std::move(packagedTask));
+        return future;
+    }
+
+    void InstaPool::submitPackagedTask(std::packaged_task<void(void)> &&func) {
+        func();
+    }
+
+
     void ThreadPool::destroy() {
         if (!tasks.empty()) {
             STMS_WARN("ThreadPool destroyed with unfinished tasks! {} tasks will never be executed!", tasks.size());
