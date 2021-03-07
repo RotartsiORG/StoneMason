@@ -36,7 +36,7 @@ namespace stms {
         return 0;
     }
 
-    CURLHandle::CURLHandle(ThreadPool *inPool) : pool(inPool), handle(curl_easy_init()) {
+    CURLHandle::CURLHandle(PoolLike *inPool) : pool(inPool), handle(curl_easy_init()) {
         curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCb);
         curl_easy_setopt(handle, CURLOPT_WRITEDATA, this);
 

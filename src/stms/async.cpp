@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stms/logging.hpp>
 #include "stms/async.hpp"
+#include <stms/util/compare.hpp>
 
 namespace stms {
     static void workerFunc(ThreadPool *parent, size_t index) {
@@ -104,6 +105,13 @@ namespace stms {
     }
 
     std::future<void> ThreadPool::submitTask(const std::function<void(void)> &func) {
+        auto task = std::packaged_task<void(void)>(func);
+        auto future = task.get_future(); // Save future to variable since `task` is moved.
+        submitPackagedTask(std::move(task));
+        return future;
+    }
+
+    void ThreadPool::submitPackagedTask(std::packaged_task<void(void)> &&func) {
         if (!running) {
             STMS_WARN("Task submitted before ThreadPool was started! Please start the pool!");
             // Don't do anything.
@@ -113,16 +121,10 @@ namespace stms {
             std::lock_guard<std::mutex> lg(unfinishedTaskMtx);
             unfinishedTasks++;
         }
-        auto task = std::packaged_task<void(void)>(func);
-
-        // Save future to variable since `task` is moved.
-        auto future = task.get_future();
 
         std::lock_guard<std::mutex> lg(this->taskQueueMtx);
-        this->tasks.emplace(std::move(task));
+        this->tasks.emplace(std::move(func));
         taskQueueCv.notify_one(); // should this be changed to notify_all?
-
-        return future;
     }
 
     void ThreadPool::pushThread() {
@@ -228,4 +230,56 @@ namespace stms {
             unfinishedTasksCv.wait_for(lg, std::chrono::milliseconds(timeout), predicate);
         }
     }
+
+    TimedScheduler::TimedScheduler(PoolLike *parent) : pool(parent) {
+        lastTick = std::chrono::steady_clock::now();
+    }
+
+    void TimedScheduler::tick() {
+        auto now = std::chrono::steady_clock::now();
+
+        for (auto &p : msIntervals) {
+            p.second.time += std::chrono::duration_cast<std::chrono::nanoseconds>(now - lastTick).count() / 1000000.0f;
+            // STMS_INFO("{} {}", p.second.time, p.second.interval);
+            if (Cmp<float>::gt(p.second.time, p.second.interval)) {
+                p.second.time -= p.second.interval;
+                pool->submitTask(p.second.task);
+            }
+        }
+
+        std::queue<TaskIdentifier> clearQueue;
+        for (auto &p : msTimeouts) {
+            float d = std::chrono::duration_cast<std::chrono::nanoseconds>(now - p.second.start).count() /  1000000.0f;
+            if (Cmp<float>::gt(d, p.second.timeout)) {
+                pool->submitPackagedTask(std::move(p.second.task)); // no catch for `std::packaged_task`s
+                clearQueue.push(p.first);
+            }
+        }
+
+        while (!clearQueue.empty()) {
+            clearTimeout(clearQueue.front());
+            clearQueue.pop();
+        }
+
+        lastTick = now;
+    }
+
+    TimeoutTask TimedScheduler::setTimeout(const std::function<void(void)> &task, float timeoutMs) {
+        TaskIdentifier id = idAccumulator++;
+
+        auto tm = MSTimeout{std::chrono::steady_clock::now(), timeoutMs, std::packaged_task<void(void)>(task)};
+        auto ret = TimeoutTask{id, tm.task.get_future()};
+
+        msTimeouts[id] = std::move(tm);
+        return ret;
+    }
+
+    TaskIdentifier TimedScheduler::setInterval(const std::function<void(void)> &task, float intervalMs) {
+        TaskIdentifier id = idAccumulator++;
+
+        msIntervals[id] = MSInterval{0, intervalMs, task};
+
+        return id;
+    }
+
 }

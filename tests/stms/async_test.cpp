@@ -137,5 +137,34 @@ namespace {
         EXPECT_EQ(pool->getNumThreads(), 8);
         stopPool();
     }
+
+    TEST_F(ThreadPoolTests, Scheduler) {
+        startPool(8);
+        std::atomic_int count = 0;
+        bool go = true;
+
+        stms::TimedScheduler sched(pool);
+        sched.setTimeout([&]() {
+            STMS_INFO("TimedOut!");
+            go = false;
+        }, 2000);
+
+        sched.clearTimeout(sched.setTimeout([&]() {
+            STMS_INFO("BECLEARED");
+        }, 1000).id);
+
+        stms::TaskIdentifier id = sched.setInterval([&]() {
+            STMS_INFO("Interval! Count {}", count++);
+            if (count >= 10) {
+                sched.clearTimeout(id);
+            }
+        }, 125);
+
+        while (go) {
+            sched.tick();
+        }
+
+        stopPool();
+    }
 }
 

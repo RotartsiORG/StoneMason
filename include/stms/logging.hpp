@@ -113,6 +113,8 @@ namespace stms {
      *         submitted to this pool. By default, this is `nullptr` and async logging is disabled.
      */
     inline ThreadPool *&getLogPool() {
+        // this is a ThreadPool, not a PoolLike as behaviour for PoolLike is identical to nullptr behaviour
+        // This was implemented before PoolLike
         static ThreadPool *val = nullptr;
         return val;
     }

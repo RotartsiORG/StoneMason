@@ -119,7 +119,7 @@ namespace stms {
         bool running = false; //!< Flag for if the server/client is running (DUH).
 
         /// The `ThreadPool` to submit async tasks to. This is the `ThreadPool` passed into the constructor.
-        stms::ThreadPool *pPool{};
+        stms::PoolLike *pPool{};
 
         /// Password for the private key file (see `setPrivateKey`), if it is password-protected.
         std::string password{};
@@ -130,7 +130,7 @@ namespace stms {
          * @param pool See documentation for member `pPool`
          * @param isUdp See documentatino for member `isUdp`.
          */
-        explicit _stms_SSLBase(bool isServ, stms::ThreadPool *pool, bool isUdp);
+        explicit _stms_SSLBase(bool isServ, stms::PoolLike *pool, bool isUdp);
 
         virtual void onStart(); //!< Hook called when `start` is called. Internal implementation detail. Don't touch.
         virtual void onStop(); //!< Hook called when `stop` is called. Internal implementation detail. Don't touch.

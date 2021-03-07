@@ -29,7 +29,7 @@ namespace stms {
      */
     class CURLHandle {
     private:
-        std::atomic<ThreadPool *> pool{}; //!< Thread pool to submit async tasks to
+        std::atomic<PoolLike *> pool{}; //!< Thread pool to submit async tasks to
 
         std::mutex resultMtx; //!< Mutex for syncing writes to the result string
 
@@ -53,7 +53,7 @@ namespace stms {
          * @brief Constructor.
          * @param inPool Pool we want to submit tasks to
          */
-        explicit CURLHandle(ThreadPool *inPool);
+        explicit CURLHandle(PoolLike *inPool);
 
         virtual ~CURLHandle(); //!< virtual destructor
 

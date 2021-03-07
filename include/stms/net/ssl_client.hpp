@@ -55,7 +55,7 @@ namespace stms {
          * @param pool The `ThreadPool` to submit async tasks to
          * @param isUdp If true, this will use `DTLS/UDP`, otherwise, `TLS/TCP`.
          */
-        explicit SSLClient(stms::ThreadPool *pool, bool isUdp);
+        explicit SSLClient(stms::PoolLike *pool, bool isUdp);
 
         /**
          * @brief Set a new `recvCallback`. See documentation for `stms::SSLClient::recvCallback`

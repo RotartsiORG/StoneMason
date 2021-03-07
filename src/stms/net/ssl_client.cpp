@@ -8,7 +8,7 @@
 
 namespace stms {
 
-    SSLClient::SSLClient(stms::ThreadPool *pool, bool udp) : _stms_SSLBase(false, pool, udp) {}
+    SSLClient::SSLClient(stms::PoolLike *pool, bool udp) : _stms_SSLBase(false, pool, udp) {}
 
     SSLClient::~SSLClient() {
         if (running) {

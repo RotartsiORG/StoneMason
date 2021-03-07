@@ -115,7 +115,6 @@ namespace stms {
             extDat[std::string(i)].required = true;
         }
 
-        // TODO: If there is an extension in `wantedExts` that isn't available, that is never logged!
         std::vector<vk::ExtensionProperties> extProps = vk::enumerateInstanceExtensionProperties();
         for (const auto &prop : extProps) {
             if (details.wantedExts.find(std::string(prop.extensionName)) != details.wantedExts.end()) {

@@ -185,7 +185,7 @@ namespace stms {
     }
 
 
-    _stms_SSLBase::_stms_SSLBase(bool serv, stms::ThreadPool *pool, bool udp) : isServ(serv), isUdp(udp), pPool(pool) {
+    _stms_SSLBase::_stms_SSLBase(bool serv, stms::PoolLike *pool, bool udp) : isServ(serv), isUdp(udp), pPool(pool) {
 
         if (isUdp) {
             pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
@@ -232,34 +232,23 @@ namespace stms {
             return;
         }
 
-        if (!pPool->isRunning()) {
-            STMS_ERROR("_stms_SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
-            pPool->start();
-        }
+        // if (!pPool->isRunning()) {
+        //     STMS_ERROR("_stms_SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
+        //     pPool->start();
+        // }
 
         int i = 0;
         for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {
-            if (p->ai_family == AF_INET6) {
-                if (tryAddr(p, i)) {
-                    if (wantV6) {
-                        STMS_INFO("Using Candidate {} because it is IPv6", i);
-                        running = true;
-                        onStart();
-                        return;
-                    }
+
+            if (tryAddr(p, i)) {
+                if ((p->ai_family == AF_INET6 && wantV6) || (p->ai_family == AF_INET && !wantV6)) {
+                    STMS_INFO("Using Candidate {} because it is IPv{}", i, p->ai_family == AF_INET ? '4' : '6');
+                    running = true;
+                    onStart();
+                    return;
                 }
-            } else if (p->ai_family == AF_INET) {
-                if (tryAddr(p, i)) {
-                    if (!wantV6) {
-                        STMS_INFO("Using Candidate {} because it is IPv4", i);
-                        running = true;
-                        onStart();
-                        return;
-                    }
-                }
-            } else {
-                STMS_INFO("Candidate {} has unsupported family. Ignoring.", i);
             }
+
             i++;
         }
 

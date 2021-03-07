@@ -149,7 +149,7 @@ namespace stms {
          * @param pool `ThreadPool` to submit async tasks to.
          * @param isUdp If true, UDP/DTLS will be used. Otherwise, TCP/TLS is used.
          */
-        explicit SSLServer(stms::ThreadPool *pool, bool isUdp);
+        explicit SSLServer(stms::PoolLike *pool, bool isUdp);
 
         ~SSLServer(); //!< Override of virtual destructor of `_stms_SSLBase`.
 

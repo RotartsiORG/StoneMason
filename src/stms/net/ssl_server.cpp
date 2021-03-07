@@ -194,7 +194,7 @@ namespace stms {
         doHandshake(cli);
     }
 
-    SSLServer::SSLServer(stms::ThreadPool *pool, bool udp) : _stms_SSLBase(true, pool, udp) {
+    SSLServer::SSLServer(stms::PoolLike *pool, bool udp) : _stms_SSLBase(true, pool, udp) {
         SSL_CTX_set_cookie_generate_cb(pCtx, genCookie);
         SSL_CTX_set_cookie_verify_cb(pCtx, verifyCookie);
     }

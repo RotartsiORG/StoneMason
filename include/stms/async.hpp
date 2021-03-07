@@ -13,17 +13,37 @@
 #include <queue>
 #include <cinttypes>
 #include <future>
+#include <chrono>
+#include <unordered_map>
 #include "stms/config.hpp"
 
 namespace stms {
+
+    class PoolLike {
+    public:
+        // undefined constructor
+        virtual ~PoolLike() = default;
+
+        virtual std::future<void> submitTask(const std::function<void(void)> &func) = 0;
+        virtual void submitPackagedTask(std::packaged_task<void(void)> &&func) = 0;
+
+
+        // virtual void start(unsigned threads = 0) = 0;
+        // virtual void stop(bool block = true) = 0;
+        // virtual void pushThread() = 0;
+        // virtual void popThread(bool block = true) = 0;
+    };
+
     class ThreadPool;
 
     static void workerFunc(ThreadPool *parent, size_t index); //!< Internal implementation detail. Don't touch.
 
+    // TODO: Pool-like with a dummy pool?
+
     /**
      * @brief A thread pool. Submitted tasks will be automagically executed by a thread in the pool.
      */
-    class ThreadPool {
+    class ThreadPool : public PoolLike {
     private:
         std::mutex taskQueueMtx; //!< Mutex to lock for accessing `tasks`. Internal implementation detail.
         std::mutex workerMtx; //!< Mutex to lock for accessing `workers`. Internal implementation detail.
@@ -65,7 +85,7 @@ namespace stms {
 
         ThreadPool() = default; //!< default constructor
 
-        virtual ~ThreadPool(); //!< Virtual destructor
+        ~ThreadPool() override; //!< Virtual destructor
 
         /**
          * @brief Start the thread pool, or if the pool is already running, restart it with the new number of threads.
@@ -86,7 +106,9 @@ namespace stms {
          * @param func Function to execute
          * @return A void future that you can wait on to block until the task is finished.
          */
-        std::future<void> submitTask(const std::function<void(void)> &func);
+        std::future<void> submitTask(const std::function<void(void)> &func) override;
+
+        void submitPackagedTask(std::packaged_task<void(void)> &&func) override;
 
         void pushThread(); //!< Add 1 worker thread to the thread pool
 
@@ -127,6 +149,69 @@ namespace stms {
          */
         [[nodiscard]] inline bool isRunning() const {
             return running;
+        }
+    };
+
+
+    typedef uint64_t TaskIdentifier;
+
+    struct TimeoutTask {
+        TaskIdentifier id;
+        std::future<void> future;
+    };
+
+    struct IntervalSettings {
+        bool waitForCompletionBeforeReschedule = false;
+        bool executeImmediately = false;
+    };
+
+    class TimedScheduler {
+    private:
+        struct MSInterval {
+            float time;
+            float interval;
+            std::function<void(void)> task;
+        };
+
+        struct MSTimeout {
+            std::chrono::steady_clock::time_point start;
+            float timeout;
+            std::packaged_task<void(void)> task;
+        };
+
+        PoolLike *pool = nullptr;
+        std::chrono::steady_clock::time_point lastTick;
+
+        std::atomic_uint64_t idAccumulator = 0;
+
+        std::unordered_map<TaskIdentifier, MSTimeout> msTimeouts;
+        std::unordered_map<TaskIdentifier, MSInterval> msIntervals;
+
+
+    public:
+        explicit TimedScheduler(PoolLike *parent);
+        virtual ~TimedScheduler() = default;
+
+        void tick();
+
+        TimeoutTask setTimeout(const std::function<void(void)> &task, float timeoutMs);
+
+        inline void clearTimeout(TaskIdentifier id) {
+            msTimeouts.erase(id);
+        };
+
+        TaskIdentifier setInterval(const std::function<void(void)> &task, float intervalMs);
+
+        inline void clearInterval(TaskIdentifier id) {
+            msIntervals.erase(id);
+        }
+
+        inline PoolLike *&getPool() {
+            return pool;
+        }
+
+        inline void setPool(PoolLike *p) {
+            pool = p;
         }
     };
 }
