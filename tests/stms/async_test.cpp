@@ -6,6 +6,7 @@
 
 #include "gtest/gtest.h"
 #include "stms/async.hpp"
+#include "stms/scheduler.hpp"
 #include "stms/logging.hpp"
 
 namespace {
@@ -140,7 +141,7 @@ namespace {
 
     TEST_F(ThreadPoolTests, Scheduler) {
         startPool(8);
-        std::atomic_int count = 0;
+        std::atomic_int count{0};
         bool go = true;
 
         stms::TimedScheduler sched(pool);

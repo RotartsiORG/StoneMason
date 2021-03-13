@@ -6,8 +6,11 @@ CMK_EXE="cmake"
 export CC=/usr/bin/clang
 export CXX=/usr/bin/clang++
 
-#export CC=/usr/bin/gcc
-#export CXX=/usr/bin/g++
+# export CC=/usr/bin/x86_64-w64-mingw32-gcc
+# export CXX=/usr/bin/x86_64-w64-mingw32-g++
+
+# export CC=/usr/bin/gcc
+# export CXX=/usr/bin/g++
 
 $CMK_EXE -GNinja -Wdev -Wdeprecated -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DSTMS_SSL_TESTS_ENABLED=ON -Bbuild -S.
 

@@ -73,5 +73,9 @@
         "variant": "cpp",
         "bit": "cpp",
         "format": "cpp"
-    }
+    },
+    "gitlens.currentLine.enabled": false,
+    "gitlens.codeLens.recentChange.enabled": false,
+    "gitlens.codeLens.enabled": false,
+    "gitlens.codeLens.authors.enabled": false
 }

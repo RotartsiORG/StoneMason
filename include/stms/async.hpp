@@ -82,7 +82,7 @@ namespace stms {
         std::queue<std::packaged_task<void (void)>> tasks; //!< Queue of tasks to execute
         std::deque<std::thread> workers; //!< A list of worker threads.
 
-        std::atomic_bool running = false; //!< True if the thread pool is running. (Duh)
+        std::atomic_bool running{false}; //!< True if the thread pool is running. (Duh)
         size_t stopRequest = 0; //!< The thread ID that we request to stop.
 
         friend void workerFunc(ThreadPool *parent, size_t index); //!< Static worker function. Internal impl detail.
@@ -178,68 +178,6 @@ namespace stms {
         }
     };
 
-
-    typedef uint64_t TaskIdentifier;
-
-    struct TimeoutTask {
-        TaskIdentifier id;
-        std::future<void> future;
-    };
-
-    struct IntervalSettings {
-        bool waitForCompletionBeforeReschedule = false;
-        bool executeImmediately = false;
-    };
-
-    class TimedScheduler {
-    private:
-        struct MSInterval {
-            float time;
-            float interval;
-            std::function<void(void)> task;
-        };
-
-        struct MSTimeout {
-            std::chrono::steady_clock::time_point start;
-            float timeout;
-            std::packaged_task<void(void)> task;
-        };
-
-        PoolLike *pool = nullptr;
-        std::chrono::steady_clock::time_point lastTick;
-
-        std::atomic_uint64_t idAccumulator = 0;
-
-        std::unordered_map<TaskIdentifier, MSTimeout> msTimeouts;
-        std::unordered_map<TaskIdentifier, MSInterval> msIntervals;
-
-
-    public:
-        explicit TimedScheduler(PoolLike *parent);
-        virtual ~TimedScheduler() = default;
-
-        void tick();
-
-        TimeoutTask setTimeout(const std::function<void(void)> &task, float timeoutMs);
-
-        inline void clearTimeout(TaskIdentifier id) {
-            msTimeouts.erase(id);
-        };
-
-        TaskIdentifier setInterval(const std::function<void(void)> &task, float intervalMs);
-
-        inline void clearInterval(TaskIdentifier id) {
-            msIntervals.erase(id);
-        }
-
-        inline PoolLike *&getPool() {
-            return pool;
-        }
-
-        inline void setPool(PoolLike *p) {
-            pool = p;
-        }
-    };
 }
 
 #endif //__STONEMASON_ASYNC_HPP
