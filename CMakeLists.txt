@@ -7,8 +7,8 @@ set(STMS_VERSION 0.0.0)
 set(STMS_COMPILE_FLAGS -Wall -Wextra -Wpedantic -Wshadow -Wno-unused-function -std=c++17)
 set(STMS_DESCRIPTION "An attempt at a C++ game engine")
 
-add_compile_options(-fPIC -O2)
-add_link_options(-fPIC -O2)
+add_compile_options(-fPIC -O3)
+add_link_options(-fPIC -O3)
 
 option(STMS_BUILD_TESTS "Builds the tests of StoneMason (off by default)" ON)
 option(STMS_BUILD_SAMPLES "Builds example programs for StoneMason (off by default)" ON)

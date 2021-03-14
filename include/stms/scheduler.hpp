@@ -4,7 +4,9 @@
 #define __STONEMASON_SCHEDULER_HPP
 
 #include <stms/async.hpp>
+#include <stms/logging.hpp>
 #include <stms/util/compare.hpp>
+#include <iostream>
 
 namespace stms {
     typedef uint64_t TaskIdentifier;
@@ -14,23 +16,24 @@ namespace stms {
         std::future<void> future;
     };
 
-    template <typename InType, typename TickType>
-    class _stms_Scheduler {
+
+    template <typename T>
+    class Scheduler {
     protected:
         struct Interval {
-            InType time = 0;
-            InType interval;
+            T time = 0;
+            T interval;
             std::function<void(void)> task;
         };
 
         struct Timeout {
-            TickType start;
-            InType timeout;
+            T start;
+            T timeout;
             std::packaged_task<void(void)> task;
         };
 
         PoolLike *pool = nullptr;
-        TickType lastTick;
+        T lastTick = 0;
 
         std::atomic_uint64_t idAccumulator = 0;
 
@@ -39,20 +42,76 @@ namespace stms {
 
 
     public:
-        _stms_Scheduler() = delete;
+        Scheduler() = delete;
 
-        explicit _stms_Scheduler(PoolLike *parent);
-        virtual ~_stms_Scheduler() = default;
+        explicit Scheduler(PoolLike *parent) : pool(parent) {};
+        virtual ~Scheduler() = default;
 
-        TickType tick(InType inc = 0);
+        Scheduler &operator=(const Scheduler &rhs) = delete;
+        Scheduler(const Scheduler &rhs) = delete;
 
-        TimeoutTask setTimeout(const std::function<void(void)> &task, InType timeoutMs);
+        Scheduler &operator=(Scheduler &&rhs) {
+            if (this == &rhs) {
+                return *this;
+            }
+
+            pool = rhs.pool;
+            lastTick = rhs.lastTick;
+            idAccumulator = rhs.idAccumulator.load();
+            timeouts = std::move(rhs.timeouts);
+            intervals = std::move(rhs.intervals);
+            return *this;
+        }
+
+        Scheduler(Scheduler &&rhs) {
+            *this = std::move(rhs);
+        }
+
+        T tick(T inc = 0) {
+            lastTick += inc;
+            // STMS_DEBUG("{}", lastTick);
+
+            for (auto &i : intervals) {
+                i.second.time += inc;
+                if (i.second.time >= i.second.interval) {
+                    i.second.time -= i.second.interval;
+                    pool->submitTask(i.second.task);
+                }
+            }
+
+            std::queue<TaskIdentifier> clearQueue;
+            for (auto &t : timeouts) {
+                if ((lastTick - t.second.start) >= t.second.timeout) {
+                    pool->submitPackagedTask(std::move(t.second.task));
+                    clearQueue.push(t.first);
+                }
+            }
+ 
+            while (!clearQueue.empty()) {
+                clearTimeout(clearQueue.front());
+                clearQueue.pop();
+            }
+
+            return lastTick;
+        };
+
+        TimeoutTask setTimeout(const std::function<void(void)> &task, T timeoutTicks) {
+            TaskIdentifier id = idAccumulator++;
+            auto tm = Timeout{lastTick, timeoutTicks, std::packaged_task<void(void)>(task)};
+            auto ret = TimeoutTask{id, tm.task.get_future()};
+            timeouts[id] = std::move(tm);
+            return ret;
+        };
 
         inline void clearTimeout(TaskIdentifier id) {
             timeouts.erase(id);
         };
 
-        TaskIdentifier setInterval(const std::function<void(void)> &task, InType intervalMs);
+        TaskIdentifier setInterval(const std::function<void(void)> &task, T intervalTicks) {
+            TaskIdentifier id = idAccumulator++;
+            intervals[id] = {0, intervalTicks, task};
+            return id;
+        };
 
         inline void clearInterval(TaskIdentifier id) {
             intervals.erase(id);
@@ -67,111 +126,48 @@ namespace stms {
         }
     };
 
-    typedef _stms_Scheduler<int64_t, int64_t> TickedScheduler;
+    class TimedScheduler {
+    private:
+        std::chrono::steady_clock::time_point lastTick;
+    public:
+        Scheduler<uint64_t> sched;
 
-    template<>
-    TickedScheduler::_stms_Scheduler(PoolLike *parent) : pool(parent) {};
+        explicit TimedScheduler(PoolLike *p);
+        virtual ~TimedScheduler() = default;
 
-    template<>
-    int64_t TickedScheduler::tick(int64_t inc) {
-        lastTick += inc;
-
-        for (auto &i : intervals) {
-            i.second.time += inc;
-            if (i.second.time >= i.second.interval) {
-                i.second.time -= i.second.interval;
-                pool->submitTask(i.second.task);
-            }
+        TimedScheduler &operator=(TimedScheduler &&rhs) {
+            if (this == &rhs) { return *this; }
+            lastTick = std::move(rhs.lastTick);
+            sched = std::move(rhs.sched);
+            return *this;
         }
 
-        std::queue<TaskIdentifier> clearQueue;
-        for (auto &t : timeouts) {
-            if ((lastTick - t.second.start) >= t.second.timeout) {
-                pool->submitPackagedTask(std::move(t.second.task));
-                clearQueue.push(t.first);
-            }
+        TimedScheduler(TimedScheduler &&rhs) : sched(nullptr) {
+            *this = std::move(rhs);
         }
 
-        while (!clearQueue.empty()) {
-            clearTimeout(clearQueue.front());
-            clearQueue.pop();
+        inline void clearInterval(TaskIdentifier id) { sched.clearInterval(id); };
+        inline void clearTimeout(TaskIdentifier id) { sched.clearTimeout(id); };
+
+        inline TaskIdentifier setInterval(const std::function<void(void)> &task, float intervalMs) {
+            return sched.setInterval(task, intervalMs * 1000000);
         }
 
-        return lastTick;
-    }
-
-    template<>
-    TaskIdentifier TickedScheduler::setInterval(const std::function<void(void)> &task, int64_t intervalTicks) {
-        TaskIdentifier id = idAccumulator++;
-        intervals[id] = {0, intervalTicks, task};
-        return id;
-    }
-
-    template<>
-    TimeoutTask TickedScheduler::setTimeout(const std::function<void(void)> &task, int64_t timeoutTicks) {
-        TaskIdentifier id = idAccumulator++;
-        auto tm = Timeout{lastTick, timeoutTicks, std::packaged_task<void(void)>(task)};
-        auto ret = TimeoutTask{id, tm.task.get_future()};
-        timeouts[id] = std::move(tm);
-        return ret;
-    }
-
-
-    typedef _stms_Scheduler<float, std::chrono::steady_clock::time_point> TimedScheduler;
-
-    template<>
-    TimedScheduler::_stms_Scheduler(PoolLike *parent) : pool(parent) {
-        lastTick = std::chrono::steady_clock::now();
-    }
-
-    template<>
-    std::chrono::steady_clock::time_point TimedScheduler::tick(float inc) {
-        auto now = std::chrono::steady_clock::now();
-
-        for (auto &p : intervals) {
-            p.second.time += std::chrono::duration_cast<std::chrono::nanoseconds>(now - lastTick).count() / 1000000.0f;
-            // STMS_INFO("{} {}", p.second.time, p.second.interval);
-            if (Cmp<float>::gt(p.second.time, p.second.interval)) {
-                p.second.time -= p.second.interval;
-                pool->submitTask(p.second.task);
-            }
+        inline TimeoutTask setTimeout(const std::function<void(void)> &task, float timeoutMs) {
+            return sched.setTimeout(task, timeoutMs * 1000000);
         }
 
-        std::queue<TaskIdentifier> clearQueue;
-        for (auto &p : timeouts) {
-            float d = std::chrono::duration_cast<std::chrono::nanoseconds>(now - p.second.start).count() /  1000000.0f;
-            if (Cmp<float>::gt(d, p.second.timeout)) {
-                pool->submitPackagedTask(std::move(p.second.task)); // no catch for `std::packaged_task`s
-                clearQueue.push(p.first);
-            }
+        inline TaskIdentifier setIntervalNs(const std::function<void(void)> &task, uint64_t intervalNs) {
+            return sched.setInterval(task, intervalNs);
         }
 
-        while (!clearQueue.empty()) {
-            clearTimeout(clearQueue.front());
-            clearQueue.pop();
+        inline TimeoutTask setTimeoutNs(const std::function<void(void)> &task, uint64_t timeoutNs) {
+            return sched.setTimeout(task, timeoutNs);
         }
 
-        lastTick = now;
-        return now;
-    }
+        void tick();
 
-    template<>
-    TimeoutTask TimedScheduler::setTimeout(const std::function<void(void)> &task, float timeoutMs) {
-        TaskIdentifier id = idAccumulator++;
-
-        auto tm = Timeout{std::chrono::steady_clock::now(), timeoutMs, std::packaged_task<void(void)>(task)};
-        auto ret = TimeoutTask{id, tm.task.get_future()};
-
-        timeouts[id] = std::move(tm);
-        return ret;
-    }
-
-    template<>
-    TaskIdentifier TimedScheduler::setInterval(const std::function<void(void)> &task, float intervalMs) {
-        TaskIdentifier id = idAccumulator++;
-        intervals[id] = Interval{0, intervalMs, task};
-        return id;
-    }
+    };
 }
 
 #endif

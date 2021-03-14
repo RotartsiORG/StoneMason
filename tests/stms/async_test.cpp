@@ -142,13 +142,13 @@ namespace {
     TEST_F(ThreadPoolTests, Scheduler) {
         startPool(8);
         std::atomic_int count{0};
-        bool go = true;
+        volatile bool go = true;
 
         stms::TimedScheduler sched(pool);
-        sched.setTimeout([&]() {
+        STMS_WARN("{}", sched.setTimeout([&]() {
             STMS_INFO("TimedOut!");
             go = false;
-        }, 2000);
+        }, 2000).id);
 
         sched.clearTimeout(sched.setTimeout([&]() {
             STMS_INFO("BECLEARED");
@@ -161,6 +161,7 @@ namespace {
             }
         }, 125);
 
+        STMS_INFO("EnterDaloop");
         while (go) {
             sched.tick();
         }
