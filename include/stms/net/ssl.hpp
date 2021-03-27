@@ -112,6 +112,7 @@ namespace stms {
          * The timeout (in milliseconds) for IO operations like `send` and reading.
          * This is the maximum amount of time we will wait for an IO operation to complete.
          * This timeout is waited for on a thread pool thread, so the main thread won't be affected by this.
+         * 0 means no timeout.
          */
         unsigned timeoutMs = 15000;
         int maxTimeouts = 9; //!< The maximum number of times we are allowed to retry an IO operation like `send` & read
@@ -267,6 +268,8 @@ namespace stms {
         inline void setIPv6(bool preferV6) {
             wantV6 = preferV6;
         }
+
+        void setVerifyMode(int flags);
 
         /**
          * @brief Query the max number of milliseconds we will wait on pending IO operations.

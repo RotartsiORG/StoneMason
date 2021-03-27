@@ -126,6 +126,9 @@ namespace stms {
         }
     };
 
+    /**
+     * @warning This scheduler will overflow in ~584.6 years so don't leave this running that long.
+     */
     class TimedScheduler {
     private:
         std::chrono::steady_clock::time_point lastTick;
@@ -165,7 +168,7 @@ namespace stms {
             return sched.setTimeout(task, timeoutNs);
         }
 
-        void tick();
+        void tick(); /// assume this function drifts the timer out of sync by ~1ns every call.
 
     };
 }

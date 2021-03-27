@@ -8,7 +8,7 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/stms_tests",
+            "program": "${workspaceFolder}/build/samples/stms_dtls_serv",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

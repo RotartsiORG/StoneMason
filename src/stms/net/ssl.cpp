@@ -203,6 +203,10 @@ namespace stms {
         setHostAddr(); // By default, bind to any, port 3000.
     }
 
+    void _stms_SSLBase::setVerifyMode(int mode) {
+        SSL_CTX_set_verify(pCtx, mode, verifyCert);
+    }
+
     void _stms_SSLBase::stop() {
         if (!running) {
             STMS_WARN("_stms_SSLBase::stop() called when server/client was already stopped! Ignoring...");
@@ -386,6 +390,9 @@ namespace stms {
         } else {
             recvTimeout = static_cast<int>(timeoutMs);
         }
+
+        if (recvTimeout < minIoTimeout) { recvTimeout = minIoTimeout; }
+
 
         recvTimeout = recvTimeout > minIoTimeout ? recvTimeout : minIoTimeout;
 

@@ -86,7 +86,7 @@ namespace stms {
 
         cli->doShutdown = true; // Handshake completed, we can shutdown!
 
-        if (isUdp) {
+        if (isUdp && timeoutMs > 0) {
             timeval timeout{};
             timeout.tv_usec = (timeoutMs % 1000) * 1000;
             timeout.tv_sec = timeoutMs / 1000;
@@ -241,11 +241,13 @@ namespace stms {
             cli->dtls = new ClientRepresentation::DTLSSpecific{};
             cli->dtls->pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
 
-            timeval timeout{};
-            timeout.tv_usec = (timeoutMs % 1000) * 1000;
-            timeout.tv_sec = timeoutMs / 1000;
-            BIO_ctrl(cli->dtls->pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
-            BIO_ctrl(cli->dtls->pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+            if (timeoutMs > 0) {
+                timeval timeout{};
+                timeout.tv_usec = (timeoutMs % 1000) * 1000;
+                timeout.tv_sec = timeoutMs / 1000;
+                BIO_ctrl(cli->dtls->pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+                BIO_ctrl(cli->dtls->pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+            }
 
 
             cli->pSsl = SSL_new(pCtx);
@@ -337,7 +339,7 @@ namespace stms {
             if (SSL_get_shutdown(client.second->pSsl) & SSL_RECEIVED_SHUTDOWN) {
                 deadClients.push(client.first);
             } else {
-                if (client.second->timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
+                if (timeoutMs > 0 && client.second->timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
                     if (isUdp) { DTLSv1_handle_timeout(client.second->pSsl); }
                     STMS_INFO("Client {} timed out! Dropping connection!", client.first.buildStr());
                     deadClients.push(client.first);

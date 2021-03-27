@@ -24,11 +24,13 @@ namespace stms {
             pBio = BIO_new_dgram(sock, BIO_NOCLOSE);
             BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &pAddr->ai_addr);
 
-            timeval timeout{};
-            timeout.tv_sec = timeoutMs / 1000;
-            timeout.tv_usec = (timeoutMs % 1000) * 1000;
-            BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
-            BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+            if (timeoutMs > 0) {
+                timeval timeout{};
+                timeout.tv_sec = timeoutMs / 1000;
+                timeout.tv_usec = (timeoutMs % 1000) * 1000;
+                BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
+                BIO_ctrl(pBio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+            }
 
             BIO_ctrl(pBio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, nullptr);
 
@@ -104,7 +106,7 @@ namespace stms {
             return false;
         }
 
-        if (timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
+        if (timeoutMs > 0 && timeoutTimer.getTime() >= static_cast<float>(timeoutMs)) {
             if (isUdp) { DTLSv1_handle_timeout(pSsl); }
             STMS_INFO("Connection to server timed out! Dropping connection!");
             stop();
