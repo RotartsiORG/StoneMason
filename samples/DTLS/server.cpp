@@ -7,25 +7,30 @@
 #include "stms/stms.hpp"
 
 volatile int semaphore = 0;
+std::string *answer = nullptr;
 
 void readInp() {
     while (true) {
-        std::string answer;
-        std::cin >> answer;
-        if (answer == "stop") {
-            semaphore++;
-        }
-        STMS_INFO("A='{}'", answer);
+        std::cin >> *answer;
+        semaphore++;
+        STMS_INFO("SENT TO ALL: '{}'", *answer);
     }
 }
 
 int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        STMS_FATAL("stms_dtls_server takes 1 arg: isUdp"); // well then the name needs updating huh.
+        return 1;
+    }
+
+    answer = new std::string("");
+
     std::thread inputReader{readInp};
 
     stms::initAll();
     stms::InstaPool pool{};
 
-    stms::SSLServer serv = stms::SSLServer(&pool, argc > 2);
+    stms::SSLServer serv = stms::SSLServer(&pool, atoi(argv[1]));
     serv.setTimeout(0);
     serv.setHostAddr("3000", "127.0.0.1");
     serv.setIPv6(false);
@@ -51,7 +56,15 @@ int main(int argc, char *argv[]) {
 
     while (serv.tick()) {
         if (semaphore > 0) {
-            serv.stop();
+            semaphore--;
+            if (*answer == "stop") {
+                serv.stop();
+                continue;
+            }
+
+            for (const auto &i : serv.getClientUuids()) {
+                serv.send(i, reinterpret_cast<const uint8_t *>(answer->c_str()), answer->length(), true);
+            }
         }
 
         serv.waitEvents(32);

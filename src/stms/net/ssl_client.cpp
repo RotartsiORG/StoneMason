@@ -292,7 +292,7 @@ namespace stms {
         isReading = rhs.isReading;
         timeoutTimer = rhs.timeoutTimer;
         recvCallback = rhs.recvCallback;
-        internalOpEq(&rhs);
+        moveSslBase(&rhs);
 
         rhs.pSsl = nullptr;
         rhs.pBio = nullptr;

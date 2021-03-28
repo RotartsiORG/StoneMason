@@ -86,7 +86,7 @@ namespace stms {
          */
         void waitEvents(int timeoutMs) override;
 
-        ~SSLClient(); //!< Override of virtual destructor from `_stms_SSLBase`. Internal impl detail.
+        ~SSLClient() override; //!< Override of virtual destructor from `_stms_SSLBase`. Internal impl detail.
 
         SSLClient &operator=(const SSLClient &rhs) = delete; //!< Deleted copy assignment operator=
 
@@ -108,14 +108,14 @@ namespace stms {
         };
 
         /**
-         * @brief UNIMPLEMENTED Move copy operator=
+         * @brief Move copy operator=
          * @param rhs Right Hand Side of the `std::move`
          * @return A reference to `this`.
          */
         SSLClient &operator=(SSLClient &&rhs) noexcept;
 
         /**
-         * @brief UNIMPLEMENTED Move copy constructor
+         * @brief Move copy constructor
          * @param rhs Right Hand Side of the `std::move`
          */
         SSLClient(SSLClient &&rhs) noexcept;

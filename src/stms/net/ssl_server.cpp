@@ -642,7 +642,7 @@ namespace stms {
         recvCallback = std::move(rhs.recvCallback);
         connectCallback = std::move(rhs.connectCallback);
         disconnectCallback = std::move(rhs.disconnectCallback);
-        internalOpEq(&rhs);
+        moveSslBase(&rhs);
 
         rhs.clients.clear(); // do we have to do this? they are std::move'd // TODO: Stack overflow this
 

@@ -151,21 +151,21 @@ namespace stms {
          */
         explicit SSLServer(stms::PoolLike *pool, bool isUdp);
 
-        ~SSLServer(); //!< Override of virtual destructor of `_stms_SSLBase`.
+        ~SSLServer() override; //!< Override of virtual destructor of `_stms_SSLBase`.
 
         SSLServer &operator=(const SSLServer &rhs) = delete; //!< Deleted copy operator=
 
         SSLServer(const SSLServer &rhs) = delete; //!< Deleted copy constructor
 
         /**
-         * @brief UNIMPLEMENTED move copy operator=
+         * @brief move copy operator=
          * @param rhs Right Hand Side of the `std::move`
          * @return A reference to this instance.
          */
         SSLServer &operator=(SSLServer &&rhs) noexcept;
 
         /**
-         * @brief UNIMPLEMENTED move copy constructor
+         * @brief move copy constructor
          * @param rhs Right Hand Side of this `std::move`
          */
         SSLServer(SSLServer &&rhs) noexcept;

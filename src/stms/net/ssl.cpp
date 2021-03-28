@@ -19,21 +19,6 @@
 #include "openssl/conf.h"
 
 namespace stms {
-    std::string getAddrStr(const sockaddr *const addr) {
-        if (addr->sa_family == AF_INET) {
-            auto *v4Addr = reinterpret_cast<const sockaddr_in *>(addr);
-            char ipStr[INET_ADDRSTRLEN];
-            inet_ntop(addr->sa_family, &(v4Addr->sin_addr), ipStr, INET_ADDRSTRLEN);
-            return std::string(ipStr) + ":" + std::to_string(ntohs(v4Addr->sin_port));
-        } else if (addr->sa_family == AF_INET6) {
-            auto *v6Addr = reinterpret_cast<const sockaddr_in6 *>(addr);
-            char ipStr[INET6_ADDRSTRLEN];
-            inet_ntop(addr->sa_family, &(v6Addr->sin6_addr), ipStr, INET6_ADDRSTRLEN);
-            return std::string(ipStr) + ":" + std::to_string(ntohs(v6Addr->sin6_port));
-        }
-        return "[ERR: BAD FAM]";
-    }
-
     unsigned long handleSSLError() {
         unsigned long ret = ERR_get_error();
         if (ret != 0) {
@@ -185,7 +170,7 @@ namespace stms {
     }
 
 
-    _stms_SSLBase::_stms_SSLBase(bool serv, stms::PoolLike *pool, bool udp) : isServ(serv), isUdp(udp), pPool(pool) {
+    _stms_SSLBase::_stms_SSLBase(bool serv, stms::PoolLike *pool, bool udp) : _stms_PlainBase(serv, pool, udp) {
 
         if (isUdp) {
             pCtx = SSL_CTX_new(isServ ? DTLS_server_method() : DTLS_client_method());
@@ -199,182 +184,14 @@ namespace stms {
         SSL_CTX_clear_mode(pCtx, SSL_MODE_ENABLE_PARTIAL_WRITE);
         SSL_CTX_set_options(pCtx, SSL_OP_COOKIE_EXCHANGE | SSL_OP_NO_ANTI_REPLAY);
         SSL_CTX_clear_options(pCtx, SSL_OP_NO_COMPRESSION);
-
-        setHostAddr(); // By default, bind to any, port 3000.
     }
 
     void _stms_SSLBase::setVerifyMode(int mode) {
         SSL_CTX_set_verify(pCtx, mode, verifyCert);
     }
 
-    void _stms_SSLBase::stop() {
-        if (!running) {
-            STMS_WARN("_stms_SSLBase::stop() called when server/client was already stopped! Ignoring...");
-            return;
-        }
-
-        running = false;
-        onStop();
-        if (sock < 1) {
-            STMS_INFO("DTLS server/client stopped. Resources freed. (Skipped socket as fd was 0)");
-            return;
-        }
-
-        if (shutdown(sock, 0) == -1) {
-            STMS_INFO("Failed to shutdown server/client socket: {}", strerror(errno));
-        }
-        if (close(sock) == -1) {
-            STMS_INFO("Failed to close server/client socket: {}", strerror(errno));
-        }
-        sock = 0;
-        STMS_INFO("DTLS server/client stopped. Resources freed.");
-    }
-
-    void _stms_SSLBase::start() {
-        if (running) {
-            STMS_WARN("_stms_SSLBase::start() called when server/client was already started! Ignoring...");
-            return;
-        }
-
-        // if (!pPool->isRunning()) {
-        //     STMS_ERROR("_stms_SSLBase::start() called with stopped ThreadPool! Starting the thread pool now!");
-        //     pPool->start();
-        // }
-
-        int i = 0;
-        for (addrinfo *p = pAddrCandidates; p != nullptr; p = p->ai_next) {
-
-            if (tryAddr(p, i)) {
-                if ((p->ai_family == AF_INET6 && wantV6) || (p->ai_family == AF_INET && !wantV6)) {
-                    STMS_INFO("Using Candidate {} because it is IPv{}", i, p->ai_family == AF_INET ? '4' : '6');
-                    running = true;
-                    onStart();
-                    return;
-                }
-            }
-
-            i++;
-        }
-
-        STMS_WARN("No IP addresses resolved from supplied address and port can be used!");
-        stop();
-    }
-
-    bool _stms_SSLBase::tryAddr(addrinfo *addr, int num) {
-        int on = 1;
-
-        addrStr = getAddrStr(addr->ai_addr);
-        STMS_INFO("Candidate {}: IPv{} {}", num, addr->ai_family == AF_INET6 ? 6 : 4, addrStr);
-
-        if (sock != 0) {
-            if (shutdown(sock, 0) == -1) {
-                STMS_WARN("Failed to shutdown socket: {}", strerror(errno));
-            }
-            if (close(sock) == -1) {
-                STMS_WARN("Failed to close socket: {}", strerror(errno));
-            }
-            sock = 0;
-        }
-
-        sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
-        if (sock == -1) {
-            STMS_WARN("Candidate {}: Unable to create socket: {}", num, strerror(errno));
-            return false;
-        }
-
-        if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1) {
-            STMS_WARN("Candidate {}: Failed to set socket to non-blocking: {}", num, strerror(errno));
-        }
-
-        if (addr->ai_family == AF_INET6) {
-            if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(int)) == -1) {
-                STMS_WARN("Candidate {}: Failed to setsockopt to allow IPv4 connections: {}", num, strerror(errno));
-            }
-        }
-
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) == -1) {
-            STMS_WARN(
-                    "Candidate {}: Failed to setscokopt to reuse address (this may result in 'Socket in Use' errors): {}",
-                    num, strerror(errno));
-        }
-
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(int)) == -1) {
-            STMS_WARN(
-                    "Candidate {}: Failed to setsockopt to reuse port (this may result in 'Socket in Use' errors): {}",
-                    num, strerror(errno));
-        }
-
-        if (isServ) {
-            STMS_INFO("Bind");
-            if (bind(sock, addr->ai_addr, addr->ai_addrlen) == -1) {
-                STMS_WARN("Candidate {}: Unable to bind socket: {}", num, strerror(errno));
-                return false;
-            }
-
-            if (!isUdp) {
-                STMS_INFO("listen");
-                if (listen(sock, tcpListenBacklog) == -1) {
-                    STMS_WARN("Candidate {}: listen() failed: {}", num, strerror(errno));
-                }
-            }
-        } else {
-            STMS_INFO("connect");
-            if (connect(sock, addr->ai_addr, addr->ai_addrlen) == -1) {
-
-                /*
-                 * EINPROGRESS (see `man connect`)
-                 *
-                 * The socket is nonblocking and the connection cannot be completed
-                 * immediately.   (UNIX domain sockets failed with EAGAIN instead.)
-                 * It is possible to select(2) or poll(2) for completion by select‐
-                 * ing the socket for writing.  After select(2) indicates writabil‐
-                 * ity, use getsockopt(2) to read  the  SO_ERROR  option  at  level
-                 * SOL_SOCKET to determine whether connect() completed successfully
-                 * (SO_ERROR is zero) or unsuccessfully (SO_ERROR  is  one  of  the
-                 * usual  error  codes  listed  here, explaining the reason for the
-                 * failure).
-                 */
-                if (errno == EINPROGRESS) { // should we also be testing for EAGAIN?
-                    pollfd toPoll{};
-                    toPoll.events = POLLOUT;
-                    toPoll.fd = sock;
-
-                    if (poll(&toPoll, 1, static_cast<int>(timeoutMs < minIoTimeout ? minIoTimeout : timeoutMs)) < 1) {
-                        STMS_WARN("Candidate {}: connect() timed out!", num);
-                        return false;
-                    }
-
-                    int errcode = -999;
-                    socklen_t errlen = sizeof(int);
-                    if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &errcode, &errlen) == -1) {
-                        STMS_WARN("Candidate {}: connect() state querying failed: {}", num, strerror(errno));
-                        return false;
-                    }
-
-                    if (errcode != 0) {
-                        STMS_WARN("Candidate {}: connect() failed: {}", num, strerror(errcode));
-                    }
-
-                    // yay connect was successful!
-                } else {
-                    STMS_WARN("Candidate {}: Failed to connect socket: {}", num, strerror(errno));
-                    return false;
-                }
-            }
-        }
-
-        pAddr = addr;
-        STMS_INFO("Candidate {} is viable and active. However, it is not necessarily preferred.", num);
-        return true;
-    }
-
     _stms_SSLBase::~_stms_SSLBase() {
         SSL_CTX_free(pCtx);
-        freeaddrinfo(pAddrCandidates);
-    }
-
-    void _stms_SSLBase::onStart() {
-        // no-op
     }
 
     bool _stms_SSLBase::blockUntilReady(int fd, SSL *ssl, short event) const {
@@ -415,33 +232,6 @@ namespace stms {
         return true;
     }
 
-    void _stms_SSLBase::onStop() {
-        // no-op
-    }
-
-    void _stms_SSLBase::setHostAddr(const std::string &port, const std::string &addr) {
-        addrinfo hints{};
-        hints.ai_family = AF_UNSPEC;
-
-        if (isUdp) {
-            hints.ai_socktype = SOCK_DGRAM;
-            hints.ai_protocol = IPPROTO_UDP;
-        } else {
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_protocol = IPPROTO_TCP;
-        }
-
-        if (addr == "any") {
-            hints.ai_flags = AI_PASSIVE;
-        }
-
-        STMS_INFO("DTLS/TLS {} to be hosted on {}:{}", isServ ? "server" : "client", addr, port);
-        int lookupStatus = getaddrinfo(addr == "any" ? nullptr : addr.c_str(), port.c_str(), &hints, &pAddrCandidates);
-        if (lookupStatus != 0) {
-            STMS_WARN("Failed to resolve ip address of {}:{} (ERRNO: {})", addr, port, gai_strerror(lookupStatus));
-        }
-    }
-
     void _stms_SSLBase::setKeyPassword(const std::string &newPass) {
         password = newPass;
         SSL_CTX_set_default_passwd_cb_userdata(pCtx, &this->password);
@@ -480,36 +270,23 @@ namespace stms {
         return true;
     }
 
-    void _stms_SSLBase::internalOpEq(_stms_SSLBase *rhs) {
-        SSL_CTX_free(pCtx);
-        freeaddrinfo(pAddrCandidates);
+    void _stms_SSLBase::moveSslBase(_stms_SSLBase *rhs) {
+        movePlain(rhs);
 
-        isServ = rhs->isServ;
-        isUdp = rhs->isUdp;
-        wantV6 = rhs->wantV6;
-        addrStr = std::move(rhs->addrStr);
-        pAddrCandidates = rhs->pAddrCandidates;
-        pAddr = rhs->pAddr;
+        SSL_CTX_free(pCtx);
+
         pCtx = rhs->pCtx;
-        sock = rhs->sock;
-        timeoutMs = rhs->timeoutMs;
-        maxTimeouts = rhs->maxTimeouts;
-        running = rhs->running;
-        pPool = rhs->pPool;
         password = std::move(rhs->password);
 
         rhs->pCtx = nullptr;
-        rhs->pAddrCandidates = nullptr;
-        rhs->pAddr = nullptr;
-        rhs->sock = 0;
     }
 
     _stms_SSLBase &_stms_SSLBase::operator=(_stms_SSLBase &&rhs) noexcept {
-        if (pCtx == rhs.pCtx) {
+        if (pCtx == rhs.pCtx || this == &rhs) {
             return *this;
         }
 
-        internalOpEq(&rhs);
+        moveSslBase(&rhs);
 
         return *this;
     }
