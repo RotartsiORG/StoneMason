@@ -5,6 +5,7 @@
 #include "gtest/gtest.h"
 #include "stms/net/ssl_client.hpp"
 #include "stms/net/ssl_server.hpp"
+#include "stms/net/plain_udp.hpp"
 
 
 namespace {
@@ -138,6 +139,58 @@ namespace {
 
     TEST_F(SSLTest, DubiousCli) {
         start(true, true, false);
+    }
+
+    TEST(PlainTest, UDP) {
+        stms::ThreadPool p{};
+
+        stms::UDPPeer serv{true, &p};
+        stms::UDPPeer cli{false, &p};
+
+        cli.setRecvCallback([&](const sockaddr *const addr, socklen_t alen, uint8_t *buf, ssize_t len) {
+            EXPECT_EQ(len, 4);
+            buf[len] = '\0';
+
+            std::string str = std::string(reinterpret_cast<char *>(buf));
+            STMS_WARN("CLI RECV FROM {} (l={}) {} BYTES: {}", stms::getAddrStr(addr), alen, len, str);
+            EXPECT_EQ(str, "PING");
+
+            serv.stop();
+            cli.stop();
+        });
+
+        serv.setRecvCallback([&](const sockaddr *const addr, socklen_t alen, uint8_t *buf, ssize_t len) {
+            EXPECT_EQ(len, 6);
+            buf[len] = '\0';
+
+            std::string str = std::string(reinterpret_cast<char *>(buf));
+            STMS_WARN("SERV RECV FROM {} (l={}) {} BYTES: {}", stms::getAddrStr(addr), alen, len, str);
+            EXPECT_EQ(str, "CLIENT");
+
+            char *ping = "PING";
+            serv.sendTo(addr, alen, reinterpret_cast<uint8_t *>(ping), 4, true);
+        });
+
+        serv.setIPv6(false); cli.setIPv6(false); 
+        serv.setHostAddr("3000", "127.0.0.1"); cli.setHostAddr("3000", "127.0.0.1");
+
+        p.start();
+        serv.start();
+
+        p.submitTask([&]() {
+            cli.start();
+
+            char *str = "CLIENT";
+            cli.send(reinterpret_cast<uint8_t *>(str), 6, true);
+
+            while (cli.tick()) {
+                cli.waitEvents(16);
+            }
+        });
+
+        while (serv.tick()) {
+            serv.waitEvents(16);
+        }
     }
 }
 

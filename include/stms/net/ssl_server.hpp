@@ -256,7 +256,7 @@ namespace stms {
          * @param msg Array of unsigned chars to send to the client
          * @param msgLen Length of `msg` in bytes (octets)
          * @param cpy If true, the contents of `msg` are copied. That way, `msg` can be destroyed after passing it into
-         *            `send()`. Otherwise, we read from msg directly and assume it won't be gone.
+         *            `send()`. Otherwise, we read from msg directly on another thread and assume it won't be gone.
          * @return A `std::future<int>` is returned that you can use to block until the `SSL_write` operation finishes.
          *         If `clientUuid` is invalid, 0 is returned. If the server was stopped, -1 is returned; you must
          *         first start the server before calling `send()`. If there was a fatal SSL error, -2 is returned and

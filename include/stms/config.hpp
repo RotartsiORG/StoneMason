@@ -52,6 +52,9 @@ namespace stms {
     constexpr int maxRecvLen = 16384; //!< The size (bytes) of the buffer to allocate for incoming TLS packets. RFC 8449
     constexpr int secretCookieLen = 16; //!< Length of DTLS cookie. See `stms::secretCookie` in `ssl.hpp`.
 
+    constexpr int maxPlainRecvLen = 65536; //!< Size of IP packet in bytes i think.
+    constexpr int maxStopBlock = 5000; //!< Maximum number of milliseconds to block on `stop()`
+
     /// If true, allow experimental OpenGL driver features, useful for backwards/forward compatibility.
     constexpr bool enableExperimentalGlew = true;
     /**

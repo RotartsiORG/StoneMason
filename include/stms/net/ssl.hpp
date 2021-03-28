@@ -168,6 +168,10 @@ namespace stms {
          */
         bool verifyKeyMatchCert();
 
+        /**
+         * @brief Control the certificate verification requirements. Effectively alias for `SSL_CTX_set_verify`
+         * @param flags Flags for certificate verification behaviour. See `man SSL_CTX_set_verify` (`mode` param)
+         */
         void setVerifyMode(int flags);
     };
 }

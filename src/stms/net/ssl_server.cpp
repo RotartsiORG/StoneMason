@@ -440,16 +440,15 @@ namespace stms {
             return prom->get_future();
         }
 
-        uint8_t *passIn{};
+
+        // I am forced to do this as std::copy would be impossible otherwise. We don't actually do anything with
+        // the non-const-ness though.
+        uint8_t *passIn = const_cast<uint8_t *>(msg);
         if (cpy) {
             passIn = new uint8_t[msgLen];
             std::copy(msg, msg + msgLen, passIn);
-        } else {
-            // I am forced to do this as std::copy would be impossible otherwise. We don't actually do anything with
-            // the non-const-ness though.
-            passIn = const_cast<uint8_t *>(msg);
-        }
-        // lambda captures validated
+        } 
+        
         pPool->submitTask([&, capProm{prom}, capUuid{clientUuid}, capMsg{passIn}, capLen{msgLen}, capCpy{cpy}]() {
 
             std::unique_lock<std::mutex> clg(clientsMtx);

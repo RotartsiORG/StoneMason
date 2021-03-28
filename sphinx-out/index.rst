@@ -31,7 +31,6 @@ they're just a reformatted version of the header files. You might as well just r
    :numbered: 
    
    api/freetype.rst
-   api/timers.rst
    api/camera.rst
    api/logging.rst
    api/stms.rst
@@ -39,6 +38,7 @@ they're just a reformatted version of the header files. You might as well just r
    api/audio.rst
    api/curl.rst
    api/config.rst
+   api/scheduler.rst
    api/rend/window.rst
    api/rend/gl/gl_ImGui.rst
    api/rend/gl/gl_shaders.rst
@@ -49,6 +49,13 @@ they're just a reformatted version of the header files. You might as well just r
    api/rend/vk/vk_window.rst
    api/rend/vk/vk_pipeline.rst
    api/rend/vk/vk_instance.rst
+   api/util/compare.rst
+   api/util/timers.rst
+   api/util/uuid.rst
+   api/util/util.rst
    api/net/ssl_server.rst
    api/net/ssl_client.rst
+   api/net/plain_udp.rst
+   api/net/plain.rst
+   api/net/plain_tcp.rst
    api/net/ssl.rst
