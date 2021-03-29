@@ -1,7 +1,8 @@
 /**
- * @file stms/timers.hpp
+ * @file stms/util/timers.hpp
  * @brief Provides timers `Stopwatch` and `TPSTimer`.
- * Created by grant on 5/3/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 5/3/20
  */
 
 #pragma once

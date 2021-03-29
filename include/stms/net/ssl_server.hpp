@@ -1,7 +1,8 @@
 /**
  * @file stms/net/ssl_server.hpp
  * @brief Provides functionality for DTLS or TLS servers in the form of `SSLServer`
- * Created by grant on 4/22/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 4/22/20
  */
 
 #pragma once
@@ -78,12 +79,6 @@ namespace stms {
         /// Terminate the server-side connection to this client. This will block until `SSL_shutdown` completes.
         void shutdownClient();
     };
-
-//    /// Internal impl detail. Don't touch
-//    static void handleDtlsConnection(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
-//
-//    /// Internal impl detail, don't touch
-//    static void doHandshake(const std::shared_ptr<ClientRepresentation> &cli, SSLServer *voidServ);
 
     /// A SSL/TLS server. Can be TCP (TLS) or UDP (DTLS)
     class SSLServer : public _stms_SSLBase {

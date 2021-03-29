@@ -1,7 +1,8 @@
 /**
  * @file stms/freetype.hpp
  * @brief STMS's C++ wrapper around freetype. Backend-agnostic text rendering core.
- * Created by grant on 6/17/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 6/17/20
  */
 
 #pragma once

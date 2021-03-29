@@ -1,7 +1,8 @@
 /**
  * @file stms/config.hpp
  * @brief Configuration for StoneMason. Full of variables and macros you can tweak.
- * Created by grant on 1/26/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 1/26/20
  */
 
 #pragma once

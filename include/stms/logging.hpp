@@ -1,7 +1,8 @@
 /**
  * @file stms/logging.hpp
  * @brief File providing basic logging & formatting functionality (using fmtlib)
- * Created by grant on 1/26/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 1/26/20
  */
 
 #pragma once

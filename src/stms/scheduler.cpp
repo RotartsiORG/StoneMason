@@ -14,4 +14,15 @@ namespace stms {
             lastTick = now;
         }
     }
+
+    TimedScheduler &TimedScheduler::operator=(TimedScheduler &&rhs) {
+        if (this == &rhs) { return *this; }
+        lastTick = std::move(rhs.lastTick);
+        sched = std::move(rhs.sched);
+        return *this;
+    }
+
+    TimedScheduler::TimedScheduler(TimedScheduler &&rhs) : sched(nullptr) {
+        *this = std::move(rhs);
+    }
 }

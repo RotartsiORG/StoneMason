@@ -1,6 +1,9 @@
-//
-// Created by grant on 12/27/20.
-//
+/**
+ * @file stms/util/uuid.hpp
+ * @author Grant Yang
+ * @brief Implementation of UUID (version 4). RFC 4122
+ * @date 12/27/20
+ */
 
 #pragma once
 

@@ -1,7 +1,8 @@
 /**
  * @file stms/async.hpp
- * @brief `ThreadPool`s for async task scheduling and execution.
- * Created by grant on 12/30/19.
+ * @brief `ThreadPool`s for async task scheduling and execution. 
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 12/30/19
  */
 
 #pragma once
@@ -19,19 +20,46 @@
 
 namespace stms {
 
+    /// Abstract base class for thread-pool-like object to which tasks can be submitted.
     class PoolLike {
     public:
-        // undefined constructor
-        virtual ~PoolLike() = default;
+        virtual ~PoolLike() = default; //!< Default virtual destructor.
 
+        /**
+         * @brief Virtual base interface for submitting a function to be executed
+         * @param func Function to execute
+         * @return std::future<void> Future from the function (Can be used to wait for function completion or query for exceptions thrown.)
+         */
         virtual std::future<void> submitTask(const std::function<void(void)> &func) = 0;
+        /**
+         * @brief Virtual interface for submitting a packaged_task to be executed
+         * @param func `std::packaged_task` to execute
+         */
         virtual void submitPackagedTask(std::packaged_task<void(void)> &&func) = 0;
 
 
+        /**
+         * @brief Virtual interface for starting the pool.
+         * @param threads Number of threads to have in the pool
+         */
         virtual void start(unsigned threads = 0) = 0;
+        /**
+         * @brief Virtual interface for stopping the pool.
+         * @param block If true, this function blocks until in-flight tasks finish execution.
+         */
         virtual void stop(bool block = true) = 0;
+
+        /**
+         * @brief Virtual interface for querying if the pool is running
+         * @return true Pool is executing tasks
+         * @return false Pool isn't executing tasks
+         */
         virtual bool isRunning() const = 0;
 
+        /**
+         * @brief Virtual interface for blocking until all tasks finish execution
+         * @param timeout Maximum number of milliseconds to block
+         */
         virtual void waitIdle(unsigned timeout = 0) = 0;
 
         // virtual void pushThread() = 0;
@@ -43,18 +71,40 @@ namespace stms {
      */
     class InstaPool : public PoolLike {
     public:
-        ~InstaPool() override = default;
+        ~InstaPool() override = default; //!< Default destructor
 
+        /**
+         * @brief Creates a `packaged_task` from `func` and forwards it to `submitPackagedTask`.
+         *        Will block until completion.
+         * @param func Function to execute
+         * @return std::future<void> Future which can be used to query for thrown exceptions.
+         */
         std::future<void> submitTask(const std::function<void(void)> &func) override;
+        /**
+         * @brief Execute a `std::packaged_task`. Blocks until it exits.
+         * @param func `std::packaged_task` to execute.
+         */
         void submitPackagedTask(std::packaged_task<void(void)> &&func) override;
 
+        /**
+         * @brief Always returns true
+         * @return bool true is always returned
+         */
         bool isRunning() const override { return true; }
 
+        /// No-op function
         void start(unsigned = 0) override {};
+        /// No-op function
         void stop(bool = true) override {};
+        /// No-op function
         void waitIdle(unsigned = 0) override {};
     };
 
+    /**
+     * @brief Get the default `InstaPool` object
+     * @note This function is pretty useless and is likely to be removed.
+     * @return PoolLike* Pointer to an `InstaPool` object
+     */
     inline PoolLike *getDefaultInstaPool() {
         static InstaPool pool{};
         return &pool;
@@ -130,10 +180,14 @@ namespace stms {
         /**
          * @brief Submit a function to the thread pool for execution (if the `ThreadPool` is started).
          * @param func Function to execute
-         * @return A void future that you can wait on to block until the task is finished.
+         * @return A void future that you can wait on to block until the task is finished or query for thrown exceptions.
          */
         std::future<void> submitTask(const std::function<void(void)> &func) override;
 
+        /**
+         * @brief Schedule a `std::packaged_task` to be executed on the ThreadPool
+         * @param func Task to execute
+         */
         void submitPackagedTask(std::packaged_task<void(void)> &&func) override;
 
         void pushThread(); //!< Add 1 worker thread to the thread pool
@@ -170,7 +224,7 @@ namespace stms {
         void waitIdle(unsigned timeout = 0) override;
 
         /**
-         * @brief Query if the thread pool is still running
+         * @brief Query if the thread pool is still `running`
          * @return True if running.
          */
         [[nodiscard]] bool isRunning() const override {

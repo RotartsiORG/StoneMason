@@ -1,7 +1,8 @@
 /**
  * @file stms/curl.hpp
  * @brief C++ wrapper around libCurl (https://curl.haxx.se/libcurl/)
- * Created by grant on 6/2/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 6/2/20
  */
 
 #pragma once

@@ -182,12 +182,6 @@ namespace stms {
 
         VKPipelineLayout *pLayout;
 
-        /**
-         * @brief Create a pipeline.
-         * @param win Parent window.
-         * @param vboLayout Layout of the VBOs. Every VBO will have the same binding number as its index here.
-         *
-         */
         explicit VKPipeline(VKPipelineLayout *lyo, const VKPipelineConfig& c = {});
         virtual ~VKPipeline();
 

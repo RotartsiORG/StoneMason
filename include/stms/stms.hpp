@@ -1,7 +1,8 @@
 /**
  * @file stms/stms.hpp
  * @brief Provides common STMS functionality
- * Created by grant on 4/21/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 4/21/20
  */
 
 #pragma once
@@ -17,8 +18,6 @@
 #include <cmath>
 
 namespace stms {
-
-
     /**
      * @brief Implementation detail, don't touch. This class runs the initialization routine for STMS in its constructor
      */

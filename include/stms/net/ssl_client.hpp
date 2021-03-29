@@ -1,7 +1,8 @@
 /**
  * @file stms/net/ssl_client.hpp
- * @brief Provides functionality for DTLS or TLS clients in the form of SSLClient
- * Created by grant on 5/4/20.
+ * @brief Provides functionality for DTLS or TLS clients in the form of `SSLClient`
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 5/4/20
  */
 
 #pragma once

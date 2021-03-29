@@ -1,7 +1,15 @@
+/**
+ * @file stms/net/net.hpp
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @brief Provides common networking functionality for everyting in the stms/net directory.
+ *        You should not have to include this manually.
+ * @date 2021-03-28
+ */
+
 #pragma once
 
-#ifndef __STONEMASON_NET_PLAIN_HPP
-#define __STONEMASON_NET_PLAIN_HPP
+#ifndef __STONEMASON_NET_NET_HPP
+#define __STONEMASON_NET_NET_HPP
 //!< Include guard
 
 #include "openssl/ssl.h"
@@ -34,8 +42,8 @@ namespace stms {
      */
     class _stms_PlainBase {
     protected:
-        bool isServ{};
-        bool isUdp{}; 
+        bool isServ{}; //!< Determines if this is a server or client. Do not alter after construction.
+        bool isUdp{}; //!< If true, UDP is used. Otherwise, TCP. Do not alter after construction.
 
         bool wantV6 = true; //!< Controls if IPv6 addresses are chosen over IPv4 or vice versa (from addr returned from `getaddrinfo`)
 
@@ -49,7 +57,7 @@ namespace stms {
         unsigned timeoutMs = 15000; //!< Number of milliseconds to wait for IO before kicking peer.
         int maxTimeouts = 9; //!< Maximum number of times an IO operation can time out before giving up.
 
-        bool running = false; 
+        bool running = false; //!< Bool of if the server/client is online.
 
         stms::PoolLike *pPool{}; //!< Pool to submit tasks to.
 
@@ -60,21 +68,21 @@ namespace stms {
 
         bool tryAddr(addrinfo *addr, int num); //!< Attempt to use an address from `pAddrCandidates`. For internal implementation.
 
-        _stms_PlainBase() = default;
-        virtual ~_stms_PlainBase();
+        _stms_PlainBase() = default; //!< Protected default constructor
+        virtual ~_stms_PlainBase(); //!< Virtual destructor
 
         void movePlain(_stms_PlainBase *rhs); //!< Internal handler for subclasses to move super class.
 
-        _stms_PlainBase &operator=(_stms_PlainBase &&rhs) noexcept;
-        _stms_PlainBase(_stms_PlainBase &&rhs) noexcept;
+        _stms_PlainBase &operator=(_stms_PlainBase &&rhs) noexcept; //!< Protected move assignment operator
+        _stms_PlainBase(_stms_PlainBase &&rhs) noexcept; //!< Protected move constructor.
 
     public:
-        _stms_PlainBase &operator=(const _stms_PlainBase &rhs) = delete;
-        _stms_PlainBase(const _stms_PlainBase &rhs) = delete;
+        _stms_PlainBase &operator=(const _stms_PlainBase &rhs) = delete; //!< Deleted copy assignment operator
+        _stms_PlainBase(const _stms_PlainBase &rhs) = delete; //!< Deleted copy constructor.
 
-        void start();
+        void start(); //!< Start the server/client, creating the `socket` and `bind`ing or `connect`ing it.
 
-        void stop();
+        void stop(); //!< Stop it and `close` the socket.
 
         /**
          * @brief Block until there are events to process (or until `ioMs` runs out)
@@ -82,18 +90,35 @@ namespace stms {
          */
         virtual void waitEvents(int ioMs) = 0;
 
+        /**
+         * @brief Query if the server/client is running. Returns `running`
+         * @return true Running and connected
+         * @return false Offline.
+         */
         [[nodiscard]] inline bool isRunning() const {
             return running;
         }
 
+        /**
+         * @brief Set the `pPool` object
+         * @param p New pool to submit tasks to
+         */
         inline void setPool(PoolLike *p) {
             pPool = p;
         }
         
+        /**
+         * @brief Set `timeoutMs`
+         * @param timeout Number of milliseconds to wait for IO operations before giving up.
+         */
         inline void setTimeout(unsigned timeout) {
             timeoutMs = timeout;
         }
 
+        /**
+         * @brief Set `maxTimeouts`
+         * @param newMax Maximum number of times to retry IO operations before dropping connection.
+         */
         inline void setMaxIoTimeouts(int newMax) {
             maxTimeouts = newMax;
         }
@@ -105,10 +130,18 @@ namespace stms {
          */
         void setHostAddr(const std::string &port = "3000", const std::string &addr = "any");
 
+        /**
+         * @brief Set whether or not IPv6 or IPv4 addresses should be used 
+         * @param preferV6 If true, IPv6 addresses are used. If false, IPv4.
+         */
         inline void setIPv6(bool preferV6) {
             wantV6 = preferV6;
         }
 
+        /**
+         * @brief Get `timeoutMs`
+         * @return unsigned Number of milliseconds to wait for IO operations before giving up.
+         */
         [[nodiscard]] inline unsigned getTimeout() const {
             return timeoutMs;
         }

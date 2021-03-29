@@ -1,6 +1,9 @@
-//
-// Created by grant on 12/27/20.
-//
+/**
+ * @file stms/util/util.hpp
+ * @brief Provides some general utilities like RNG, hash combine, decimal to hex, & easily reading files.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 12/27/20
+ */
 
 #pragma once
 

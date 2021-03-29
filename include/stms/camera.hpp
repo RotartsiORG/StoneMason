@@ -1,7 +1,8 @@
 /**
  * @file stms/camera.hpp
  * @brief File providing functionality for easily manipulating and constructing model, view, and projection matrices.
- * Created by grant on 6/5/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 6/5/20
  */
 
 #pragma once

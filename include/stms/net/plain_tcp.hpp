@@ -7,5 +7,5 @@ namespace stms {
 
     class TCPClient {
         
-    }
+    };
 }

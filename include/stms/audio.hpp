@@ -1,7 +1,8 @@
 /**
  * @file stms/audio.hpp
  * @brief File containing all OpenAL wrappers. STMS audio engine.
- * Created by grant on 1/24/20.
+ * @author Grant Yang (rotartsi0482@gmail.com)
+ * @date 1/24/20
  */
 
 #pragma once
@@ -196,7 +197,7 @@ namespace stms {
 
         /**
          * @brief Load a .ogg file into a ALBuffer.
-         * @param File to load
+         * @param filename File to load
          * @throw See throws for `loadFromFile`.
          */
         explicit ALBuffer(const char *filename);
