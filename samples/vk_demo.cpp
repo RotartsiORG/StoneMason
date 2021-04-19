@@ -10,7 +10,7 @@ int main() {
 
     auto *preWin = new stms::VKPartialWindow{640, 480, "StoneMason Vulkan Demo"};
 
-    stms::VKInstance inst(stms::VKInstance::ConstructionDetails{"VK Demo", 0, 0, 0, {}, {}, true});
+    stms::VKInstance inst(stms::VKInstance::ConstructionDetails{});
     auto gpus = inst.buildDeviceList(preWin);
     stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails({}, {}, {}, {}));
 

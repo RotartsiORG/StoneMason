@@ -66,8 +66,7 @@ namespace stms {
         uint32_t imgCount = std::min(caps.minImageCount + 1, caps.maxImageCount);
         STMS_INFO("Swap image count will be {} (max={}, min={})", imgCount, caps.maxImageCount, caps.minImageCount);
 
-        vk::Format swapFmt = vk::Format::eB8G8R8A8Srgb;
-        vk::ColorSpaceKHR swapColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+
         auto fmts = d->phys.gpu.getSurfaceFormatsKHR(surface);
         for (const auto& i : fmts) {
             if (i.format == vk::Format::eB8G8R8A8Srgb && i.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {

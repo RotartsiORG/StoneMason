@@ -83,6 +83,9 @@ namespace stms {
         VKDevice *pDev;
         vk::Extent2D swapExtent;
 
+        vk::Format swapFmt = vk::Format::eB8G8R8A8Srgb;
+        vk::ColorSpaceKHR swapColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear;
+
         vk::SwapchainKHR swap;
         std::vector<vk::Image> swapImgs;
         std::vector<vk::ImageView> swapViews;

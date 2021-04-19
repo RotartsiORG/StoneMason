@@ -23,9 +23,24 @@ namespace stms {
         uint32_t graphicsIndex{};
         uint32_t presentIndex{};
         uint32_t computeIndex{};
+
+        bool graphicsFound = false;
+        bool presentFound = false;
+        bool computeFound = false;
     };
 
     class VKPartialWindow;
+
+    struct GPURequirements {
+        bool needPresentQueue = true;
+        bool needGraphicsQueue = true;
+        bool needComputeQueue = true;
+
+        bool needPresentModes = true;
+        bool needSurfaceFormats = true;
+
+        std::vector<std::string> requiredExtensions = {{VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
+    };
 
     class VKInstance {
     public:
@@ -36,13 +51,19 @@ namespace stms {
         std::vector<const char *> layers;
 
     public:
+        enum ValidateMode {
+            eDontValidate = 0,
+            eBlacklist = 1,
+            eWhitelist = 2
+        };
+
         struct ConstructionDetails {
             /**
              * Simple struct constructor. Don't worry about the `std::move`s screwing up the objects you pass into
              * this, as they are passed in by value, not by reference.
              */
             ConstructionDetails(const char *n, short ma, short mi, short mc, std::unordered_set<std::string> we,
-                                std::vector<const char *> re, bool v);
+                                std::vector<const char *> re, ValidateMode v, std::unordered_set<std::string> ll);
 
             ConstructionDetails() = default;
 
@@ -55,7 +76,11 @@ namespace stms {
             std::unordered_set<std::string> wantedExts;
             std::vector<const char *> requiredExts;
 
-            bool validate = true;
+            ValidateMode validate = eBlacklist;
+            std::unordered_set<std::string> layerList = {{"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump", "VK_LAYER_LUNARG_demo_layer",
+                 "VK_LAYER_LUNARG_monitor", "VK_LAYER_VALVE_steam_fossilize_32", "VK_LAYER_VALVE_steam_fossilize_64",
+                 "VK_LAYER_LUNARG_device_simulation", "VK_LAYER_MANGOHUD_overlay", "VK_LAYER_VKBASALT_post_processing", "VK_LAYER_LUNARG_gfxreconstruct",
+                 "VK_LAYER_LUNARG_screenshot"}};
         };
 
         explicit VKInstance(const ConstructionDetails &details);
@@ -66,7 +91,7 @@ namespace stms {
 
         // In the future, the client would be allowed to pass in suitability parameters
         // to decide which devices are suitable.
-        std::vector<VKGPU> buildDeviceList(VKPartialWindow *win) const;
+        std::vector<VKGPU> buildDeviceList(VKPartialWindow *win = nullptr, const GPURequirements &specs = {}) const;
 
         virtual ~VKInstance();
     };

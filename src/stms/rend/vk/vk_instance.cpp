@@ -11,14 +11,20 @@
 #include "stms/rend/vk/vk_window.hpp"
 
 namespace stms {
-    static bool devExtensionsSuitable(vk::PhysicalDevice dev) {
+    static bool devExtensionsSuitable(vk::PhysicalDevice dev, const std::vector<std::string> &required) {
         auto supportedExts = dev.enumerateDeviceExtensionProperties();
+
+        std::unordered_set<std::string> supported;
         for (const auto &ext : supportedExts) {
-            if (std::strcmp(ext.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
-                return true;
+            supported.emplace(std::string(ext.extensionName));
+        }
+
+        for (const auto &req : required) {
+            if (supported.find(req) == supported.end()) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     static size_t getMemorySize(const vk::PhysicalDevice &dev, std::unordered_map<size_t, size_t> &sizeCache) {
@@ -64,14 +70,6 @@ namespace stms {
         return VK_FALSE;
     }
 
-    static std::unordered_set<std::string> &getForbiddenLayers() {
-        static auto forbidden = std::unordered_set<std::string>(
-                {"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump", "VK_LAYER_LUNARG_demo_layer",
-                 "VK_LAYER_LUNARG_monitor", "VK_LAYER_VALVE_steam_fossilize_32", "VK_LAYER_VALVE_steam_fossilize_64",
-                 "VK_LAYER_LUNARG_device_simulation", "VK_LAYER_MANGOHUD_overlay", "VK_LAYER_VKBASALT_post_processing"});
-        return forbidden;
-    }
-
     VKInstance::VKInstance(const VKInstance::ConstructionDetails &details) {
         vk::ApplicationInfo appInfo{details.appName, static_cast<uint32_t>(VK_MAKE_VERSION(details.appMajor, details.appMinor, details.appMicro)),
                                     "StoneMason Engine", static_cast<uint32_t>(VK_MAKE_VERSION(versionMajor, versionMinor, versionMicro)),
@@ -95,20 +93,37 @@ namespace stms {
         exts.insert(exts.end(), glfwExts, glfwExts + glfwExtCount);
 
         std::vector<vk::LayerProperties> layerProps;
-        if (details.validate) {
-            STMS_INFO("Vulkan validation layers are enabled!");
-            exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            layerProps = vk::enumerateInstanceLayerProperties();
-            for (const auto &lyo : layerProps) {
-                if (getForbiddenLayers().find(std::string(lyo.layerName)) == getForbiddenLayers().end()) {
-                    STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[32mENABLED\u001b[0m", lyo.layerName);
-                    layers.emplace_back(lyo.layerName);
-                } else {
-                    STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[31mFORBIDDEN\u001b[0m", lyo.layerName);
+        switch (details.validate) {
+            case (ValidateMode::eBlacklist):
+                STMS_INFO("Vulkan validation layers are enabled in blacklist mode!");
+                exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+                layerProps = vk::enumerateInstanceLayerProperties();
+                for (const auto &lyo : layerProps) {
+                    if (details.layerList.find(std::string(lyo.layerName)) == details.layerList.end()) {
+                        STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[32mENABLED\u001b[0m", lyo.layerName);
+                        layers.emplace_back(lyo.layerName);
+                    } else {
+                        STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[31mFORBIDDEN\u001b[0m", lyo.layerName);
+                    }
                 }
-            }
-        } else {
-            STMS_INFO("Vulkan validation layers are disabled!");
+                break;
+
+            case (ValidateMode::eWhitelist):
+                STMS_INFO("Vulkan validation layers are enabled in whitelist mode!");
+                exts.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+                layerProps = vk::enumerateInstanceLayerProperties();
+                for (const auto &lyo : layerProps) {
+                    if (details.layerList.find(std::string(lyo.layerName)) != details.layerList.end()) {
+                        STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[32mENABLED\u001b[0m", lyo.layerName);
+                        layers.emplace_back(lyo.layerName);
+                    } else {
+                        STMS_INFO("VkValidationLayer\t {:<32}\t\u001b[1m\u001b[31mDISABLED\u001b[0m", lyo.layerName);
+                    }
+                }
+                break;
+
+            default:
+                STMS_INFO("Vulkan validation layers are disabled!");
         }
 
         for (const auto &i : exts) {
@@ -194,11 +209,11 @@ namespace stms {
         inst.destroy();
     }
 
-    std::vector<VKGPU> VKInstance::buildDeviceList(VKPartialWindow *win) const {
-        VkSurfaceKHR rawSurf;
+    std::vector<VKGPU> VKInstance::buildDeviceList(VKPartialWindow *win, const GPURequirements &specs) const {
+
+        VkSurfaceKHR rawSurf = VK_NULL_HANDLE;
         if (glfwCreateWindowSurface(inst, win->win, nullptr, &rawSurf) != VK_SUCCESS) {
-            STMS_ERROR("Failed to create dummy surface target! Returning empty vector from VKInstance::buildDeviceList()!");
-            return {};
+            STMS_ERROR("Failed to create dummy surface in VKInstance::buildDeviceList. Present queues will be empty.");
         }
         auto surface = vk::SurfaceKHR(rawSurf);
 
@@ -210,12 +225,13 @@ namespace stms {
         for (const auto &d : devs) {
             auto props = d.getProperties();
 
-            if (!devExtensionsSuitable(d)) {
-                STMS_WARN("Skipping card {} because it doesn't support the swapchain extension!", props.deviceName);
+            if (!devExtensionsSuitable(d, specs.requiredExtensions)) {
+                STMS_WARN("Skipping card {} because it doesn't support the requisite extensions!", props.deviceName);
                 continue; // Doesn't support swap-chain ext
             }
 
-            if (d.getSurfacePresentModesKHR(surface).empty() || d.getSurfaceFormatsKHR(surface).empty()) {
+            if ((specs.needPresentModes && d.getSurfacePresentModesKHR(surface).empty()) ||
+                (specs.needSurfaceFormats && d.getSurfaceFormatsKHR(surface).empty())) {
                 STMS_WARN("Skipping card {} because its present modes and surface formats are inadequate!", props.deviceName);
                 continue; // Swap chain is inadequate
             }
@@ -224,34 +240,33 @@ namespace stms {
             toInsert.gpu = d;
 
             auto queues = d.getQueueFamilyProperties();
-            bool graphicsFound = false;
-            bool presentFound = false;
-            bool computeFound = false;
             uint32_t i = 0;
             for (const auto &q : queues) {
-                if (d.getSurfaceSupportKHR(i, surface)) {
+                if (rawSurf && d.getSurfaceSupportKHR(i, surface)) {
                     toInsert.presentIndex = i;
-                    presentFound = true;
+                    toInsert.presentFound = true;
                 }
 
                 if (q.queueFlags & vk::QueueFlagBits::eGraphics) {
-                    graphicsFound = true;
+                    toInsert.graphicsFound = true;
                     toInsert.graphicsIndex = i;
                 }
 
                 if (q.queueFlags & vk::QueueFlagBits::eCompute) {
                     toInsert.computeIndex = i;
-                    computeFound = true;
+                    toInsert.computeFound = true;
                 }
 
-                if (graphicsFound && presentFound && computeFound) {
+                if (toInsert.graphicsFound && toInsert.presentFound && toInsert.computeFound) {
                     break;
                 }
 
                 i++;
             }
 
-            if (graphicsFound && presentFound && computeFound) {
+            if ((toInsert.graphicsFound || !specs.needGraphicsQueue) &&
+                (toInsert.presentFound || !specs.needPresentQueue) && 
+                (toInsert.computeFound || !specs.needComputeQueue)) {
                 ret.emplace_back(toInsert);
             } else {
                 STMS_WARN("Skipping card {} because its queues are inadequate.", props.deviceName);
@@ -277,9 +292,9 @@ namespace stms {
     }
 
     VKInstance::ConstructionDetails::ConstructionDetails(const char *n, short ma, short mi, short mc,
-        std::unordered_set<std::string> we, std::vector<const char *> re, bool v) :
+        std::unordered_set<std::string> we, std::vector<const char *> re, ValidateMode v, std::unordered_set<std::string> ll) :
         appName(n), appMajor(ma), appMinor(mi), appMicro(mc), wantedExts(std::move(we)), requiredExts(std::move(re)),
-        validate(v) {}
+        validate(v), layerList(ll) {}
 }
 
 #endif
