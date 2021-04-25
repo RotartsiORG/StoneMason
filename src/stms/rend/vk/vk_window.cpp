@@ -63,7 +63,9 @@ namespace stms {
         }
         STMS_INFO("Swap extent is {}x{}", swapExtent.width, swapExtent.height);
 
-        uint32_t imgCount = std::min(caps.minImageCount + 1, caps.maxImageCount);
+        uint32_t imgCount = caps.maxImageCount >= caps.minImageCount ?
+                            std::min(caps.minImageCount + 1, caps.maxImageCount) : caps.minImageCount + 1;
+
         STMS_INFO("Swap image count will be {} (max={}, min={})", imgCount, caps.maxImageCount, caps.minImageCount);
 
 
@@ -140,7 +142,6 @@ namespace stms {
         float prio = 1.0f;
 
         std::vector<const char *> deviceExts(details.requiredExts);
-        deviceExts.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); // required ext :/
 
         struct _tmp_ExtDat {
             bool required = false;

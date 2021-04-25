@@ -41,7 +41,7 @@ namespace stms {
     public:
 
         struct ConstructionDetails {
-            ConstructionDetails() = default;
+            ConstructionDetails() noexcept = default;
 
             ConstructionDetails(const vk::PhysicalDeviceFeatures &req, const vk::PhysicalDeviceFeatures &want,
                     std::unordered_set<std::string> wantExt, std::vector<const char *> reqExt);
@@ -50,7 +50,7 @@ namespace stms {
             vk::PhysicalDeviceFeatures wantedFeats;
 
             std::unordered_set<std::string> wantedExts;
-            std::vector<const char *> requiredExts;
+            std::vector<const char *> requiredExts = std::vector<const char *>({VK_KHR_SWAPCHAIN_EXTENSION_NAME});
         };
 
         VKDevice(VKInstance *inst, VKGPU dev, const ConstructionDetails& details = {});

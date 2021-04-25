@@ -90,7 +90,8 @@ namespace stms {
 
         uint32_t glfwExtCount = 0;
         const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwExtCount);
-        exts.insert(exts.end(), glfwExts, glfwExts + glfwExtCount);
+
+        if (details.requireGlfwExts) { exts.insert(exts.end(), glfwExts, glfwExts + glfwExtCount); }
 
         std::vector<vk::LayerProperties> layerProps;
         switch (details.validate) {
@@ -177,7 +178,8 @@ namespace stms {
         // This MUST be outside of the if bc it will be read in vk::createInstance.
         vk::DebugUtilsMessengerCreateInfoEXT validationCbInfo{{}, severityBits, typeBits, vulkanDebugCallback, nullptr};
 
-        if (details.validate && enabledExts.find(VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != enabledExts.end()) {
+        // checking if VK_EXT_DEBUG_UTILS_EXTENSION_NAME is enabled is redundant as its added to required exts directly. 
+        if (details.validate != eDontValidate) {
             STMS_INFO("Setting up vulkan validation callback...");
             auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
                     inst.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
@@ -212,7 +214,7 @@ namespace stms {
     std::vector<VKGPU> VKInstance::buildDeviceList(VKPartialWindow *win, const GPURequirements &specs) const {
 
         VkSurfaceKHR rawSurf = VK_NULL_HANDLE;
-        if (glfwCreateWindowSurface(inst, win->win, nullptr, &rawSurf) != VK_SUCCESS) {
+        if (win == nullptr || glfwCreateWindowSurface(inst, win->win, nullptr, &rawSurf) != VK_SUCCESS) {
             STMS_ERROR("Failed to create dummy surface in VKInstance::buildDeviceList. Present queues will be empty.");
         }
         auto surface = vk::SurfaceKHR(rawSurf);
@@ -292,9 +294,9 @@ namespace stms {
     }
 
     VKInstance::ConstructionDetails::ConstructionDetails(const char *n, short ma, short mi, short mc,
-        std::unordered_set<std::string> we, std::vector<const char *> re, ValidateMode v, std::unordered_set<std::string> ll) :
+        std::unordered_set<std::string> we, std::vector<const char *> re, bool rg, ValidateMode v, std::unordered_set<std::string> ll) :
         appName(n), appMajor(ma), appMinor(mi), appMicro(mc), wantedExts(std::move(we)), requiredExts(std::move(re)),
-        validate(v), layerList(ll) {}
+        requireGlfwExts(rg), validate(v), layerList(ll) {}
 }
 
 #endif

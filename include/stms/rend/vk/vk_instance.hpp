@@ -63,7 +63,7 @@ namespace stms {
              * this, as they are passed in by value, not by reference.
              */
             ConstructionDetails(const char *n, short ma, short mi, short mc, std::unordered_set<std::string> we,
-                                std::vector<const char *> re, ValidateMode v, std::unordered_set<std::string> ll);
+                                std::vector<const char *> re, bool rg, ValidateMode v, std::unordered_set<std::string> ll);
 
             ConstructionDetails() = default;
 
@@ -75,6 +75,8 @@ namespace stms {
 
             std::unordered_set<std::string> wantedExts;
             std::vector<const char *> requiredExts;
+
+            bool requireGlfwExts = true;
 
             ValidateMode validate = eBlacklist;
             std::unordered_set<std::string> layerList = {{"VK_LAYER_LUNARG_vktrace", "VK_LAYER_LUNARG_api_dump", "VK_LAYER_LUNARG_demo_layer",

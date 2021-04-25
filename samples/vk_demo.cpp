@@ -12,7 +12,7 @@ int main() {
 
     stms::VKInstance inst(stms::VKInstance::ConstructionDetails{});
     auto gpus = inst.buildDeviceList(preWin);
-    stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails({}, {}, {}, {}));
+    stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails{});
 
     stms::VKWindow win(&gpu, std::move(*preWin));
     delete preWin; // preWin is safe to destroy at this point.
