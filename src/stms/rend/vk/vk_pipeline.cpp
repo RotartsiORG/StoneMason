@@ -37,8 +37,36 @@ namespace stms {
         *this = std::move(rhs);
     }
 
-    VKPipeline::VKPipeline(VKPipelineLayout *lyo, const VKPipelineConfig &config) : pLayout(lyo) {
+    VKPipelineCache::VKPipelineCache(VKDevice *gpu, const std::vector<uint8_t> &dat) : pDev(gpu) {
+        vk::PipelineCacheCreateInfo ci{
+            {}, static_cast<uint32_t>(dat.size()), dat.data()
+        };
 
+        cache = gpu->device.createPipelineCache(ci);
+    }
+
+    std::vector<uint8_t> VKPipelineCache::getData() {
+        return pDev->device.getPipelineCacheData(cache);
+    }
+
+    vk::Result VKPipelineCache::mergeAndConsumeCaches(const std::vector<VKPipelineCache *> &caches) {
+        auto *cacheHandles = new vk::PipelineCache[caches.size()];
+        for (std::size_t i = 0; i < caches.size(); i++) {
+            cacheHandles[i] = caches[i]->cache;
+        }
+
+        vk::Result res = pDev->device.mergePipelineCaches(cache, static_cast<uint32_t>(caches.size()), cacheHandles);
+        delete[] cacheHandles;
+
+        return res;
+    }
+
+    VKPipelineCache::~VKPipelineCache() {
+        pDev->device.destroyPipelineCache(cache);
+    }
+
+    VKPipeline::VKPipeline(VKPipelineLayout *lyo, VKRenderPass *pass, uint32_t subpassIndex, const std::vector<VKShader *> &shaders, VKPipelineCache *cache, const VKPipelineConfig &config) : pLayout(lyo) {
+        
         std::vector<vk::VertexInputBindingDescription> vboBindingVec;
         std::vector<vk::VertexInputAttributeDescription> vboAttribVec;
 
@@ -50,6 +78,11 @@ namespace stms {
             }
             vboBindingVec.emplace_back(vk::VertexInputBindingDescription{bindingCounter++, row.stride, row.rate});
         }
+
+        vk::PipelineVertexInputStateCreateInfo vertexInputCi{
+            {}, static_cast<uint32_t>(vboBindingVec.size()), vboBindingVec.data(),
+            static_cast<uint32_t>(vboAttribVec.size()), vboAttribVec.data()
+        };
 
         std::vector<vk::Viewport> viewportVec = config.viewportVec;
         viewportVec.insert(viewportVec.begin(),
@@ -84,7 +117,19 @@ namespace stms {
         };
 
         // todo: create the fricking pipeline lol
+        auto *shaderStages = new vk::PipelineShaderStageCreateInfo[shaders.size()];
+        for (std::size_t i = 0; i < shaders.size(); i++) {
+            shaderStages[i] = shaders[i]->stageCi;
+        }
 
+        vk::GraphicsPipelineCreateInfo masterCi{{}, static_cast<uint32_t>(shaders.size()), shaderStages, &vertexInputCi, &config.inputAssemblyCi, 
+        &config.tessellationCi, &viewStateCi, &config.rasterCi, &config.multiSampleCi, &config.depthStencilCi, &blendStateCi, &dynamicStateCi,
+        lyo->layout, pass->pass, subpassIndex, vk::Pipeline{}, -1};
+
+        // broken operator= appears to be a bug in vulkan.hpp
+        pipeline = pass->pDev->device.createGraphicsPipeline(cache != nullptr ? cache->cache : nullptr, masterCi);
+
+        delete[] shaderStages;
     }
 
     VKPipeline::~VKPipeline() {

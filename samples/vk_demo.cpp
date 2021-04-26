@@ -2,6 +2,7 @@
 // Created by grant on 7/5/20.
 //
 #include "stms/rend/vk/vk_pipeline.hpp"
+#include "stms/rend/vk/vk_passes.hpp"
 #include "stms/stms.hpp"
 #include "stms/util/util.hpp"
 
@@ -22,9 +23,16 @@ int main() {
 
     stms::VKPipelineLayout layout{&win};
 
-    stms::VKPipeline pipeline{&layout};
+    vk::AttachmentDescription desc{{}, win.swapFmt, vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear,
+                                   vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
+                                   vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR};
+    vk::AttachmentReference ref{0, vk::ImageLayout::eColorAttachmentOptimal};
+    vk::SubpassDescription subDesc{{}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1, &ref, nullptr, nullptr, 0, nullptr};
+    stms::VKRenderPass pass{&gpu, {{desc}}, {{subDesc}}, {}};
 
-    STMS_INFO("{} {} {}", (void*) pipeline.pLayout, (void*) frag.mod, (void*) vert.mod); // prevent stuff from being optimized out
+    stms::VKPipeline pipeline{&layout, &pass, 0, {{&frag, &vert}}, {}};
+
+    STMS_INFO("{} {} {} {}", (void*) pipeline.pLayout, (void*) frag.mod, (void*) vert.mod, (void*) pass.pass); // prevent stuff from being optimized out
 
     while (!win.shouldClose()) {
         stms::pollEvents();

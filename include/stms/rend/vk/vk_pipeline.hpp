@@ -13,7 +13,7 @@
 #include <vector>
 #include <string>
 
-#include "stms/rend/vk/vk_window.hpp"
+#include "stms/rend/vk/vk_passes.hpp"
 
 namespace stms {
 
@@ -87,6 +87,8 @@ namespace stms {
             vk::PrimitiveTopology::eTriangleList, // topology
             VK_FALSE // primitiveRestartEnable
         };
+
+        vk::PipelineTessellationStateCreateInfo tessellationCi = vk::PipelineTessellationStateCreateInfo{{}, 0};
 
         std::vector<vk::Viewport> viewportVec;
         std::vector<vk::Rect2D> scissorVec;
@@ -177,12 +179,27 @@ namespace stms {
         VKPipelineLayout &operator=(VKPipelineLayout &&rhs) noexcept;
     };
 
+    class VKPipelineCache {
+    public:
+        VKDevice *pDev;
+        vk::PipelineCache cache;
+
+        VKPipelineCache(VKDevice *gpu, const std::vector<uint8_t> &data = {});
+        virtual ~VKPipelineCache();
+
+        std::vector<uint8_t> getData();
+        vk::Result mergeAndConsumeCaches(const std::vector<VKPipelineCache *> &caches); //!< Merges all these caches into this cache
+    };
+
     class VKPipeline {
     public:
 
         VKPipelineLayout *pLayout;
+        vk::Pipeline pipeline;
 
-        explicit VKPipeline(VKPipelineLayout *lyo, const VKPipelineConfig& c = {});
+        
+        // NOTE: This constructor is specific *GRAPHICS* pipelines. Compute pipeline constructor is unimplemented.
+        explicit VKPipeline(VKPipelineLayout *lyo, VKRenderPass *pass, uint32_t subpassIndex, const std::vector<VKShader *> &shaders, VKPipelineCache *cache = nullptr, const VKPipelineConfig& c = {});
         virtual ~VKPipeline();
 
         VKPipeline(const VKPipeline &rhs) = delete;
