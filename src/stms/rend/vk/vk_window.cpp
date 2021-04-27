@@ -50,6 +50,9 @@ namespace stms {
             STMS_ERROR("Failed to create surface for window! Vulkan is unusable!");
         }
         surface = vk::SurfaceKHR(rawSurf);
+        if (!d->phys.gpu.getSurfaceSupportKHR(d->phys.presentIndex, surface)) {
+            STMS_FATAL("Present queue does not support this surface! This SHOULD be impossible!");
+        }
 
         auto caps = d->phys.gpu.getSurfaceCapabilitiesKHR(surface);
 

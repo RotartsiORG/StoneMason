@@ -60,9 +60,9 @@ namespace stms {
      * @brief Read the contents of a file
      * @throw If `stms::exceptionLevel` > 0, an `std::runtime_error` is thrown if `filename` cannot be read.
      * @param filename File to read
-     * @return Contents of file as string.
+     * @return Contents of file as vector of unsigned bytes.
      */
-    std::string readFile(const std::string &filename);
+    std::vector<uint8_t> readFile(const std::string &filename);
 
     /**
      * @brief Simple wrapper around OpenSSL's `RAND_bytes`, a cryptographically secure RNG

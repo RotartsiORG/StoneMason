@@ -8,15 +8,24 @@
 
 namespace stms {
 
-    VKShader::VKShader(VKDevice *dev, const std::string &bytecode, const vk::ShaderStageFlagBits &shaderStage,
-                       const std::string &entryPoint) : pDev(dev) {
+    VKShader::VKShader(VKDevice *dev, const std::vector<uint8_t> &bytecode, const vk::ShaderStageFlagBits &shaderStage,
+                       const std::string &entryPoint, const VKShaderSpecialization &spec) : pDev(dev) {
         vk::ShaderModuleCreateInfo ci{{}, bytecode.size(), reinterpret_cast<const uint32_t *>(bytecode.data())};
         mod = dev->device.createShaderModule(ci);
 
-        stageCi = vk::PipelineShaderStageCreateInfo({}, shaderStage, mod, entryPoint.c_str(), nullptr);
+
+        auto *name= new char[entryPoint.size()];
+        strcpy(name, entryPoint.c_str());
+
+        vk::SpecializationInfo vkSpec = vk::SpecializationInfo{static_cast<uint32_t>(spec.entries.size()), spec.entries.data(), 
+                                                               static_cast<uint32_t>(spec.data.size()), spec.data.data()};
+
+        bool useSpec = (!spec.data.empty()) && (!spec.entries.empty());
+        stageCi = vk::PipelineShaderStageCreateInfo({}, shaderStage, mod, name, useSpec ? &vkSpec : nullptr);
     }
 
     VKShader::~VKShader() {
+        delete[] stageCi.pName;
         pDev->device.destroyShaderModule(mod);
     }
 
@@ -65,7 +74,10 @@ namespace stms {
         pDev->device.destroyPipelineCache(cache);
     }
 
-    VKPipeline::VKPipeline(VKPipelineLayout *lyo, VKRenderPass *pass, uint32_t subpassIndex, const std::vector<VKShader *> &shaders, VKPipelineCache *cache, const VKPipelineConfig &config) : pLayout(lyo) {
+    VKPipeline::VKPipeline(VKPipelineLayout *lyo, VKRenderPass *pass, uint32_t subpassIndex, const std::vector<VKShader *> &shaders, VKPipelineCache *cache, const VKPipelineConfig &config) : pDev(pass->pDev) {
+        if (lyo->pWin->pDev != pass->pDev) {
+            STMS_FATAL("VKPipeline is being constructed with mismatched devices! Expect errors!");
+        }
         
         std::vector<vk::VertexInputBindingDescription> vboBindingVec;
         std::vector<vk::VertexInputAttributeDescription> vboAttribVec;
@@ -127,13 +139,12 @@ namespace stms {
         lyo->layout, pass->pass, subpassIndex, vk::Pipeline{}, -1};
 
         // broken operator= appears to be a bug in vulkan.hpp
-        pipeline = pass->pDev->device.createGraphicsPipeline(cache != nullptr ? cache->cache : nullptr, masterCi);
-
+        pipeline = pass->pDev->device.createGraphicsPipeline(cache != nullptr ? cache->cache : nullptr, masterCi).value;
         delete[] shaderStages;
     }
 
     VKPipeline::~VKPipeline() {
-        // tb
+        pDev->device.destroyPipeline(pipeline);
     }
 
     VKPipelineLayout::VKPipelineLayout(VKWindow *win, const std::vector<vk::DescriptorSetLayout> &descSetLayoutVec,

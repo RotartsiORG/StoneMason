@@ -72,7 +72,8 @@
         "valarray": "cpp",
         "variant": "cpp",
         "bit": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "any": "cpp"
     },
     "gitlens.currentLine.enabled": false,
     "gitlens.codeLens.recentChange.enabled": false,

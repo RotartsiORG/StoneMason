@@ -43,7 +43,7 @@ namespace stms {
         return ret;
     }
 
-    std::string readFile(const std::string &filename) {
+    std::vector<uint8_t> readFile(const std::string &filename) {
         // Open in binary mode, this might cause issues with line endings but fuck windows
         std::ifstream in(filename, std::ios::ate | std::ios::binary);
         if (!in.is_open()) {
@@ -51,17 +51,20 @@ namespace stms {
             if (exceptionLevel > 0) {
                 throw std::runtime_error(fmt::format("Unable to open '{}'", filename));
             }
-            return "";
+            return {};
         }
 
-        std::string str;
-        str.reserve(in.tellg());
+        in.unsetf(std::ios::skipws); // Don't skip whitespace
 
+
+        std::vector<uint8_t> ret;
+        ret.reserve(in.tellg());
         in.seekg(0, std::ios::beg);
-
-        str.assign((std::istreambuf_iterator<char>(in)),
-                   std::istreambuf_iterator<char>());
-        return str;
+        
+        ret.insert(ret.begin(),
+                std::istream_iterator<uint8_t>(in),
+                std::istream_iterator<uint8_t>());
+        return ret;
     }
 
     size_t boostHashCombine(size_t lhs, size_t rhs) {

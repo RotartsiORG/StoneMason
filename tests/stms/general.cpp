@@ -283,7 +283,11 @@ namespace {
     }
 
     TEST(Util, ReadFile) {
-        auto contents = stms::readFile("./res/test.txt");
+        auto raw = stms::readFile("./res/test.txt");
+        std::string contents;
+        contents.reserve(raw.size());
+        contents.insert(contents.begin(), raw.begin(), raw.end());
+        
         STMS_INFO("Read '{}'", contents);
         EXPECT_EQ(contents, "begin-Lorem Ipsum-end");
     }

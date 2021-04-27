@@ -11,7 +11,7 @@ int main() {
 
     auto *preWin = new stms::VKPartialWindow{640, 480, "StoneMason Vulkan Demo"};
 
-    stms::VKInstance inst(stms::VKInstance::ConstructionDetails{});
+    stms::VKInstance inst(stms::VKInstance::ConstructionDetails{"DEMO", 0, 0, 1, {}, {}, true, stms::VKInstance::ValidateMode::eWhitelist, {{"VK_LAYER_KHRONOS_validation"}}});
     auto gpus = inst.buildDeviceList(preWin);
     stms::VKDevice gpu(&inst, gpus[0], stms::VKDevice::ConstructionDetails{});
 
@@ -30,9 +30,9 @@ int main() {
     vk::SubpassDescription subDesc{{}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1, &ref, nullptr, nullptr, 0, nullptr};
     stms::VKRenderPass pass{&gpu, {{desc}}, {{subDesc}}, {}};
 
-    stms::VKPipeline pipeline{&layout, &pass, 0, {{&frag, &vert}}, {}};
+    stms::VKPipeline pipeline{&layout, &pass, 0, {{&frag, &vert}}, nullptr, {}};
 
-    STMS_INFO("{} {} {} {}", (void*) pipeline.pLayout, (void*) frag.mod, (void*) vert.mod, (void*) pass.pass); // prevent stuff from being optimized out
+    STMS_INFO("{} {} {} {}", (void*) pipeline.pipeline, (void*) frag.mod, (void*) vert.mod, (void*) pass.pass); // prevent stuff from being optimized out
 
     while (!win.shouldClose()) {
         stms::pollEvents();

@@ -17,6 +17,13 @@
 
 namespace stms {
 
+    struct VKShaderSpecialization {
+        typedef vk::SpecializationMapEntry Entry;
+
+        std::vector<Entry> entries;
+        std::vector<uint8_t> data;
+    };
+
     /// A vulkan shader! This object can be safely destroyed after it is used to create a pipeline.
     class VKShader {
     public:
@@ -29,14 +36,7 @@ namespace stms {
         // @throw If `stms::exceptionLevel > 0`, this will throw `std::runtime_error`
         //         *        if `glslSrc.size()` is not a multiple of 4.
 
-        /**
-         * @brief Constructor for VKShader
-         * @param dev Logical device to use to create this VKShader
-         * @param bytecode SPIR-V bytecode of the shader loaded from a file.
-         * @param shaderStage The stage of the shader. See Vulkan documentation for `VkShaderStageFlagBits`
-         * @param entryPoint Entry point of the shader, by default `main`.
-         */
-        VKShader(VKDevice *dev, const std::string &bytecode, const vk::ShaderStageFlagBits& shaderStage, const std::string &entryPoint = "main");
+        VKShader(VKDevice *dev, const std::vector<uint8_t> &bytecode, const vk::ShaderStageFlagBits& shaderStage, const std::string &entryPoint = "main", const VKShaderSpecialization &spec = {});
         virtual ~VKShader(); //!< Virtual destructor
 
         VKShader &operator=(const VKShader &rhs) = delete; //!< Deleted copy assignment operator
@@ -194,7 +194,7 @@ namespace stms {
     class VKPipeline {
     public:
 
-        VKPipelineLayout *pLayout;
+        VKDevice *pDev;
         vk::Pipeline pipeline;
 
         
